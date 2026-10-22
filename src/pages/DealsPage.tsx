@@ -1,0 +1,181 @@
+import { useMemo, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { useToast } from '../components/toast'
+import { Badge, Button, EmptyState, ErrorState, LoadingBlock, Segmented } from '../components/ui'
+import { groupDeals, verdictGroup } from '../domain/deals'
+import { parseStatusFilter } from '../domain/filters'
+import type { StatusFilter } from '../domain/filters'
+import { discountPercent, formatCad, formatDay, formatRelative, safeHttpUrl } from '../domain/format'
+import { statusLabel, verdictLabel, verdictTone } from '../domain/labels'
+import type { Deal, DealStatus } from '../domain/types'
+import { writeParams } from '../lib/search'
+import { useDocumentTitle } from '../lib/title'
+import { useCatalog } from '../state/catalog'
+
+const filters: { value: StatusFilter; label: string }[] = [
+  { value: 'open', label: 'Open' },
+  { value: 'bought', label: 'Bought' },
+  { value: 'dismissed', label: 'Dismissed' },
+  { value: 'expired', label: 'Expired' },
+  { value: 'all', label: 'All' },
+]
+
+export function DealsPage() {
+  useDocumentTitle('Deals')
+  const catalog = useCatalog()
+  const push = useToast()
+  const [params, setParams] = useSearchParams()
+  const [pendingId, setPendingId] = useState<string | null>(null)
+  const status = parseStatusFilter(params.get('status'))
+  const visible = useMemo(() => {
+    const selected = catalog.deals.filter((deal) => status === 'all' || deal.status === status)
+    return groupDeals(selected)
+  }, [catalog.deals, status])
+
+  async function mark(deal: Deal, next: DealStatus) {
+    setPendingId(deal.id)
+    try {
+      await catalog.setDealStatus(deal.id, next)
+      push('ok', dealMessage(next))
+    } catch (error) {
+      push('error', error instanceof Error ? error.message : 'Could not update the deal.')
+    } finally {
+      setPendingId(null)
+    }
+  }
+
+  if (!catalog.ready) return <LoadingBlock />
+  if (catalog.error && catalog.deals.length === 0 && catalog.items.length === 0) {
+    return <ErrorState message={catalog.error} onRetry={() => void catalog.refresh()} />
+  }
+
+  return (
+    <div>
+      <h1 className="font-display text-4xl">Deals</h1>
+      <p className="mt-1 text-sm text-muted">
+        {catalog.deals.filter((deal) => deal.status === 'open').length} open. Grouped by the checker’s verdict.
+      </p>
+      <div className="mt-5">
+        <Segmented
+          label="Deal status"
+          value={status}
+          options={filters}
+          onChange={(value) => setParams(writeParams(params, { status: value === 'open' ? null : value }), { replace: true })}
+        />
+      </div>
+      {catalog.deals.length === 0 ? (
+        <div className="mt-8">
+          <EmptyState title="No deals yet" body="When a watched price is worth a look, it will land here with a score, a verdict, and the reason." />
+        </div>
+      ) : visible.length === 0 ? (
+        <div className="mt-8">
+          <EmptyState title={`No ${statusLabel(status === 'all' ? 'open' : status).toLowerCase()} deals`} body="Try another status. Open deals are the ones still waiting on you." />
+        </div>
+      ) : (
+        <div className="mt-8 grid gap-8">
+          {visible.map((group) => (
+            <section key={group.verdict}>
+              <h2 className="font-display text-2xl">{verdictLabel(group.verdict)} <span className="text-muted">{group.deals.length}</span></h2>
+              <div className="mt-3 grid gap-3">
+                {group.deals.map((deal) => (
+                  <DealCard
+                    key={deal.id}
+                    deal={deal}
+                    itemName={catalog.items.find((item) => item.id === deal.item_id)?.name ?? 'Unknown item'}
+                    storeName={catalog.stores.find((store) => store.id === deal.store_id)?.name ?? 'Unknown store'}
+                    pending={pendingId === deal.id}
+                    onMark={(next) => void mark(deal, next)}
+                  />
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function DealCard({
+  deal,
+  itemName,
+  storeName,
+  pending,
+  onMark,
+}: {
+  deal: Deal
+  itemName: string
+  storeName: string
+  pending: boolean
+  onMark: (status: DealStatus) => void
+}) {
+  const href = safeHttpUrl(deal.url)
+  const discount = discountPercent(deal.price, deal.regular_price)
+  const pastExpiry = deal.expires_at != null && Date.parse(deal.expires_at) < Date.now() && deal.status === 'open'
+  return (
+    <article className="rounded-3xl border border-line bg-paper-2 p-4 md:p-5">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge className={verdictTone(verdictGroup(deal.verdict))}>{verdictLabel(verdictGroup(deal.verdict))}</Badge>
+            <Badge className="bg-paper text-muted">{statusLabel(deal.status)}</Badge>
+            {deal.score != null ? <span className="text-sm tabular-nums text-muted">Score {deal.score}</span> : null}
+          </div>
+          <h3 className="mt-2 font-display text-2xl">{deal.title}</h3>
+          <p className="mt-1 text-sm text-muted">
+            <Link className="underline" to={`/items/${deal.item_id}`}>{itemName}</Link>
+            {' · '}{storeName}
+            {' · '}{formatRelative(deal.found_at)}
+          </p>
+        </div>
+        <div>
+          <p className="font-display text-4xl tabular-nums">{formatCad(deal.price)}</p>
+          {deal.regular_price != null ? (
+            <p className="text-sm text-muted">
+              <s>{formatCad(deal.regular_price)}</s>
+              {discount != null ? ` · ${discount.toFixed(0)}%` : ''}
+            </p>
+          ) : null}
+        </div>
+      </div>
+      {deal.score != null ? (
+        <div className="mt-3 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-line" aria-hidden="true">
+          <div className="h-full bg-pine" style={{ width: `${deal.score}%` }} />
+        </div>
+      ) : null}
+      {deal.reason ? <p className="mt-3 max-w-2xl text-sm leading-6">{deal.reason}</p> : null}
+      <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-muted">
+        {deal.notified_at ? <span>Notified {formatRelative(deal.notified_at)}</span> : null}
+        {deal.expires_at ? <span>{pastExpiry ? 'Past the listed expiry' : `Expires ${formatDay(deal.expires_at)}`}</span> : null}
+        {href ? <a className="text-pine underline" href={href} target="_blank" rel="noopener noreferrer">Open listing</a> : null}
+      </div>
+      <div className="mt-4 flex flex-wrap gap-2">
+        {deal.status === 'open' ? (
+          <>
+            <Button size="sm" disabled={pending} onClick={() => onMark('bought')}>Mark bought</Button>
+            <Button size="sm" variant="secondary" disabled={pending} onClick={() => onMark('dismissed')}>Dismiss</Button>
+          </>
+        ) : (
+          <Button size="sm" variant="secondary" disabled={pending} onClick={() => onMark('open')}>Reopen</Button>
+        )}
+      </div>
+    </article>
+  )
+}
+
+function dealMessage(status: DealStatus): string {
+  switch (status) {
+    case 'bought':
+      return 'Marked as bought.'
+    case 'dismissed':
+      return 'Deal dismissed.'
+    case 'open':
+      return 'Deal reopened.'
+    case 'expired':
+      return 'Deal marked expired.'
+    default: {
+      const neverStatus: never = status
+      return neverStatus
+    }
+  }
+}

@@ -1,0 +1,12 @@
+node_modules
+dist
+.DS_Store
+.idea
+.vscode
+*.local
+.env
+.env.*
+!.env.example
+coverage
+.vite
+.playwright-mcp
