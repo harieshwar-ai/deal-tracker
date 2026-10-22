@@ -1,5 +1,6 @@
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
+import { useCanEdit } from '../auth/AuthProvider'
 import { StoreForm } from '../components/StoreForm'
 import { useToast } from '../components/toast'
 import { Badge, buttonClass, ConfirmDialog, EmptyState, ErrorState, LoadingBlock, Modal } from '../components/ui'
@@ -12,6 +13,7 @@ import { useCatalog } from '../state/catalog'
 export function StoresPage() {
   useDocumentTitle('Stores')
   const catalog = useCatalog()
+  const canEdit = useCanEdit()
   const push = useToast()
   const [editing, setEditing] = useState<Store | 'new' | null>(null)
   const [removing, setRemoving] = useState<Store | null>(null)
@@ -38,10 +40,12 @@ export function StoresPage() {
             The price checker should only visit enabled stores. Disabling one keeps its history. Deleting one keeps the snapshots, but they will no longer name the store.
           </p>
         </div>
-        <button type="button" className={buttonClass()} onClick={() => setEditing('new')}>
-          <Plus className="h-4 w-4" />
-          Add store
-        </button>
+        {canEdit ? (
+          <button type="button" className={buttonClass()} onClick={() => setEditing('new')}>
+            <Plus className="h-4 w-4" />
+            Add store
+          </button>
+        ) : null}
       </div>
       {stores.length === 0 ? (
         <div className="mt-8">
@@ -66,19 +70,21 @@ export function StoresPage() {
                 </div>
                 {href ? <a className="mt-3 inline-block text-sm text-pine underline" href={href} target="_blank" rel="noopener noreferrer">{href.replace(/^https?:\/\//, '')}</a> : null}
                 {store.notes ? <p className="mt-3 text-sm leading-6">{store.notes}</p> : null}
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <button type="button" className={buttonClass('secondary', 'sm')} onClick={() => void save(storeWrite(store, !store.enabled), store.id)}>
-                    {store.enabled ? 'Disable' : 'Enable'}
-                  </button>
-                  <button type="button" className={buttonClass('ghost', 'sm')} onClick={() => setEditing(store)} aria-label={`Edit ${store.name}`}>
-                    <Pencil className="h-4 w-4" />
-                    Edit
-                  </button>
-                  <button type="button" className={buttonClass('ghost', 'sm')} onClick={() => setRemoving(store)} aria-label={`Delete ${store.name}`}>
-                    <Trash2 className="h-4 w-4" />
-                    Delete
-                  </button>
-                </div>
+                {canEdit ? (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <button type="button" className={buttonClass('secondary', 'sm')} onClick={() => void save(storeWrite(store, !store.enabled), store.id)}>
+                      {store.enabled ? 'Disable' : 'Enable'}
+                    </button>
+                    <button type="button" className={buttonClass('ghost', 'sm')} onClick={() => setEditing(store)} aria-label={`Edit ${store.name}`}>
+                      <Pencil className="h-4 w-4" />
+                      Edit
+                    </button>
+                    <button type="button" className={buttonClass('ghost', 'sm')} onClick={() => setRemoving(store)} aria-label={`Delete ${store.name}`}>
+                      <Trash2 className="h-4 w-4" />
+                      Delete
+                    </button>
+                  </div>
+                ) : null}
               </article>
             )
           })}

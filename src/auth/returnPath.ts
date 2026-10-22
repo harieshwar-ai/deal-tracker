@@ -9,6 +9,8 @@ export function rememberReturnPath(): void {
     ? window.location.pathname.slice(base.length) || '/'
     : '/'
   const target = `${path}${window.location.search}`
+  const pathOnly = path.split('?')[0] ?? path
+  if (pathOnly === '/signin' || pathOnly.startsWith('/signin/')) return
   if (target === '/' || target.startsWith('//') || target.includes('code=')) return
   sessionStorage.setItem(storageKey, JSON.stringify({ path: target, at: Date.now() }))
 }
@@ -22,6 +24,7 @@ export function consumeReturnPath(): string | null {
     if (typeof parsed.path !== 'string' || typeof parsed.at !== 'number') return null
     if (Date.now() - parsed.at > maxAgeMs) return null
     if (!parsed.path.startsWith('/') || parsed.path.startsWith('//') || parsed.path.includes('://')) return null
+    if (parsed.path === '/signin' || parsed.path.startsWith('/signin?') || parsed.path.startsWith('/signin/')) return null
     return parsed.path
   } catch {
     return null

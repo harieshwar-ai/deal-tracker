@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { useCanEdit } from '../auth/AuthProvider'
 import { useToast } from '../components/toast'
 import { Badge, Button, EmptyState, ErrorState, LoadingBlock, Segmented } from '../components/ui'
 import { groupDeals, verdictGroup } from '../domain/deals'
@@ -23,6 +24,7 @@ const filters: { value: StatusFilter; label: string }[] = [
 export function DealsPage() {
   useDocumentTitle('Deals')
   const catalog = useCatalog()
+  const canEdit = useCanEdit()
   const push = useToast()
   const [params, setParams] = useSearchParams()
   const [pendingId, setPendingId] = useState<string | null>(null)
@@ -84,6 +86,7 @@ export function DealsPage() {
                     itemName={catalog.items.find((item) => item.id === deal.item_id)?.name ?? 'Unknown item'}
                     storeName={catalog.stores.find((store) => store.id === deal.store_id)?.name ?? 'Unknown store'}
                     pending={pendingId === deal.id}
+                    canEdit={canEdit}
                     onMark={(next) => void mark(deal, next)}
                   />
                 ))}
@@ -101,12 +104,14 @@ function DealCard({
   itemName,
   storeName,
   pending,
+  canEdit,
   onMark,
 }: {
   deal: Deal
   itemName: string
   storeName: string
   pending: boolean
+  canEdit: boolean
   onMark: (status: DealStatus) => void
 }) {
   const href = safeHttpUrl(deal.url)
@@ -149,16 +154,18 @@ function DealCard({
         {deal.expires_at ? <span>{pastExpiry ? 'Past the listed expiry' : `Expires ${formatDay(deal.expires_at)}`}</span> : null}
         {href ? <a className="text-pine underline" href={href} target="_blank" rel="noopener noreferrer">Open listing</a> : null}
       </div>
-      <div className="mt-4 flex flex-wrap gap-2">
-        {deal.status === 'open' ? (
-          <>
-            <Button size="sm" disabled={pending} onClick={() => onMark('bought')}>Mark bought</Button>
-            <Button size="sm" variant="secondary" disabled={pending} onClick={() => onMark('dismissed')}>Dismiss</Button>
-          </>
-        ) : (
-          <Button size="sm" variant="secondary" disabled={pending} onClick={() => onMark('open')}>Reopen</Button>
-        )}
-      </div>
+      {canEdit ? (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {deal.status === 'open' ? (
+            <>
+              <Button size="sm" disabled={pending} onClick={() => onMark('bought')}>Mark bought</Button>
+              <Button size="sm" variant="secondary" disabled={pending} onClick={() => onMark('dismissed')}>Dismiss</Button>
+            </>
+          ) : (
+            <Button size="sm" variant="secondary" disabled={pending} onClick={() => onMark('open')}>Reopen</Button>
+          )}
+        </div>
+      ) : null}
     </article>
   )
 }

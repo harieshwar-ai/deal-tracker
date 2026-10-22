@@ -1,8 +1,8 @@
 import { BarChart3, List, LogOut, RefreshCw, Store, Tag } from 'lucide-react'
 import { Suspense, useEffect, useRef } from 'react'
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
-import { consumeReturnPath } from '../auth/returnPath'
+import { consumeReturnPath, rememberReturnPath } from '../auth/returnPath'
 import { LoadingBlock } from './ui'
 import { cn } from '../lib/cn'
 import { leavePreview } from '../preview/mode'
@@ -16,7 +16,7 @@ const links = [
 ]
 
 export function Shell() {
-  const { email, signOut, session } = useAuth()
+  const { email, notice, signOut, session } = useAuth()
   const catalog = useCatalog()
   const navigate = useNavigate()
   const consumed = useRef(false)
@@ -52,6 +52,11 @@ export function Shell() {
             <NavItem key={link.to} {...link} count={link.to === '/deals' ? openDeals : 0} />
           ))}
         </nav>
+        <div className="mt-auto px-3 pt-6 text-sm text-paper-2/70">
+          {catalog.source === 'preview' ? 'Sample data' : session ? 'Owner' : (
+            <Link to="/signin" className="underline" onClick={() => rememberReturnPath()}>Owner sign-in</Link>
+          )}
+        </div>
       </aside>
       <div className="min-w-0">
         <header className="flex items-center justify-between gap-3 border-b border-line px-4 py-3 md:px-8">
@@ -68,14 +73,30 @@ export function Shell() {
             >
               <RefreshCw className={cn('h-4 w-4', catalog.refreshing && 'animate-spin')} />
             </button>
-            <span className="hidden max-w-48 truncate text-sm text-muted sm:inline">
-              {catalog.source === 'preview' ? 'Preview' : email}
-            </span>
-            <button type="button" className="rounded-full p-2 text-muted hover:bg-paper" onClick={() => void exit()} aria-label={catalog.source === 'preview' ? 'Leave preview' : 'Sign out'}>
-              <LogOut className="h-4 w-4" />
-            </button>
+            {catalog.source === 'preview' ? (
+              <>
+                <span className="hidden max-w-48 truncate text-sm text-muted sm:inline">Preview</span>
+                <button type="button" className="rounded-full p-2 text-muted hover:bg-paper" onClick={() => void exit()} aria-label="Leave preview">
+                  <LogOut className="h-4 w-4" />
+                </button>
+              </>
+            ) : session ? (
+              <>
+                <span className="hidden max-w-48 truncate text-sm text-muted sm:inline">{email}</span>
+                <button type="button" className="rounded-full p-2 text-muted hover:bg-paper" onClick={() => void exit()} aria-label="Sign out">
+                  <LogOut className="h-4 w-4" />
+                </button>
+              </>
+            ) : (
+              <Link to="/signin" className="text-sm text-muted underline" onClick={() => rememberReturnPath()}>
+                Owner sign-in
+              </Link>
+            )}
           </div>
         </header>
+        {notice && catalog.source !== 'preview' ? (
+          <p className="mx-4 mt-4 rounded-2xl border border-clay/30 bg-clay-soft px-4 py-3 text-sm md:mx-8">{notice}</p>
+        ) : null}
         {catalog.error ? (
           <p className="mx-4 mt-4 rounded-2xl border border-clay/30 bg-clay-soft px-4 py-3 text-sm md:mx-8">
             {catalog.error}

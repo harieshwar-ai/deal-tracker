@@ -1,6 +1,7 @@
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { useCanEdit } from '../auth/AuthProvider'
 import { Sparkline } from '../components/Sparkline'
 import { ItemForm } from '../components/ItemForm'
 import { useToast } from '../components/toast'
@@ -21,6 +22,7 @@ const sorts: WatchSort[] = ['target_gap', 'price_asc', 'priority', 'name', 'upda
 export function WatchlistPage() {
   useDocumentTitle('Watchlist')
   const catalog = useCatalog()
+  const canEdit = useCanEdit()
   const push = useToast()
   const [params, setParams] = useSearchParams()
   const [editing, setEditing] = useState<Item | null | 'new'>(null)
@@ -59,10 +61,12 @@ export function WatchlistPage() {
           <h1 className="font-display text-4xl">Watchlist</h1>
           <p className="mt-1 text-sm text-muted">{catalog.items.filter((item) => item.active).length} active items</p>
         </div>
-        <button type="button" className={buttonClass()} onClick={() => setEditing('new')}>
-          <Plus className="h-4 w-4" />
-          Add item
-        </button>
+        {canEdit ? (
+          <button type="button" className={buttonClass()} onClick={() => setEditing('new')}>
+            <Plus className="h-4 w-4" />
+            Add item
+          </button>
+        ) : null}
       </div>
       <div className="mt-6 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
         <input
@@ -102,8 +106,10 @@ export function WatchlistPage() {
         <div className="mt-8">
           <EmptyState
             title="Nothing to watch yet"
-            body="Add the things you actually want to buy. The daily check will attach prices from the stores you keep enabled."
-            action={<button type="button" className={buttonClass()} onClick={() => setEditing('new')}>Add the first item</button>}
+            body={canEdit
+              ? 'Add the things you actually want to buy. The daily check will attach prices from the stores you keep enabled.'
+              : 'The watchlist is empty right now. Prices show up here after the owner adds an item.'}
+            action={canEdit ? <button type="button" className={buttonClass()} onClick={() => setEditing('new')}>Add the first item</button> : undefined}
           />
         </div>
       ) : rows.length === 0 ? (
@@ -113,7 +119,13 @@ export function WatchlistPage() {
       ) : (
         <div className="mt-6 grid gap-4">
           {rows.map((row) => (
-            <WatchCard key={row.item.id} row={row} onEdit={() => setEditing(row.item)} onDelete={() => setRemoving(row.item)} />
+            <WatchCard
+              key={row.item.id}
+              row={row}
+              canEdit={canEdit}
+              onEdit={() => setEditing(row.item)}
+              onDelete={() => setRemoving(row.item)}
+            />
           ))}
         </div>
       )}
@@ -160,7 +172,17 @@ export function WatchlistPage() {
   )
 }
 
-function WatchCard({ row, onEdit, onDelete }: { row: WatchRow; onEdit: () => void; onDelete: () => void }) {
+function WatchCard({
+  row,
+  canEdit,
+  onEdit,
+  onDelete,
+}: {
+  row: WatchRow
+  canEdit: boolean
+  onEdit: () => void
+  onDelete: () => void
+}) {
   const gap = gapCopy(row.targetGap)
   const deal = row.openDeal
   return (
@@ -213,14 +235,16 @@ function WatchCard({ row, onEdit, onDelete }: { row: WatchRow; onEdit: () => voi
             )
           })}
         </ul>
-        <div className="flex gap-1">
-          <button type="button" className="rounded-full p-2 text-muted hover:bg-paper" aria-label={`Edit ${row.item.name}`} onClick={onEdit}>
-            <Pencil className="h-4 w-4" />
-          </button>
-          <button type="button" className="rounded-full p-2 text-muted hover:bg-paper" aria-label={`Delete ${row.item.name}`} onClick={onDelete}>
-            <Trash2 className="h-4 w-4" />
-          </button>
-        </div>
+        {canEdit ? (
+          <div className="flex gap-1">
+            <button type="button" className="rounded-full p-2 text-muted hover:bg-paper" aria-label={`Edit ${row.item.name}`} onClick={onEdit}>
+              <Pencil className="h-4 w-4" />
+            </button>
+            <button type="button" className="rounded-full p-2 text-muted hover:bg-paper" aria-label={`Delete ${row.item.name}`} onClick={onDelete}>
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
+        ) : null}
       </div>
     </article>
   )
