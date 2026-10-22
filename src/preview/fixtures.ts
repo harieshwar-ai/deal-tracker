@@ -87,6 +87,7 @@ function item(
   return {
     id,
     name,
+    public_summary: `${name} at Canadian stores.`,
     description: null,
     category,
     keywords,

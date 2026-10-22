@@ -10,6 +10,7 @@ export interface AnalyticsFilters {
   category: string | null
   storeId: string | null
   now?: Date
+  includeTargets?: boolean
 }
 
 export interface IndexedPoint {
@@ -111,6 +112,7 @@ interface DayPrice {
 }
 
 export function computeAnalytics(data: Dataset, filters: AnalyticsFilters): AnalyticsModel {
+  const includeTargets = filters.includeTargets !== false
   const now = filters.now ?? new Date()
   const nowIso = now.toISOString()
   const start = rangeStart(filters.preset, now)
@@ -131,7 +133,7 @@ export function computeAnalytics(data: Dataset, filters: AnalyticsFilters): Anal
   )
   const periodDeals = scopedDeals.filter((deal) => inRange(deal.found_at, start, nowIso))
   const quotesByItem = quotesFromHistory(history, data.stores)
-  const current = summarizeCurrent(scopedItems, quotesByItem)
+  const current = summarizeCurrent(scopedItems, quotesByItem, includeTargets)
   const { perItemDay, allDays } = dailyPrices(period, data.stores)
   const trend = buildTrend(scopedItems, perItemDay, allDays)
   const storeStats = buildStoreStats(data.stores, period, perItemDay, filters.storeId)
@@ -139,7 +141,7 @@ export function computeAnalytics(data: Dataset, filters: AnalyticsFilters): Anal
   const dealFlowGrain = flowGrain(periodDeals)
   const dealFlow = buildDealFlow(periodDeals, dealFlowGrain)
   const allTimeLows = buildAtl(scopedItems, history, quotesByItem, data.stores)
-  const categories = buildCategories(scopedItems, scopedDeals, quotesByItem)
+  const categories = buildCategories(scopedItems, scopedDeals, quotesByItem, includeTargets)
   const statusTotals = emptyStatusTotals()
   for (const deal of periodDeals) statusTotals[deal.status] += 1
 
@@ -171,7 +173,7 @@ export function computeAnalytics(data: Dataset, filters: AnalyticsFilters): Anal
     allTimeLows,
     statusTotals,
   }
-  return { ...modelWithoutInsight, insight: buildInsight(modelWithoutInsight) }
+  return { ...modelWithoutInsight, insight: buildInsight(modelWithoutInsight, includeTargets) }
 }
 
 export function rangeStart(preset: DatePreset, now: Date): string | null {
@@ -232,7 +234,7 @@ function quotesFromHistory(history: PriceSnapshot[], stores: Store[]): Map<strin
   return grouped
 }
 
-function summarizeCurrent(items: Item[], quotesByItem: Map<string, Quote[]>) {
+function summarizeCurrent(items: Item[], quotesByItem: Map<string, Quote[]>, includeTargets: boolean) {
   let pricedItemCount = 0
   let underTargetCount = 0
   let underTargetSavings = 0
@@ -242,7 +244,7 @@ function summarizeCurrent(items: Item[], quotesByItem: Map<string, Quote[]>) {
     const best = chooseBest(quotesByItem.get(item.id) ?? [])
     if (!best) continue
     pricedItemCount += 1
-    if (item.target_price != null) {
+    if (includeTargets && item.target_price != null) {
       const gap = item.target_price - best.price
       if (gap > 0) {
         underTargetCount += 1
@@ -460,7 +462,7 @@ function scoreBuckets(deals: Deal[]): ScoreBucket[] {
   }))
 }
 
-function buildCategories(items: Item[], deals: Deal[], quotesByItem: Map<string, Quote[]>): CategoryStat[] {
+function buildCategories(items: Item[], deals: Deal[], quotesByItem: Map<string, Quote[]>, includeTargets: boolean): CategoryStat[] {
   const groups = new Map<string, Item[]>()
   for (const item of items) {
     const key = categoryKey(item.category)
@@ -476,7 +478,7 @@ function buildCategories(items: Item[], deals: Deal[], quotesByItem: Map<string,
       let discountCount = 0
       for (const item of group) {
         const best = chooseBest(quotesByItem.get(item.id) ?? [])
-        if (best && item.target_price != null && best.price < item.target_price) underTarget += 1
+        if (includeTargets && best && item.target_price != null && best.price < item.target_price) underTarget += 1
         if (best?.regularPrice != null && best.regularPrice > 0) {
           discountSum += ((best.regularPrice - best.price) / best.regularPrice) * 100
           discountCount += 1
@@ -531,9 +533,11 @@ function emptyStatusTotals(): Record<DealStatus, number> {
   return { open: 0, bought: 0, dismissed: 0, expired: 0 }
 }
 
-function buildInsight(model: Omit<AnalyticsModel, 'insight'>): string {
+function buildInsight(model: Omit<AnalyticsModel, 'insight'>, includeTargets: boolean): string {
   if (model.itemCount === 0) {
-    return 'Add a watchlist item and Harbour will compare stores, targets, and all-time lows.'
+    return includeTargets
+      ? 'Add a watchlist item and Harbour will compare stores, targets, and all-time lows.'
+      : 'Harbour compares Canadian store prices, regular prices, and all-time lows.'
   }
   if (model.pricedItemCount === 0) {
     return 'Items are on the watchlist, and prices will show up here after the daily check records a snapshot.'
@@ -542,6 +546,15 @@ function buildInsight(model: Omit<AnalyticsModel, 'insight'>): string {
   const leaderText = leader
     ? `${leader.storeName} was cheapest on ${leader.wins} of ${model.itemDays} item-days in ${model.periodLabel}.`
     : `No store has a recorded price in ${model.periodLabel}.`
+  if (!includeTargets) {
+    const savingsText = model.regularSavings > 0
+      ? `Current best prices are ${formatCadInline(model.regularSavings)} under the regular prices on those listings.`
+      : 'No current listing is below its regular price.'
+    const lowText = model.atLowCount > 0
+      ? `${model.atLowCount} ${model.atLowCount === 1 ? 'item is' : 'items are'} at an all-time low.`
+      : 'Nothing is at its all-time low right now.'
+    return `${leaderText} ${savingsText} ${lowText}`
+  }
   const targetText =
     model.underTargetCount > 0
       ? `${model.underTargetCount} ${model.underTargetCount === 1 ? 'item is' : 'items are'} under target by ${formatCadInline(model.underTargetSavings)} at the current best in-stock price.`

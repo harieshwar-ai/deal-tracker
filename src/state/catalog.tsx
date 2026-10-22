@@ -1,5 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
+import { useAuth } from '../auth/AuthProvider'
+import { isOwnerSession } from '../auth/owner'
 import { withDealStatus, withItem, withoutItem, withStore, withoutStore } from '../domain/mutate'
 import type { Dataset, DealStatus, Item, ItemWrite, Store, StoreWrite } from '../domain/types'
 import { deleteItem as removeItem, deleteStore as removeStore, loadDataset, saveItem as persistItem, saveStore as persistStore, setDealStatus as persistDealStatus } from '../data/remote'
@@ -32,6 +34,8 @@ export function useCatalog(): CatalogValue {
 }
 
 export function RemoteCatalogProvider({ children }: { children: ReactNode }) {
+  const { session } = useAuth()
+  const owner = isOwnerSession(session?.user.id)
   const [data, setData] = useState<Dataset>(empty)
   const [ready, setReady] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
@@ -41,14 +45,14 @@ export function RemoteCatalogProvider({ children }: { children: ReactNode }) {
     setRefreshing(true)
     setError(null)
     try {
-      setData(await loadDataset())
+      setData(await loadDataset(owner))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not load your data.')
     } finally {
       setRefreshing(false)
       setReady(true)
     }
-  }, [])
+  }, [owner])
 
   useEffect(() => {
     void refresh()
@@ -117,6 +121,7 @@ export function PreviewCatalogProvider({ children }: { children: ReactNode }) {
         const item: Item = {
           id: id ?? crypto.randomUUID(),
           name: write.name,
+          public_summary: write.public_summary,
           description: write.description,
           category: write.category,
           keywords: write.keywords,

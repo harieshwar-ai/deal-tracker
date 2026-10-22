@@ -38,6 +38,7 @@ function makeItem(id: string, name: string, category: string, target: number, pr
   return {
     id,
     name,
+    public_summary: null,
     description: null,
     category,
     keywords: [name.split(' ')[0]?.toLowerCase() ?? 'item'],
@@ -157,6 +158,7 @@ describe('drafts and rows', () => {
   it('parses item and store drafts', () => {
     const item = parseItemDraft({
       name: '  TV  ',
+      publicSummary: 'A television.',
       description: '',
       category: 'Electronics',
       keywords: 'OLED, oled, 4K',
@@ -173,6 +175,7 @@ describe('drafts and rows', () => {
       expect(item.value.keywords).toEqual(['OLED', '4K'])
       expect(item.value.condition).toBe('new')
       expect(item.value.target_price).toBe(1800)
+      expect(item.value.public_summary).toBe('A television.')
     }
     expect(parseItemDraft({ ...blankish(), name: ' ', targetPrice: '12.345' }).ok).toBe(false)
     const store = parseStoreDraft({
@@ -293,6 +296,16 @@ describe('analytics', () => {
     expect(model.dealFlowGrain).toBe('day')
   })
 
+  it('leaves targets out of the public summary', () => {
+    const model = computeAnalytics(sample(), { preset: '30d', category: null, storeId: null, now, includeTargets: false })
+    expect(model.underTargetCount).toBe(0)
+    expect(model.regularSavings).toBe(506)
+    expect(model.atLowCount).toBe(2)
+    expect(model.insight.toLowerCase()).not.toContain('target')
+    expect(model.insight).toMatch(/regular/)
+    expect(model.categories.every((entry) => entry.underTarget === 0)).toBe(true)
+  })
+
   it('respects category and store filters without letting another currency set the low', () => {
     const amazonOnly = computeAnalytics(sample(), { preset: '30d', category: null, storeId: 'amazon', now })
     expect(amazonOnly.pricedItemCount).toBe(1)
@@ -340,6 +353,7 @@ describe('history, preview, and deletes', () => {
 function blankish() {
   return {
     name: '',
+    publicSummary: '',
     description: '',
     category: '',
     keywords: '',

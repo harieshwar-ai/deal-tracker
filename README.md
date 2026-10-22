@@ -32,7 +32,7 @@ Already applied (`supabase/migrations/20261022204401_init_deal_tracker.sql`). Do
 | Table | What it holds |
 | --- | --- |
 | `stores` | Whitelisted shops. Seeded: Costco (Executive), Amazon (Prime), Walmart, Canada Computers, Best Buy, Staples, Visions Electronics. `enabled` tells the checker whether to visit the store. Deleting a store sets `store_id` to null on snapshots and deals. |
-| `items` | The watchlist. Priority is `low`, `normal`, or `high`. Deleting an item cascades to its snapshots and deals. |
+| `items` | The watchlist. Priority is `low`, `normal`, or `high`. `public_summary` is the only description visitors see. Deleting an item cascades to its snapshots and deals. |
 | `price_snapshots` | One observed price. `price` is required. `currency` defaults to `CAD`. |
 | `deals` | A scored offer. Verdict is `must_buy`, `good`, `ok`, or `skip`. Status is `open`, `bought`, `dismissed`, or `expired`. |
 
@@ -47,6 +47,8 @@ Apply `supabase/migrations/20261022223000_analytics_views.sql` when you can. It 
 Both views use `security_invoker`, so the row policies on `price_snapshots` still apply.
 
 `supabase/migrations/20261022234500_public_read_owner_write.sql` is the repo record of the production migration `public_read_owner_write`. It is already applied. The file drops the old `owner full access` policies if they exist, then creates `public read`, `owner insert`, `owner update`, and `owner delete`, and grants `SELECT` to `anon` on the four tables and the two views. Re-running it is safe.
+
+`supabase/migrations/20261022235500_public_column_privileges.sql` is the repo record of production migration `public_column_privileges`. It is already applied. The file adds `items.public_summary` if it is missing and replaces the anon table-level `SELECT` on `items`, `stores`, and `deals` with column lists. Visitors cannot read item descriptions, notes, targets, or max prices; store membership or notes; or deal reasons. Re-running it is safe. Signed-out visitors select only those columns.
 
 ## Local development
 
@@ -119,7 +121,7 @@ Paste this into Authentication → Emails → Templates → Magic link:
 1. **Pages source.** Settings → Pages → GitHub Actions, as above. The site is already live.
 2. **Owner password.** Set the password on the existing owner account in the Supabase dashboard (or the Auth admin API). The app does not create users.
 3. **Keep public sign-ups off.** Authentication → Sign In / Providers → Email → “Allow new users to sign up” stays disabled. Enable the email provider so the password form works, and leave the 6-digit code available as the backup.
-4. **Leave the SQL alone.** `20261022204401_init_deal_tracker.sql` and `20261022234500_public_read_owner_write.sql` are already applied. The public-read file is safe to re-run. Apply `20261022223000_analytics_views.sql` only if it is missing from `schema_migrations`.
+4. **Column privileges.** `public_column_privileges` is already applied. The matching file is `supabase/migrations/20261022235500_public_column_privileges.sql`, and re-running it is safe. Leave `20261022204401_init_deal_tracker.sql` and `20261022234500_public_read_owner_write.sql` alone. Apply `20261022223000_analytics_views.sql` only if it is missing from `schema_migrations`.
 5. Paste the Magic link template above if you still want the backup email to include both the code and the link. The built-in Supabase mailer allows about two emails an hour. The code button waits 60 seconds between sends and shows the server’s 429 message when the hourly cap is hit. Day-to-day sign-in uses the password and does not send mail.
 
 ## How the numbers work

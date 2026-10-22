@@ -148,7 +148,7 @@ function DealCard({
           <div className="h-full bg-pine" style={{ width: `${deal.score}%` }} />
         </div>
       ) : null}
-      {deal.reason ? <p className="mt-3 max-w-2xl text-sm leading-6">{deal.reason}</p> : null}
+      {canEdit && deal.reason ? <p className="mt-3 max-w-2xl text-sm leading-6">{deal.reason}</p> : null}
       <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-muted">
         {deal.notified_at ? <span>Notified {formatRelative(deal.notified_at)}</span> : null}
         {deal.expires_at ? <span>{pastExpiry ? 'Past the listed expiry' : `Expires ${formatDay(deal.expires_at)}`}</span> : null}

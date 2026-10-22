@@ -15,6 +15,7 @@ const PRICE = /^(?:0|[1-9]\d{0,7})(?:\.\d{1,2})?$/
 export function blankItemDraft(): ItemDraft {
   return {
     name: '',
+    publicSummary: '',
     description: '',
     category: '',
     keywords: '',
@@ -41,6 +42,7 @@ export function blankStoreDraft(): StoreDraft {
 export function itemToDraft(item: Item): ItemDraft {
   return {
     name: item.name,
+    publicSummary: item.public_summary ?? '',
     description: item.description ?? '',
     category: item.category ?? '',
     keywords: item.keywords.join(', '),
@@ -67,6 +69,7 @@ export function storeToDraft(store: Store): StoreDraft {
 export function parseItemDraft(draft: ItemDraft): ParseResult<ItemWrite> {
   const errors: FieldError[] = []
   const name = requiredText(draft.name, 'name', 'Name', 160, errors)
+  const publicSummary = optionalText(draft.publicSummary, 'publicSummary', 500, errors)
   const description = optionalText(draft.description, 'description', 4000, errors)
   const category = optionalText(draft.category, 'category', 80, errors)
   const notes = optionalText(draft.notes, 'notes', 4000, errors)
@@ -79,6 +82,7 @@ export function parseItemDraft(draft: ItemDraft): ParseResult<ItemWrite> {
     ok: true,
     value: {
       name,
+      public_summary: publicSummary,
       description,
       category,
       keywords,

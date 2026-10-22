@@ -6,7 +6,7 @@ import { ItemForm } from '../components/ItemForm'
 import { useToast } from '../components/toast'
 import { Badge, Button, ConfirmDialog, EmptyState, LoadingBlock, Modal } from '../components/ui'
 import { itemToDraft } from '../domain/drafts'
-import { discountPercent, formatCad, formatDay, formatRelative, safeHttpUrl } from '../domain/format'
+import { discountPercent, formatCad, formatDay, formatPct, formatRelative, safeHttpUrl } from '../domain/format'
 import { buildPriceHistory } from '../domain/history'
 import { priorityLabel, priorityTone, verdictLabel, verdictTone } from '../domain/labels'
 import { allTimeLow, chooseBest, latestSnapshots, quoteFromSnapshot } from '../domain/quotes'
@@ -79,31 +79,40 @@ export function ItemPage() {
           </div>
         ) : null}
       </div>
-      {item.description ? <p className="mt-4 max-w-2xl text-sm leading-6">{item.description}</p> : null}
+      {item.public_summary ? <p className="mt-4 max-w-2xl text-sm leading-6">{item.public_summary}</p> : null}
+      {canEdit && item.description ? <p className="mt-4 max-w-2xl text-sm leading-6 text-muted">{item.description}</p> : null}
       {item.keywords.length > 0 ? (
         <ul className="mt-3 flex flex-wrap gap-2">
           {item.keywords.map((keyword) => <li key={keyword}><Badge className="bg-paper text-muted">{keyword}</Badge></li>)}
         </ul>
       ) : null}
-      {item.notes ? <p className="mt-4 max-w-2xl rounded-2xl bg-paper px-4 py-3 text-sm leading-6">{item.notes}</p> : null}
+      {canEdit && item.notes ? <p className="mt-4 max-w-2xl rounded-2xl bg-paper px-4 py-3 text-sm leading-6">{item.notes}</p> : null}
 
       <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Stat label="Current best" value={best ? formatCad(best.price) : '—'} detail={best ? `${best.storeName} · ${formatRelative(best.capturedAt)}` : 'No in-stock CAD price yet'} />
         <Stat label="Cheapest ever" value={low ? formatCad(low.price) : '—'} detail={low ? `${catalog.stores.find((store) => store.id === low.store_id)?.name ?? 'Unknown store'} · ${formatDay(low.captured_at)}` : 'No CAD snapshots yet'} />
-        <Stat label="Target" value={item.target_price != null ? formatCad(item.target_price) : '—'} detail={gap == null ? 'Set a target to compare' : gap <= 0 ? `${formatCad(Math.abs(gap))} under target` : `${formatCad(gap)} over target`} />
-        <Stat label="Max price" value={item.max_price != null ? formatCad(item.max_price) : '—'} detail={`${snapshots.length} snapshots · ${deals.length} open deals`} />
+        {canEdit ? (
+          <Stat label="Target" value={item.target_price != null ? formatCad(item.target_price) : '—'} detail={gap == null ? 'Set a target to compare' : gap <= 0 ? `${formatCad(Math.abs(gap))} under target` : `${formatCad(gap)} over target`} />
+        ) : (
+          <Stat label="Vs regular" value={best?.regularPrice != null && best.regularPrice > best.price ? formatCad(best.regularPrice - best.price) : '—'} detail={best?.regularPrice != null ? `Regular ${formatCad(best.regularPrice)}` : 'No regular price on the current offer'} />
+        )}
+        {canEdit ? (
+          <Stat label="Max price" value={item.max_price != null ? formatCad(item.max_price) : '—'} detail={`${snapshots.length} snapshots · ${deals.length} open deals`} />
+        ) : (
+          <Stat label="From all-time low" value={best && low && low.price > 0 ? formatPct(((best.price - low.price) / low.price) * 100, 0) : '—'} detail={low ? 'Compared with the lowest CAD price saved' : 'No CAD snapshots yet'} />
+        )}
       </div>
 
       <section className="mt-8 rounded-3xl border border-line bg-paper-2 p-4 md:p-5">
         <h2 className="font-display text-2xl">Price history</h2>
-        <p className="mt-1 text-sm text-muted">Daily lowest CAD price at each store. The dashed line is your target.</p>
+        <p className="mt-1 text-sm text-muted">{canEdit ? 'Daily lowest CAD price at each store. The dashed line is your target.' : 'Daily lowest CAD price at each store.'}</p>
         {history.rows.length === 0 ? (
           <div className="mt-4">
             <EmptyState title="No prices yet" body="Once the daily check records a snapshot, the chart and the table below will fill in." />
           </div>
         ) : (
           <div className="mt-4">
-            <PriceHistoryChart rows={history.rows} series={history.series} target={item.target_price} />
+            <PriceHistoryChart rows={history.rows} series={history.series} target={canEdit ? item.target_price : null} />
           </div>
         )}
       </section>

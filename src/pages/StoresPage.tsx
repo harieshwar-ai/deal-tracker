@@ -61,7 +61,7 @@ export function StoresPage() {
                   <div>
                     <h2 className="font-display text-3xl">{store.name}</h2>
                     <p className="mt-1 text-sm text-muted">
-                      {[store.country ?? 'CA', store.membership].filter(Boolean).join(' · ')}
+                      {[store.country ?? 'CA', canEdit ? store.membership : null].filter(Boolean).join(' · ')}
                     </p>
                   </div>
                   <Badge className={store.enabled ? 'bg-pine-soft text-pine' : 'bg-paper text-muted'}>
@@ -69,7 +69,7 @@ export function StoresPage() {
                   </Badge>
                 </div>
                 {href ? <a className="mt-3 inline-block text-sm text-pine underline" href={href} target="_blank" rel="noopener noreferrer">{href.replace(/^https?:\/\//, '')}</a> : null}
-                {store.notes ? <p className="mt-3 text-sm leading-6">{store.notes}</p> : null}
+                {canEdit && store.notes ? <p className="mt-3 text-sm leading-6">{store.notes}</p> : null}
                 {canEdit ? (
                   <div className="mt-4 flex flex-wrap gap-2">
                     <button type="button" className={buttonClass('secondary', 'sm')} onClick={() => void save(storeWrite(store, !store.enabled), store.id)}>

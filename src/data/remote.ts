@@ -1,15 +1,16 @@
 import type { DealStatus, Dataset, ItemWrite, StoreWrite } from '../domain/types'
 import { supabase } from '../lib/supabase'
+import { selectColumns } from './columns'
 import { friendlyError, parseDealRow, parseItemRow, parseSnapshotRow, parseStoreRow } from './parse'
 
 const pageSize = 1000
 
-export async function loadDataset(): Promise<Dataset> {
+export async function loadDataset(owner: boolean): Promise<Dataset> {
   const [items, stores, snapshots, deals] = await Promise.all([
-    fetchAll('items', 'created_at'),
-    fetchAll('stores', 'name'),
-    fetchAll('price_snapshots', 'id'),
-    fetchAll('deals', 'found_at'),
+    fetchAll('items', 'created_at', owner),
+    fetchAll('stores', 'name', owner),
+    fetchAll('price_snapshots', 'id', owner),
+    fetchAll('deals', 'found_at', owner),
   ])
   return {
     items: items.map((row) => parseItemRow(row)),
@@ -50,12 +51,17 @@ export async function setDealStatus(id: string, status: DealStatus): Promise<voi
   if (error) throw new Error(friendlyError(error))
 }
 
-async function fetchAll(table: 'items' | 'stores' | 'price_snapshots' | 'deals', order: string): Promise<unknown[]> {
+async function fetchAll(
+  table: 'items' | 'stores' | 'price_snapshots' | 'deals',
+  order: string,
+  owner: boolean,
+): Promise<unknown[]> {
   const rows: unknown[] = []
+  const columns = selectColumns(table, owner)
   for (let from = 0; ; from += pageSize) {
     const { data, error } = await supabase
       .from(table)
-      .select('*')
+      .select(columns)
       .order(order, { ascending: true })
       .order('id', { ascending: true })
       .range(from, from + pageSize - 1)

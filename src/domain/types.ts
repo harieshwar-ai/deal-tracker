@@ -21,6 +21,7 @@ export interface Store {
 export interface Item {
   id: string
   name: string
+  public_summary: string | null
   description: string | null
   category: string | null
   keywords: string[]
@@ -76,6 +77,7 @@ export interface Dataset {
 
 export interface ItemWrite {
   name: string
+  public_summary: string | null
   description: string | null
   category: string | null
   keywords: string[]
@@ -98,6 +100,7 @@ export interface StoreWrite {
 
 export interface ItemDraft {
   name: string
+  publicSummary: string
   description: string
   category: string
   keywords: string

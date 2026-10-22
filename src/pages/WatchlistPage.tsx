@@ -32,7 +32,8 @@ export function WatchlistPage() {
   const category = params.get('category')
   const priority = parsePriorityFilter(params.get('priority'))
   const activity = parseActivity(params.get('activity'))
-  const sort = parseSort(params.get('sort'))
+  const requestedSort = parseSort(params.get('sort'))
+  const sort = !canEdit && requestedSort === 'target_gap' ? 'price_asc' : requestedSort
   const criteria = { query, category, priority, activity, sort }
   const rows = useMemo(() => {
     const built = buildWatchRows({
@@ -87,7 +88,7 @@ export function WatchlistPage() {
           <option value="low">Low</option>
         </select>
         <select className={controlClass} aria-label="Sort" value={criteria.sort} onChange={(event) => update({ sort: event.target.value === 'target_gap' ? null : event.target.value })}>
-          {sorts.map((sort) => <option key={sort} value={sort}>{sortLabel(sort)}</option>)}
+          {(canEdit ? sorts : sorts.filter((entry) => entry !== 'target_gap')).map((sort) => <option key={sort} value={sort}>{sortLabel(sort)}</option>)}
         </select>
       </div>
       <div className="mt-3">
@@ -200,8 +201,9 @@ function WatchCard({
           </div>
           <p className="mt-2 text-sm text-muted">
             {[row.item.category, row.item.condition].filter(Boolean).join(' · ') || 'No category'}
-            {row.item.target_price != null ? ` · target ${formatCad(row.item.target_price)}` : ''}
+            {canEdit && row.item.target_price != null ? ` · target ${formatCad(row.item.target_price)}` : ''}
           </p>
+          {!canEdit && row.item.public_summary ? <p className="mt-2 text-sm leading-6 text-ink">{row.item.public_summary}</p> : null}
         </div>
         <div className="text-left sm:text-right">
           <p className="font-display text-4xl tabular-nums">{row.best ? formatCad(row.best.price) : '—'}</p>
@@ -209,7 +211,7 @@ function WatchCard({
             {row.best ? `${row.best.storeName} · ${formatRelative(row.best.capturedAt)}` : 'No price yet'}
             {row.best?.inStock === false ? ' · Out of stock' : ''}
           </p>
-          {gap ? <p className={`text-sm ${gap.className}`}>{gap.text}</p> : null}
+          {canEdit && gap ? <p className={`text-sm ${gap.className}`}>{gap.text}</p> : null}
         </div>
       </div>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
