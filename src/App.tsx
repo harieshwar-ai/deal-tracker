@@ -41,9 +41,9 @@ class AppErrorBoundary extends Component<{ children: ReactNode }, BoundaryState>
   }
 }
 
-function Gate() {
+function PublicApp() {
   const preview = previewRequested()
-  const { ready, session } = useAuth()
+  const { ready } = useAuth()
   if (!preview && !ready) {
     return (
       <main className="grid min-h-screen place-items-center">
@@ -51,7 +51,6 @@ function Gate() {
       </main>
     )
   }
-  if (!preview && !session) return <LoginPage />
   const Provider = preview ? PreviewCatalogProvider : RemoteCatalogProvider
   return (
     <Provider>
@@ -62,9 +61,10 @@ function Gate() {
 
 const router = createBrowserRouter(
   [
+    { path: '/signin', element: <LoginPage /> },
     {
       path: '/',
-      element: <Gate />,
+      element: <PublicApp />,
       children: [
         { index: true, element: <WatchlistPage /> },
         { path: 'deals', element: <DealsPage /> },

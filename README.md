@@ -2,7 +2,7 @@
 
 A personal deal tracker for Harieshwar in Hamilton, Ontario. Prices are in CAD.
 
-A separate assistant checks whitelisted Canadian stores once a day and writes snapshots and deals into Supabase. This app is the place to browse and edit that data: the watchlist, the store list, the deal feed, an item’s price history, and the analytics.
+A separate assistant checks whitelisted Canadian stores once a day and writes snapshots and deals into Supabase. Anyone can browse the watchlist, stores, deals, item history, and analytics. The owner signs in to edit them.
 
 The browser talks to Supabase directly. There is no other server.
 
@@ -10,17 +10,18 @@ The browser talks to Supabase directly. There is no other server.
 
 ```text
 Browser (Vite + React)
-  │  supabase-js, signed-in session
+  │  supabase-js, publishable key
+  │  anon read; owner session for writes
   ▼
 Supabase project ieohjxtkoiphewcfttuw (ca-central-1)
-  Auth   email magic link, PKCE
+  Auth   owner email + password, with a 6-digit email code as backup
   Postgres  stores, items, price_snapshots, deals
-            RLS on, full access for role authenticated
+            public SELECT; writes only for the owner user
 ```
 
 GitHub Pages hosts the static build at `/deal-tracker/`. React Router uses the history API. A copy of `index.html` is published as `404.html`, so a refresh on `/deal-tracker/items/…` still loads the app.
 
-The publishable key is safe to ship in the client. It is not a service-role key. Row level security still requires a signed-in user, and every signed-in user can read and write the whole dataset, so public sign-ups need to stay off.
+The publishable key is safe to ship in the client. It is not a service-role key. Anonymous visitors can read. Insert, update, and delete succeed only when `auth.uid()` is the owner account. Public sign-ups stay off.
 
 Analytics run in the browser from the rows you already have. Two SQL views are included for the price checker and for ad-hoc queries. The app does not depend on them.
 
@@ -43,7 +44,9 @@ Apply `supabase/migrations/20261022223000_analytics_views.sql` when you can. It 
 - `latest_store_prices` — newest snapshot per item and store
 - `item_all_time_lows` — lowest CAD price per item
 
-Both views use `security_invoker`, so the existing RLS policies still apply.
+Both views use `security_invoker`, so the row policies on `price_snapshots` still apply.
+
+`supabase/migrations/20261022234500_public_read_owner_write.sql` is the repo record of the production migration `public_read_owner_write`. It is already applied. The file drops the old `owner full access` policies if they exist, then creates `public read`, `owner insert`, `owner update`, and `owner delete`, and grants `SELECT` to `anon` on the four tables and the two views. Re-running it is safe.
 
 ## Local development
 
@@ -65,7 +68,7 @@ Open http://localhost:5173/deal-tracker/
 
 Optional overrides live in `.env` (see `.env.example`). The hosted URL and publishable key are the defaults in `src/lib/config.ts`, so a Pages build does not need secrets.
 
-In a dev build, the sign-in screen has **Browse with sample data**. That mode stays in the browser and never writes to Supabase. It is omitted from the production bundle’s UI.
+In a dev build, the sign-in screen has **Browse with sample data**. That mode stays in the browser and never writes to Supabase. It is omitted from the production bundle’s UI. Adding `owner=1` to that preview URL shows the edit controls locally. Production ignores both flags.
 
 ## Deploy
 
@@ -77,7 +80,7 @@ https://harieshwar-ai.github.io/deal-tracker/
 
 Pull requests run tests, lint, typecheck, and a production build (`.github/workflows/ci.yml`).
 
-This repository is private. GitHub Pages for a private repository needs GitHub Pro (or making the repository public). The published site is reachable by URL either way. The price data stays behind Supabase auth.
+The published site is public. Price rows are readable with the publishable key. Editing requires the owner session.
 
 After the workflow exists:
 
@@ -95,14 +98,29 @@ Authentication → URL configuration:
 | Redirect URLs | `https://harieshwar-ai.github.io/deal-tracker/` |
 | Redirect URLs | `http://localhost:5173/deal-tracker/` |
 
-The app sends the magic link back to the site root (`emailRedirectTo`). Sign-in uses PKCE, so open the email link in the same browser that requested it.
+Owner sign-in is email and password (`signInWithPassword`). **Email me a code instead** calls `signInWithOtp` with `shouldCreateUser: false`, then `verifyOtp` with the 6-digit code. A magic link in that same email still returns to the site root (`emailRedirectTo`). On return, the page calls `exchangeCodeForSession` once for `?code`. That link only completes in the browser that requested it, because the PKCE verifier lives in that browser’s local storage. The code works in any browser.
+
+Public sign-ups stay off. A session whose user id is not `ce399408-8885-49fd-a960-ce4479603aaa` is signed out.
+
+Paste this into Authentication → Emails → Templates → Magic link:
+
+```html
+<h2>Sign in to Harbour</h2>
+<p>Your code is</p>
+<p style="font-size:28px;letter-spacing:6px;font-weight:600;">{{ .Token }}</p>
+<p>Enter that code on the sign-in page. It works in any browser.</p>
+<p>Or open this link in the same browser where you requested the email:</p>
+<p><a href="{{ .ConfirmationURL }}">Sign in to Harbour</a></p>
+<p>The link and the code both expire soon. If you did not ask to sign in, you can ignore this email.</p>
+```
 
 ### Manual settings
 
-1. **Pages source.** Settings → Pages → GitHub Actions, as above.
-2. **Create the account, then turn sign-ups off.** Authentication → Users → Add user with your email. Then disable public sign-ups (Authentication → Sign In / Providers → Email → “Allow new users to sign up”). `disable_signup` is currently `false`. Leave it on only long enough to create the one account. Any other authenticated user would have full access, because the RLS policies grant `authenticated` every row.
-3. **Apply** `supabase/migrations/20261022223000_analytics_views.sql`. Leave `20261022204401_init_deal_tracker.sql` alone; it is already in `schema_migrations`.
-4. Confirm the email provider is enabled. The built-in Supabase mailer has a low hourly cap. Custom SMTP is optional.
+1. **Pages source.** Settings → Pages → GitHub Actions, as above. The site is already live.
+2. **Owner password.** Set the password on the existing owner account in the Supabase dashboard (or the Auth admin API). The app does not create users.
+3. **Keep public sign-ups off.** Authentication → Sign In / Providers → Email → “Allow new users to sign up” stays disabled. Enable the email provider so the password form works, and leave the 6-digit code available as the backup.
+4. **Leave the SQL alone.** `20261022204401_init_deal_tracker.sql` and `20261022234500_public_read_owner_write.sql` are already applied. The public-read file is safe to re-run. Apply `20261022223000_analytics_views.sql` only if it is missing from `schema_migrations`.
+5. Paste the Magic link template above if you still want the backup email to include both the code and the link. The built-in Supabase mailer allows about two emails an hour. The code button waits 60 seconds between sends and shows the server’s 429 message when the hourly cap is hit. Day-to-day sign-in uses the password and does not send mail.
 
 ## How the numbers work
 

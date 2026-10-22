@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useCanEdit } from '../auth/AuthProvider'
 import { PriceHistoryChart } from '../components/charts'
 import { ItemForm } from '../components/ItemForm'
 import { useToast } from '../components/toast'
@@ -18,6 +19,7 @@ type SnapshotSort = 'newest' | 'price' | 'store'
 export function ItemPage() {
   const { itemId } = useParams()
   const catalog = useCatalog()
+  const canEdit = useCanEdit()
   const navigate = useNavigate()
   const push = useToast()
   const item = catalog.items.find((entry) => entry.id === itemId)
@@ -70,10 +72,12 @@ export function ItemPage() {
             {[item.category, item.condition].filter(Boolean).join(' · ') || 'No category'}
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="secondary" onClick={() => setEditing(true)}>Edit</Button>
-          <Button variant="danger" onClick={() => setRemoving(true)}>Delete</Button>
-        </div>
+        {canEdit ? (
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={() => setEditing(true)}>Edit</Button>
+            <Button variant="danger" onClick={() => setRemoving(true)}>Delete</Button>
+          </div>
+        ) : null}
       </div>
       {item.description ? <p className="mt-4 max-w-2xl text-sm leading-6">{item.description}</p> : null}
       {item.keywords.length > 0 ? (
