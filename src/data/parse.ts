@@ -20,6 +20,7 @@ export function parseItemRow(row: unknown): Item {
   return {
     id: requiredString(record, 'id', 'items'),
     name: requiredString(record, 'name', 'items'),
+    public_summary: optionalString(record, 'public_summary', 'items'),
     description: optionalString(record, 'description', 'items'),
     category: optionalString(record, 'category', 'items'),
     keywords: keywords(record.keywords),

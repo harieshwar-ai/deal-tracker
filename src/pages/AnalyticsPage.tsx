@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { useCanEdit } from '../auth/AuthProvider'
 import {
   DealFlowChart,
   DiscountChart,
@@ -26,13 +27,14 @@ const statuses: DealStatus[] = ['open', 'bought', 'dismissed', 'expired']
 export function AnalyticsPage() {
   useDocumentTitle('Analytics')
   const catalog = useCatalog()
+  const canEdit = useCanEdit()
   const [params, setParams] = useSearchParams()
   const preset = parsePresetParam(params.get('range'))
   const category = params.get('category')
   const storeId = params.get('store')
   const model = useMemo(
-    () => computeAnalytics(catalog, { preset, category, storeId }),
-    [catalog, preset, category, storeId],
+    () => computeAnalytics(catalog, { preset, category, storeId, includeTargets: canEdit }),
+    [catalog, preset, category, storeId, canEdit],
   )
   const categories = watchCategories(catalog.items)
 
@@ -80,7 +82,7 @@ export function AnalyticsPage() {
         <div className="mt-8">
           <EmptyState
             title="The ledger is empty"
-            body="Add a watchlist item first. Charts stay quiet until there is something to price."
+            body={canEdit ? 'Add a watchlist item first. Charts stay quiet until there is something to price.' : 'Charts stay quiet until there is something to price.'}
             action={<Link className="text-pine underline" to="/">Go to the watchlist</Link>}
           />
         </div>
@@ -88,7 +90,7 @@ export function AnalyticsPage() {
         <>
           <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <Kpi label="Watching" value={String(model.activeItemCount)} detail={`${model.itemCount} in this filter · ${model.pricedItemCount} with a price`} />
-            <Kpi label="Under target" value={formatCad(model.underTargetSavings)} detail={model.underTargetCount > 0 ? `${model.underTargetCount} items, at the current best in-stock price` : 'Nothing is under target right now'} />
+            {canEdit ? <Kpi label="Under target" value={formatCad(model.underTargetSavings)} detail={model.underTargetCount > 0 ? `${model.underTargetCount} items, at the current best in-stock price` : 'Nothing is under target right now'} /> : null}
             <Kpi label="Vs regular" value={formatCad(model.regularSavings)} detail="Gap between the current best price and that listing’s regular price" />
             <Kpi label="All-time lows" value={String(model.atLowCount)} detail={`${model.openDealCount} deals open now · ${model.dealsInPeriod} found in this period`} />
           </div>
@@ -203,7 +205,7 @@ export function AnalyticsPage() {
                   <tr>
                     <th className="py-2 font-medium">Category</th>
                     <th className="py-2 font-medium">Items</th>
-                    <th className="py-2 font-medium">Under target</th>
+                    {canEdit ? <th className="py-2 font-medium">Under target</th> : null}
                     <th className="py-2 font-medium">Open deals</th>
                     <th className="py-2 font-medium">Avg discount now</th>
                   </tr>
@@ -213,7 +215,7 @@ export function AnalyticsPage() {
                     <tr key={entry.category} className="border-t border-line">
                       <td className="py-2">{entry.category}</td>
                       <td className="py-2 tabular-nums">{entry.items}</td>
-                      <td className="py-2 tabular-nums">{entry.underTarget}</td>
+                      {canEdit ? <td className="py-2 tabular-nums">{entry.underTarget}</td> : null}
                       <td className="py-2 tabular-nums">{entry.openDeals}</td>
                       <td className="py-2 tabular-nums">{formatPct(entry.avgDiscountPct, 1)}</td>
                     </tr>

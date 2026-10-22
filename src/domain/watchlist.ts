@@ -68,7 +68,7 @@ export function buildWatchRows(data: Dataset, now = new Date()): WatchRow[] {
 }
 
 function haystack(item: Item): string {
-  return [item.name, item.description, item.category, item.notes, item.condition, ...item.keywords]
+  return [item.name, item.public_summary, item.description, item.category, item.notes, item.condition, ...item.keywords]
     .filter((part): part is string => Boolean(part))
     .join(' ')
     .toLowerCase()
