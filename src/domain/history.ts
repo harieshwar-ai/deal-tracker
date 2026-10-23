@@ -13,6 +13,14 @@ export interface PriceHistory {
   series: HistorySeries[]
 }
 
+export type HistoryChartState = 'empty' | 'sparse' | 'ready'
+
+export function historyChartState(dayCount: number): HistoryChartState {
+  if (dayCount <= 0) return 'empty'
+  if (dayCount < 2) return 'sparse'
+  return 'ready'
+}
+
 export function buildPriceHistory(snapshots: PriceSnapshot[], stores: Store[]): PriceHistory {
   const relevant = snapshots.filter((snapshot) => isCadCurrency(snapshot.currency))
   const ordered = [...stores].sort((left, right) => left.name.localeCompare(right.name))

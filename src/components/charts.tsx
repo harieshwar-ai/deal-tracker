@@ -27,9 +27,10 @@ const dateAxis = {
   interval: 'preserveStartEnd' as const,
 }
 
-function zoomedDomain([min, max]: [number, number], include?: number | null): [number, number] {
-  const low = include == null ? min : Math.min(min, include)
-  const high = include == null ? max : Math.max(max, include)
+function zoomedDomain([min, max]: [number, number], include?: number | null | Array<number | null>): [number, number] {
+  const extras = (Array.isArray(include) ? include : [include]).filter((value): value is number => value != null && Number.isFinite(value))
+  const low = extras.length > 0 ? Math.min(min, ...extras) : min
+  const high = extras.length > 0 ? Math.max(max, ...extras) : max
   const span = high - low || Math.abs(high) * 0.08 || 1
   const floor = Math.min(low, 0) < 0 ? low - span * 0.12 : Math.max(0, low - span * 0.12)
   return [Math.floor(floor), Math.ceil(high + span * 0.12)]
@@ -65,10 +66,12 @@ export function PriceHistoryChart({
   rows,
   series,
   target,
+  low,
 }: {
   rows: Record<string, string | number | null>[]
   series: HistorySeries[]
   target: number | null
+  low: number | null
 }) {
   return (
     <div className="h-80 w-full">
@@ -76,10 +79,11 @@ export function PriceHistoryChart({
         <LineChart data={rows} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
           <CartesianGrid {...grid} />
           <XAxis dataKey="date" tickFormatter={formatAxisDay} {...dateAxis} />
-          <YAxis tickFormatter={axisMoney} width={72} tick={{ fill: palette.muted, fontSize: 12 }} domain={([min, max]) => zoomedDomain([min, max], target)} />
+          <YAxis tickFormatter={axisMoney} width={72} tick={{ fill: palette.muted, fontSize: 12 }} domain={([min, max]) => zoomedDomain([min, max], [target, low])} />
           <Tooltip contentStyle={tooltipStyle} formatter={(value) => formatTooltip('money', value)} labelFormatter={(label) => formatAxisDay(String(label))} />
           <Legend />
-          {target != null ? <ReferenceLine y={target} stroke={palette.gold} strokeDasharray="4 4" label="Target" /> : null}
+          {low != null ? <ReferenceLine y={low} stroke={palette.pine} strokeDasharray="2 4" label={{ value: 'All-time low', position: 'insideTopRight', fill: palette.pine }} /> : null}
+          {target != null ? <ReferenceLine y={target} stroke={palette.gold} strokeDasharray="4 4" label={{ value: 'Target', position: 'insideTopLeft', fill: palette.gold }} /> : null}
           {series.map((entry) => (
             <Line
               key={entry.id}
