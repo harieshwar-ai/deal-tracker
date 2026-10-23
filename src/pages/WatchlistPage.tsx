@@ -16,8 +16,10 @@ import { FadeIn, useTween } from '../components/motion'
 import { Badge, buttonClass, ConfirmDialog, controlClass, EmptyState, ErrorState, LoadingBlock, Modal, Segmented, Select } from '../components/ui'
 import { blankItemDraft, itemToDraft, pendingItemFromUrl } from '../domain/drafts'
 import { parseActivity, parsePriorityFilter, parseSort } from '../domain/filters'
-import { formatCad, formatRelative, safeHttpUrl } from '../domain/format'
+import { formatCad, formatPct, formatRelative, safeHttpUrl } from '../domain/format'
 import { heroStats } from '../domain/hero'
+import { priceBrief } from '../domain/context'
+import type { PriceBrief } from '../domain/context'
 import { priorityLabel, priorityTone, sortLabel, verdictLabel, verdictTone } from '../domain/labels'
 import type { Item, WatchSort } from '../domain/types'
 import { buildTimeline } from '../domain/timeline'
@@ -65,6 +67,26 @@ export function WatchlistPage() {
     [catalog, canEdit],
   )
   const hero = useMemo(() => heroStats(catalog, canEdit), [catalog, canEdit])
+  const briefs = useMemo(() => {
+    const byItem = new Map<string, ReturnType<typeof priceBrief>>()
+    for (const item of catalog.items) {
+      byItem.set(item.id, priceBrief(catalog.snapshots.filter((snapshot) => snapshot.item_id === item.id), catalog.stores))
+    }
+    return byItem
+  }, [catalog.items, catalog.snapshots, catalog.stores])
+  const callCounts = useMemo(() => {
+    let buy = 0
+    let good = 0
+    let wait = 0
+    for (const item of catalog.items) {
+      if (!item.active) continue
+      const call = calls.get(item.id)?.call
+      if (call === 'buy') buy += 1
+      else if (call === 'good') good += 1
+      else if (call === 'wait') wait += 1
+    }
+    return { buy, good, wait }
+  }, [calls, catalog.items])
   const changes = useMemo(() => buildTimeline(catalog).slice(0, 8), [catalog])
 
   function update(updates: Record<string, string | null>) {
@@ -82,7 +104,10 @@ export function WatchlistPage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-display text-4xl">Watchlist</h1>
-          <p className="mt-1 text-sm text-muted">{catalog.items.filter((item) => item.active).length} active items</p>
+          <p className="mt-1 max-w-2xl text-sm leading-6 text-muted">
+            {catalog.items.filter((item) => item.active).length} active items
+            {catalog.items.length > 0 ? ` · ${callCounts.buy} buy · ${callCounts.good} good price · ${callCounts.wait} wait` : ''}
+          </p>
         </div>
         {canEdit ? (
           <div className="flex flex-wrap gap-2">
@@ -102,7 +127,7 @@ export function WatchlistPage() {
           className={controlClass}
           value={criteria.query}
           onChange={(event) => update({ q: event.target.value || null })}
-          placeholder="Search name, notes, keywords"
+          placeholder={canEdit ? 'Search name, notes, keywords' : 'Search name, category, keywords'}
           aria-label="Search items"
         />
         <Select
@@ -163,6 +188,7 @@ export function WatchlistPage() {
               index={index}
               row={row}
               call={calls.get(row.item.id) ?? null}
+              brief={briefs.get(row.item.id) ?? null}
               canEdit={canEdit}
               onEdit={() => setEditing(row.item)}
               onDelete={() => setRemoving(row.item)}
@@ -264,6 +290,7 @@ function WatchCard({
   index,
   row,
   call,
+  brief,
   canEdit,
   onEdit,
   onDelete,
@@ -271,6 +298,7 @@ function WatchCard({
   index: number
   row: WatchRow
   call: { call: 'buy' | 'good' | 'wait'; confidence: number; reason: string } | null
+  brief: PriceBrief | null
   canEdit: boolean
   onEdit: () => void
   onDelete: () => void
@@ -301,7 +329,7 @@ function WatchCard({
             {!row.item.active ? <Badge className="bg-paper text-muted">Paused</Badge> : null}
             {row.item.enrichment_status === 'pending_enrichment' ? <Badge className="bg-gold-soft text-gold">Waiting for the next scan</Badge> : null}
             {call ? <Badge className={priceCallTone(call.call)}>{priceCallLabel(call.call)}</Badge> : null}
-            {row.atLow ? <Badge className="bg-gold-soft text-gold">All-time low</Badge> : null}
+            {row.atLow ? <Badge className="bg-buy-soft text-buy">All-time low</Badge> : null}
             {deal ? <Badge className={verdictTone(deal.verdict ?? 'unrated')}>{verdictLabel(deal.verdict ?? 'unrated')}</Badge> : null}
           </div>
           <p className="mt-2 text-sm text-muted">
@@ -311,7 +339,11 @@ function WatchCard({
           {!canEdit && row.item.public_summary ? <p className="mt-2 text-sm leading-6 text-ink">{row.item.public_summary}</p> : null}
           <SpecChecklist specs={row.item.specs} />
           {call ? <p className="mt-2 max-w-xl text-sm leading-6">{call.reason} <span className="text-muted">Confidence {call.confidence}.</span></p> : null}
-          {safeHttpUrl(row.item.product_url) ? <a className="mt-2 inline-block text-sm text-pine underline" href={safeHttpUrl(row.item.product_url) ?? undefined} target="_blank" rel="noopener noreferrer">Product link</a> : null}
+          {brief ? <PriceContextLine brief={brief} /> : null}
+          <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+            <Link className="text-sm text-pine underline" to={`/items/${row.item.id}#compare`}>Compare</Link>
+            {safeHttpUrl(row.item.product_url) ? <a className="text-sm text-pine underline" href={safeHttpUrl(row.item.product_url) ?? undefined} target="_blank" rel="noopener noreferrer">Product link</a> : null}
+          </p>
         </div>
         <div className="text-left sm:text-right">
           <p className="font-mono text-3xl font-medium tracking-tight tabular-nums">{row.best ? formatCad(row.best.price) : '—'}</p>
@@ -351,7 +383,17 @@ function WatchCard({
 
 function gapCopy(gap: number | null): { text: string; className: string } | null {
   if (gap == null) return null
-  if (Math.abs(gap) < 0.005) return { text: 'At target', className: 'text-pine' }
-  if (gap < 0) return { text: `${formatCad(Math.abs(gap))} under target`, className: 'text-pine' }
-  return { text: `${formatCad(gap)} over target`, className: 'text-clay' }
+  if (Math.abs(gap) < 0.005) return { text: 'At target', className: 'text-drop' }
+  if (gap < 0) return { text: `${formatCad(Math.abs(gap))} under target`, className: 'text-drop' }
+  return { text: `${formatCad(gap)} over target`, className: 'text-rise' }
+}
+
+function PriceContextLine({ brief }: { brief: PriceBrief }) {
+  const off = brief.percentOffRegular
+  const bits: string[] = []
+  if (off != null && off > 0) bits.push(`${formatPct(off, 0)} off regular`)
+  if (brief.low30) bits.push(`30-day low ${formatCad(brief.low30.price)}`)
+  if (brief.low90) bits.push(`90-day low ${formatCad(brief.low90.price)}`)
+  if (bits.length === 0) return null
+  return <p className="mt-2 text-sm text-muted">{bits.join(' · ')}</p>
 }

@@ -29,6 +29,14 @@ export function Menu({
   )
 }
 
+export function MenuLabel({ children }: { children: ReactNode }) {
+  return <DropdownMenu.Label className="px-3 pt-2 pb-1 text-xs font-medium tracking-wide text-muted uppercase">{children}</DropdownMenu.Label>
+}
+
+export function MenuSeparator() {
+  return <DropdownMenu.Separator className="my-1 h-px bg-line" />
+}
+
 export function MenuRadioGroup({
   value,
   onValueChange,
@@ -45,7 +53,7 @@ export function MenuRadioGroup({
           key={option.value}
           value={option.value}
           className={cn(
-            'cursor-pointer rounded-md px-3 py-2 outline-none data-[highlighted]:bg-paper data-[state=checked]:font-medium',
+            'cursor-pointer rounded-md px-3 py-2 outline-none data-[highlighted]:bg-pine-soft data-[highlighted]:outline data-[highlighted]:outline-2 data-[highlighted]:-outline-offset-2 data-[highlighted]:outline-pine data-[state=checked]:font-medium',
           )}
         >
           {option.label}

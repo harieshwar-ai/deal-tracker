@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { CountUp } from './motion'
+import { freshnessLabel, freshnessOf } from '../domain/context'
 import { formatCad, formatRelative } from '../domain/format'
 import type { HeroStats } from '../domain/hero'
 import { priceCallLabel, priceCallTone } from '../domain/verdict'
@@ -34,7 +35,7 @@ export function HeroStrip({ stats }: { stats: HeroStats }) {
       </article>
       <HeroStat label="Items tracked" value={formatCount(stats.tracked)} count={stats.tracked} format={formatCount} detail="Active items on the list" />
       <HeroStat label="Total savings found" value={formatCad(stats.savings)} count={stats.savings} format={formatCad} detail="Current prices under their listed regular prices" />
-      <HeroStat label="Last scan" value={stats.lastScan ? formatRelative(stats.lastScan) : '—'} detail={stats.lastScan ? 'Newest saved price' : 'No snapshots yet'} />
+      <HeroStat label="Last scan" value={stats.lastScan ? formatRelative(stats.lastScan) : '—'} detail={stats.lastScan ? freshnessLabel(freshnessOf(stats.lastScan)) : 'No snapshots yet'} />
     </section>
   )
 }

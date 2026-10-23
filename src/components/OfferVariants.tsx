@@ -81,10 +81,10 @@ export function OfferChip({ quote, best }: { quote: Quote; best: boolean }) {
                     >
                       <span>{variant.label ?? 'Option'}</span>
                       <span className="tabular-nums">{formatCad(variant.price)}</span>
-                      <span className={variant.inStock === false ? 'text-clay' : 'text-muted'}>
+                      <span className={variant.inStock === false ? 'text-rise' : 'text-muted'}>
                         {variant.inStock == null ? 'Stock unknown' : variant.inStock ? 'In stock' : 'Out of stock'}
                       </span>
-                      {variant.best ? <span className="text-pine">Lowest</span> : null}
+                      {variant.best ? <span className="text-drop">Lowest</span> : null}
                     </button>
                     {variantHref ? (
                       <a className="px-1 text-pine underline" href={variantHref} target="_blank" rel="noopener noreferrer">
@@ -139,10 +139,10 @@ export function VariantPicker({
                 />
                 <span>{variant.label ?? 'Option'}</span>
                 <span className="tabular-nums">{formatCad(variant.price)}</span>
-                <span className={variant.inStock === false ? 'text-clay' : 'text-muted'}>
+                <span className={variant.inStock === false ? 'text-rise' : 'text-muted'}>
                   {variant.inStock == null ? 'Stock unknown' : variant.inStock ? 'In stock' : 'Out of stock'}
                 </span>
-                {variant.best ? <span className="text-pine">Lowest</span> : null}
+                {variant.best ? <span className="text-drop">Lowest</span> : null}
               </label>
               {href ? (
                 <a className="text-sm text-pine underline" href={href} target="_blank" rel="noopener noreferrer">
@@ -181,9 +181,9 @@ function ChipBody({
     <>
       <StoreMark name={name} />
       <span>{name}</span> {formatCad(price)}
-      {discount != null && discount > 0 ? <span className="text-pine"> {Math.round(discount)}%</span> : null}
+      {discount != null && discount > 0 ? <span className="text-drop"> {Math.round(discount)}%</span> : null}
       {member ? <span className="text-gold"> member</span> : null}
-      {stock === false ? <span className="text-clay"> out</span> : null}
+      {stock === false ? <span className="text-rise"> out</span> : null}
     </>
   )
 }

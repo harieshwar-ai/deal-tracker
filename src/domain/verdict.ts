@@ -35,11 +35,11 @@ export function priceCallLabel(call: PriceCall): string {
 export function priceCallTone(call: PriceCall): string {
   switch (call) {
     case 'buy':
-      return 'bg-pine text-on-accent'
+      return 'bg-buy text-on-buy'
     case 'good':
-      return 'bg-gold text-on-accent'
+      return 'bg-buy-soft text-buy'
     case 'wait':
-      return 'bg-foam text-bark ring-1 ring-bark/25'
+      return 'bg-wait-soft text-wait'
     default: {
       const neverCall: never = call
       return neverCall

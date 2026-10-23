@@ -34,7 +34,7 @@ function StoreCard({ offer, index, muted, now }: { offer: StoreOffer; index: num
   const countdown = saleCountdown(saleEndsAt, now)
   const highlighted = offer.bestPrice && !muted && (shown?.best ?? true)
   const tone = highlighted
-    ? 'rounded-xl border border-pine bg-pine-soft p-4 shadow-sm'
+    ? 'rounded-xl border border-buy bg-buy-soft p-4 shadow-sm'
     : muted
       ? 'rounded-xl border border-dashed border-line bg-paper p-4 text-muted'
       : 'rounded-xl border border-line bg-paper-2 p-4 shadow-sm'
@@ -43,7 +43,7 @@ function StoreCard({ offer, index, muted, now }: { offer: StoreOffer; index: num
       <div className="flex flex-wrap items-center gap-2">
         <StoreMark name={offer.storeName} />
         <h3 className="font-semibold">{offer.storeName}</h3>
-        {highlighted ? <span className="text-xs text-pine">Lowest price</span> : null}
+        {highlighted ? <span className="text-xs text-buy">Lowest price</span> : null}
         {muted && offer.statusLabel ? <span className="text-xs">{offer.statusLabel}</span> : null}
       </div>
       {offer.productName ? <p className="mt-2 text-sm">{offer.productName}</p> : null}

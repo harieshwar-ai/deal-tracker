@@ -122,13 +122,13 @@ export function priorityRank(priority: Priority): number {
 export function verdictTone(verdict: VerdictGroup): string {
   switch (verdict) {
     case 'must_buy':
-      return 'bg-gold-soft text-gold'
+      return 'bg-buy text-on-buy'
     case 'good':
-      return 'bg-pine-soft text-pine'
+      return 'bg-good-soft text-good'
     case 'ok':
       return 'bg-sea-soft text-sea'
     case 'skip':
-      return 'bg-paper text-muted'
+      return 'bg-skip-soft text-skip'
     case 'unrated':
       return 'bg-paper text-muted'
     default: {
@@ -156,15 +156,15 @@ export function priorityTone(priority: Priority): string {
 export function verdictChartColor(verdict: VerdictGroup): string {
   switch (verdict) {
     case 'must_buy':
-      return '#8a5a12'
+      return '#0d6b3c'
     case 'good':
-      return '#0c6b52'
+      return '#0b5e4a'
     case 'ok':
-      return '#1d4e89'
+      return '#1a4a80'
     case 'skip':
-      return '#5e6a78'
+      return '#7a3a48'
     case 'unrated':
-      return '#c5ced8'
+      return '#4a5563'
     default: {
       const neverVerdict: never = verdict
       return neverVerdict

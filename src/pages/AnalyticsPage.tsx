@@ -56,6 +56,12 @@ export function AnalyticsPage() {
     <div>
       <h1 className="font-display text-4xl">Analytics</h1>
       <p className="mt-3 max-w-3xl text-base leading-7">{model.insight}</p>
+      <ul className="mt-3 flex flex-wrap gap-2 text-xs" aria-label="Colour meanings">
+        <li className="rounded-md bg-buy px-2 py-1 text-on-buy">Buy and price drops</li>
+        <li className="rounded-md bg-wait-soft px-2 py-1 text-wait">Wait</li>
+        <li className="rounded-md bg-skip-soft px-2 py-1 text-skip">Skip and price rises</li>
+        <li className="rounded-md bg-good-soft px-2 py-1 text-good">Good offer</li>
+      </ul>
       <div className="mt-5 flex flex-wrap items-center gap-3">
         <Segmented
           label="Date range"

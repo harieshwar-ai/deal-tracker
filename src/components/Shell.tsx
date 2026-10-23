@@ -146,7 +146,7 @@ function NavItem({
     <NavLink
       to={to}
       end={end}
-      className={({ isActive }) => cn('relative flex items-center justify-between rounded-lg px-3 py-2.5 text-sm', isActive ? 'text-foam' : 'text-foam/70 hover:bg-white/5')}
+      className={({ isActive }) => cn('relative flex items-center justify-between rounded-lg px-3 py-2.5 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foam', isActive ? 'text-foam' : 'text-foam/70 hover:bg-white/5')}
     >
       {({ isActive }) => (
         <>
@@ -190,7 +190,7 @@ function MobileNavItem({
     <NavLink
       to={to}
       end={end}
-      className={({ isActive }) => cn('relative flex min-h-14 flex-col items-center justify-center gap-1 px-2 py-2 text-xs', isActive ? 'text-pine' : 'text-muted')}
+      className={({ isActive }) => cn('relative flex min-h-14 flex-col items-center justify-center gap-1 px-2 py-2 text-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-pine', isActive ? 'text-pine' : 'text-muted')}
     >
       {({ isActive }) => (
         <>

@@ -1,12 +1,20 @@
 import { Monitor, Moon, Sun } from 'lucide-react'
+import { accentLabel, isAccentChoice } from '../theme/tokens'
+import type { AccentChoice } from '../theme/tokens'
 import { useTheme } from '../theme/theme'
 import type { ThemeChoice } from '../theme/theme'
-import { Menu, MenuRadioGroup } from './ui/dropdown-menu'
+import { Menu, MenuLabel, MenuRadioGroup, MenuSeparator } from './ui/dropdown-menu'
 
 const options: { value: ThemeChoice; label: string }[] = [
   { value: 'system', label: 'System' },
   { value: 'light', label: 'Light' },
   { value: 'dark', label: 'Dark' },
+]
+
+const accents: { value: AccentChoice; label: string }[] = [
+  { value: 'harbour', label: accentLabel('harbour') },
+  { value: 'tide', label: accentLabel('tide') },
+  { value: 'copper', label: accentLabel('copper') },
 ]
 
 function isThemeChoice(value: string): value is ThemeChoice {
@@ -25,6 +33,7 @@ export function ThemeToggle() {
         </button>
       }
     >
+      <MenuLabel>Appearance</MenuLabel>
       <MenuRadioGroup
         value={theme.choice}
         options={options}
@@ -32,6 +41,16 @@ export function ThemeToggle() {
           if (isThemeChoice(value)) theme.setChoice(value)
         }}
       />
+      <MenuSeparator />
+      <MenuLabel>Accent</MenuLabel>
+      <MenuRadioGroup
+        value={theme.accent}
+        options={accents}
+        onValueChange={(value) => {
+          if (isAccentChoice(value)) theme.setAccent(value)
+        }}
+      />
+      <p className="px-3 py-2 text-xs leading-5 text-muted">Buy, wait, and skip keep their own colours.</p>
     </Menu>
   )
 }

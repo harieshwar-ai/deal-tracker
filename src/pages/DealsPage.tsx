@@ -68,8 +68,9 @@ export function DealsPage() {
     <FadeIn>
     <div>
       <h1 className="font-display text-4xl">Deals</h1>
-      <p className="mt-1 text-sm text-muted">
+      <p className="mt-1 max-w-3xl text-sm leading-6 text-muted">
         {openCount} open. Grouped by the checker’s verdict. Same model, different colour or finish, counts once.
+        Must buy and good are the stronger marks. Skip was scored and set aside. Prices here are the saved offer, before tax.
       </p>
       <div className="mt-5">
         <Segmented
@@ -81,7 +82,7 @@ export function DealsPage() {
       </div>
       {catalog.deals.length === 0 ? (
         <div className="mt-8">
-          <EmptyState title="No deals yet" body="When a watched price is worth a look, it will land here with a score, a verdict, and the reason." />
+          <EmptyState title="No deals yet" body="When a watched price is worth a look, it lands here with a verdict. Same model, different colour or finish, counts once." />
         </div>
       ) : visible.length === 0 ? (
         <div className="mt-8">

@@ -31,10 +31,10 @@ function tone(kind: TimelineKind): string {
   switch (kind) {
     case 'drop':
     case 'new_low':
-      return 'text-pine'
+      return 'text-drop'
     case 'raise':
     case 'out_of_stock':
-      return 'text-clay'
+      return 'text-rise'
     case 'restock':
       return 'text-sea'
     default: {
