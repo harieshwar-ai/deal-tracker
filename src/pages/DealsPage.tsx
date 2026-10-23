@@ -4,7 +4,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useCanEdit } from '../auth/AuthProvider'
 import { useToast } from '../components/toast'
 import { Badge, Button, EmptyState, ErrorState, LoadingBlock, Segmented } from '../components/ui'
-import { clusterDeals, groupDeals, verdictGroup } from '../domain/deals'
+import { clusterDeals, groupDeals, latestDealStock, verdictGroup } from '../domain/deals'
 import type { DealCluster } from '../domain/deals'
 import { parseStatusFilter } from '../domain/filters'
 import type { StatusFilter } from '../domain/filters'
@@ -99,6 +99,7 @@ export function DealsPage() {
                   <DealCard
                     deal={cluster.deal}
                     options={cluster.options}
+                    outOfStock={latestDealStock(cluster.deal, catalog.snapshots) === false}
                     itemName={catalog.items.find((item) => item.id === cluster.deal.item_id)?.name ?? 'Unknown item'}
                     storeName={catalog.stores.find((store) => store.id === cluster.deal.store_id)?.name ?? 'Unknown store'}
                     pending={pendingId === cluster.deal.id}
@@ -120,6 +121,7 @@ export function DealsPage() {
 function DealCard({
   deal,
   options,
+  outOfStock,
   itemName,
   storeName,
   pending,
@@ -128,6 +130,7 @@ function DealCard({
 }: {
   deal: Deal
   options: DealCluster['options']
+  outOfStock: boolean
   itemName: string
   storeName: string
   pending: boolean
@@ -144,6 +147,7 @@ function DealCard({
           <div className="flex flex-wrap items-center gap-2">
             <Badge className={verdictTone(verdictGroup(deal.verdict))}>{verdictLabel(verdictGroup(deal.verdict))}</Badge>
             <Badge className="bg-paper text-muted">{statusLabel(deal.status)}</Badge>
+            {outOfStock ? <Badge className="bg-skip-soft text-skip">Out of stock</Badge> : null}
             {deal.score != null ? <span className="text-sm tabular-nums text-muted">Score {deal.score}</span> : null}
           </div>
           <h3 className="mt-2 font-display text-2xl">{deal.title}</h3>
@@ -154,7 +158,7 @@ function DealCard({
           </p>
         </div>
         <div>
-          <p className="font-mono text-3xl font-medium tracking-tight tabular-nums">{formatCad(deal.price)}</p>
+          <p className={`font-mono text-3xl font-medium tracking-tight tabular-nums${outOfStock ? ' text-muted' : ''}`}>{formatCad(deal.price)}</p>
           {deal.regular_price != null ? (
             <p className="text-sm text-muted">
               <s>{formatCad(deal.regular_price)}</s>

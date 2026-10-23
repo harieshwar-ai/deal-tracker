@@ -68,21 +68,32 @@ export function CountUp({
   format: (value: number) => string
 }) {
   const reduce = useReducedMotion()
-  const [text, setText] = useState(() => format(value))
+  const finalText = format(value)
+  const animateValue = reduce === false
+  const [text, setText] = useState(finalText)
+  const [settled, setSettled] = useState(!animateValue)
   useEffect(() => {
-    if (reduce) {
-      setText(format(value))
+    if (!animateValue) {
+      setText(finalText)
+      setSettled(true)
       return
     }
+    setSettled(false)
     const controls = animate(0, value, {
       type: 'tween',
       duration: 0.28,
       ease,
       onUpdate: (next) => setText(format(next)),
+      onComplete: () => setSettled(true),
     })
     return () => controls.stop()
-  }, [format, reduce, value])
-  return text
+  }, [animateValue, finalText, format, value])
+  const shown = animateValue ? text : finalText
+  return (
+    <span data-count-settled={settled ? 'true' : 'false'} aria-label={finalText}>
+      <span aria-hidden="true">{shown}</span>
+    </span>
+  )
 }
 
 export function MotionCard({

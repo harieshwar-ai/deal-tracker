@@ -1,4 +1,4 @@
-import { assignProducts, listingKey, parseOfferName } from './identity'
+import { assignProducts, listingKey, offerSeriesKey, parseOfferName } from './identity'
 import { capturedTime } from './quotes'
 import type { Deal, PriceSnapshot, Verdict, VerdictGroup } from './types'
 
@@ -105,6 +105,19 @@ function dealClusterKey(deal: Deal, snapshots: PriceSnapshot[], assignments: Ret
   if (parsed.identityKey && parsed.identityTokens >= 2) return `${deal.item_id}\u0000${store}\u0000${parsed.identityKey}`
   if (parsed.exactKey) return `${deal.item_id}\u0000${store}\u0000exact:${parsed.exactKey}`
   return `deal:${deal.id}`
+}
+
+export function latestDealStock(deal: Deal, snapshots: PriceSnapshot[]): boolean | null {
+  const linked = deal.snapshot_id != null ? snapshots.find((snapshot) => snapshot.id === deal.snapshot_id) : undefined
+  const key = offerSeriesKey(linked ?? { store_id: deal.store_id, product_name: deal.title } as PriceSnapshot)
+  const pool = snapshots.filter((snapshot) => (
+    snapshot.item_id === deal.item_id
+    && (snapshot.store_id ?? null) === (deal.store_id ?? null)
+    && offerSeriesKey(snapshot) === key
+  ))
+  const source = pool.length > 0 ? pool : linked ? [linked] : []
+  const latest = [...source].sort((left, right) => Date.parse(right.captured_at) - Date.parse(left.captured_at) || right.id - left.id)[0]
+  return latest?.in_stock ?? null
 }
 
 function linkedInStock(deal: Deal, snapshots: PriceSnapshot[]): boolean {

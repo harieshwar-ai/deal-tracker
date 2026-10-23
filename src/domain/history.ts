@@ -1,5 +1,5 @@
 import { dayKey, isCadCurrency } from './format'
-import { assignProducts } from './identity'
+import { assignProducts, parseOfferName } from './identity'
 import type { ProductAssignment } from './identity'
 import { seriesColor } from './palette'
 import type { PriceSnapshot, Store } from './types'
@@ -60,6 +60,8 @@ export function buildPriceHistory(snapshots: PriceSnapshot[], stores: Store[]): 
 
 function seriesId(snapshot: PriceSnapshot, assignment: ProductAssignment | undefined): string {
   const storeId = snapshot.store_id ?? 'unknown'
+  const identity = parseOfferName(snapshot.product_name).identityKey
+  if (identity) return `${storeId}::${identity}`
   if (!assignment || assignment.unnamed) return storeId
   return `${storeId}::${assignment.productKey}`
 }

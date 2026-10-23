@@ -1,5 +1,5 @@
 import { isCadCurrency, toCents } from './format'
-import { assignProducts } from './identity'
+import { assignProducts, offerSeriesKey } from './identity'
 import { isQualifying } from './offers'
 import { storeName } from './quotes'
 import type { Dataset, PriceSnapshot } from './types'
@@ -50,17 +50,18 @@ export function buildTimeline(data: Dataset): TimelineEvent[] {
   for (const [itemId, snapshots] of grouped) {
     const assignments = assignProducts(snapshots)
     const ordered = [...snapshots].sort(byTime)
-    let low: number | null = null
+    const lows = new Map<string, number>()
     const previous = new Map<string, PriceSnapshot>()
     for (const snapshot of ordered) {
       const assigned = assignments.get(snapshot.id)
-      const track = `${snapshot.store_id ?? ''}\u0000${assigned?.productKey ?? ''}`
+      const track = offerSeriesKey(snapshot)
       const prior = previous.get(track)
       const productName = eventProductName(snapshot.product_name, assigned?.displayName ?? null, assigned?.optionLabel ?? null, assigned?.multiVariant ?? false)
       const cad = isCadCurrency(snapshot.currency)
       const cents = toCents(snapshot.price)
       const priorCents = prior && isCadCurrency(prior.currency) ? toCents(prior.price) : null
       const countsTowardLow = cad && isQualifying(snapshot) && snapshot.in_stock !== false
+      const low = lows.get(track) ?? null
       if (countsTowardLow && low != null && cents < low) {
         events.push(makeEvent(snapshot, 'new_low', names.get(itemId) ?? 'Item', data, priorCents == null ? null : prior?.price ?? null, productName))
       } else if (cad && priorCents != null && cents < priorCents) {
@@ -74,7 +75,7 @@ export function buildTimeline(data: Dataset): TimelineEvent[] {
       if (prior && prior.in_stock !== false && snapshot.in_stock === false) {
         events.push(makeEvent(snapshot, 'out_of_stock', names.get(itemId) ?? 'Item', data, null, productName))
       }
-      if (countsTowardLow && (low == null || cents < low)) low = cents
+      if (countsTowardLow && (low == null || cents < low)) lows.set(track, cents)
       previous.set(track, snapshot)
     }
   }

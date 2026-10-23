@@ -235,10 +235,13 @@ describe('product identity', () => {
 
     const dropped = snap(5, 'Cybeart NEO (Lunar Edition)', { product_url: 'https://www.amazon.ca/dp/B0F62K8T2Z', price: 400, captured_at: '2026-10-23T18:00:00.000Z' })
     const earlier = snap(6, 'Cybeart NEO (Stealth Edition)', { product_url: 'https://www.amazon.ca/dp/B0GFF1ZQGY', price: 450, captured_at: '2026-10-22T18:00:00.000Z' })
-    const events = buildTimeline({ items: [item], stores: [amazon], snapshots: [earlier, dropped], deals: [] })
-    expect(events.map((event) => event.kind)).toEqual(['new_low'])
-    expect(events[0]?.productName).toContain('Cybeart NEO')
-    expect(events[0]?.productName).toContain('Lunar')
+    expect(buildTimeline({ items: [item], stores: [amazon], snapshots: [earlier, dropped], deals: [] })).toEqual([])
+
+    const lunarEarlier = snap(7, 'Cybeart NEO (Lunar Edition)', { product_url: 'https://www.amazon.ca/dp/B0F62K8T2Z', price: 450, captured_at: '2026-10-22T18:00:00.000Z' })
+    const sameColour = buildTimeline({ items: [item], stores: [amazon], snapshots: [lunarEarlier, dropped], deals: [] })
+    expect(sameColour.map((event) => event.kind)).toEqual(['new_low'])
+    expect(sameColour[0]?.previousPrice).toBe(450)
+    expect(sameColour[0]?.price).toBe(400)
   })
 
   it('counts one observation per product per store per day and one deal per colourway family', () => {

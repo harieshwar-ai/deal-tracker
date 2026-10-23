@@ -20,7 +20,7 @@ import { formatCad, formatPct, formatRelative, safeHttpUrl } from '../domain/for
 import { heroStats } from '../domain/hero'
 import { priceBrief } from '../domain/context'
 import type { PriceBrief } from '../domain/context'
-import { priorityLabel, priorityTone, sortLabel, verdictLabel, verdictTone } from '../domain/labels'
+import { dealScoreLabel, priorityLabel, priorityTone, sortLabel, verdictTone } from '../domain/labels'
 import type { Item, WatchSort } from '../domain/types'
 import { buildTimeline } from '../domain/timeline'
 import { priceCallLabel, priceCallsForDataset, priceCallTone } from '../domain/verdict'
@@ -330,7 +330,7 @@ function WatchCard({
             {row.item.enrichment_status === 'pending_enrichment' ? <Badge className="bg-gold-soft text-gold">Waiting for the next scan</Badge> : null}
             {call ? <Badge className={priceCallTone(call.call)}>{priceCallLabel(call.call)}</Badge> : null}
             {row.atLow ? <Badge className="bg-buy-soft text-buy">All-time low</Badge> : null}
-            {deal ? <Badge className={verdictTone(deal.verdict ?? 'unrated')}>{verdictLabel(deal.verdict ?? 'unrated')}</Badge> : null}
+            {deal ? <Badge className={verdictTone(deal.verdict ?? 'unrated')}>{dealScoreLabel(deal.verdict)}</Badge> : null}
           </div>
           <p className="mt-2 text-sm text-muted">
             {[row.item.category, row.item.condition].filter(Boolean).join(' · ') || 'No category'}

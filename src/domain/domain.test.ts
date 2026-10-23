@@ -266,7 +266,7 @@ describe('quotes and watchlist', () => {
     expect(tv?.best?.storeName).toBe('Costco')
     expect(tv?.openDeal?.verdict).toBe('must_buy')
     expect(tv?.atLow).toBe(true)
-    expect(tv?.spark[0]).toBe(2000)
+    expect(tv?.spark[0]).toBe(2200)
     expect(tv?.spark.at(-1)).toBe(1900)
     const filtered = filterWatchRows(rows, {
       query: 'oled',

@@ -2,6 +2,7 @@ import { categoryKey, toCents } from './format'
 import { priorityRank } from './labels'
 import { pickOpenDeal } from './deals'
 import { isQualifying } from './offers'
+import { offerSeriesKey } from './identity'
 import { cheapestEver, chooseBest, offerQuotes, sparklineValues } from './quotes'
 import type { Quote } from './quotes'
 import type { ActivityFilter, Dataset, Deal, Item, Priority, WatchSort } from './types'
@@ -58,11 +59,19 @@ export function buildWatchRows(data: Dataset, now = new Date()): WatchRow[] {
       best,
       allTimeLow: low?.price ?? null,
       atLow,
-      spark: sparklineValues(qualifyingByItem.get(item.id) ?? [], now),
+      spark: sparklineValues(seriesSnapshots(qualifyingByItem.get(item.id) ?? [], best?.snapshotId ?? null), now),
       openDeal: pickOpenDeal(dealsByItem.get(item.id) ?? []),
       targetGap,
     }
   })
+}
+
+function seriesSnapshots(snapshots: Dataset['snapshots'], snapshotId: number | null): Dataset['snapshots'] {
+  if (snapshotId == null) return []
+  const current = snapshots.find((snapshot) => snapshot.id === snapshotId)
+  if (!current) return []
+  const key = offerSeriesKey(current)
+  return snapshots.filter((snapshot) => offerSeriesKey(snapshot) === key)
 }
 
 function quotesFor(data: Dataset, include: (snapshot: Dataset['snapshots'][number]) => boolean): Map<string, Quote[]> {

@@ -155,6 +155,15 @@ export function assignProducts(snapshots: PriceSnapshot[]): Map<number, ProductA
   return assigned
 }
 
+/** Store plus normalized model and colour. Same-ASIN renames with a different model stay apart. */
+export function offerSeriesKey(snapshot: PriceSnapshot): string {
+  const store = snapshot.store_id ?? ''
+  const parsed = parseOfferName(snapshot.product_name)
+  if (parsed.identityKey) return `${store}\u0000${parsed.identityKey}\u0000${(parsed.variantLabel ?? '').toLowerCase()}`
+  if (parsed.exactKey) return `${store}\u0000exact:${parsed.exactKey}`
+  return `${store}\u0000unnamed`
+}
+
 export function variantKey(snapshot: PriceSnapshot, name: ParsedName = parseOfferName(snapshot.product_name)): string {
   const listing = listingKey(snapshot.product_url)
   if (listing) return `listing:${listing}`

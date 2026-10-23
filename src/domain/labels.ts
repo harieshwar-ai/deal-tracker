@@ -1,4 +1,4 @@
-import type { DatePreset, DealStatus, Priority, VerdictGroup, WatchSort } from './types'
+import type { DatePreset, DealStatus, Priority, Verdict, VerdictGroup, WatchSort } from './types'
 
 export function priorityLabel(priority: Priority): string {
   switch (priority) {
@@ -13,6 +13,10 @@ export function priorityLabel(priority: Priority): string {
       return neverPriority
     }
   }
+}
+
+export function dealScoreLabel(verdict: Verdict | null): string {
+  return `Deal score: ${verdictLabel(verdict ?? 'unrated').toLowerCase()}`
 }
 
 export function verdictLabel(verdict: VerdictGroup): string {
