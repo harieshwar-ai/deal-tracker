@@ -1,4 +1,5 @@
 import { safeHttpUrl } from './format'
+import { formatRequirementLines, formatSpecLines, parseRequirementLines, parseSpecLines } from './specs'
 import type {
   FieldError,
   Item,
@@ -25,6 +26,8 @@ export function blankItemDraft(): ItemDraft {
     condition: 'new',
     notes: '',
     imageUrl: '',
+    specs: '',
+    requirements: '',
     active: true,
   }
 }
@@ -53,6 +56,8 @@ export function itemToDraft(item: Item): ItemDraft {
     condition: item.condition ?? 'new',
     notes: item.notes ?? '',
     imageUrl: item.image_url ?? '',
+    specs: formatSpecLines(item.specs),
+    requirements: formatRequirementLines(item.requirements),
     active: item.active,
   }
 }
@@ -76,6 +81,8 @@ export function parseItemDraft(draft: ItemDraft): ParseResult<ItemWrite> {
   const category = optionalText(draft.category, 'category', 80, errors)
   const notes = optionalText(draft.notes, 'notes', 4000, errors)
   const imageUrl = parseImageUrl(draft.imageUrl, errors)
+  const specs = parseSpecField(draft.specs, errors)
+  const requirements = parseRequirementField(draft.requirements, errors)
   const condition = optionalText(draft.condition, 'condition', 40, errors) ?? 'new'
   const target = parsePrice(draft.targetPrice, 'targetPrice', errors)
   const max = parsePrice(draft.maxPrice, 'maxPrice', errors)
@@ -95,6 +102,8 @@ export function parseItemDraft(draft: ItemDraft): ParseResult<ItemWrite> {
       condition,
       notes,
       image_url: imageUrl,
+      specs,
+      requirements,
       active: draft.active,
     },
   }
@@ -183,6 +192,24 @@ function parseKeywords(value: string, errors: FieldError[]): string[] {
     return []
   }
   return keywords
+}
+
+function parseSpecField(value: string, errors: FieldError[]): { name: string; value: string }[] {
+  const parsed = parseSpecLines(value)
+  if (!parsed.ok) {
+    errors.push({ field: 'specs', message: parsed.message })
+    return []
+  }
+  return parsed.specs
+}
+
+function parseRequirementField(value: string, errors: FieldError[]): { label: string }[] {
+  const parsed = parseRequirementLines(value)
+  if (!parsed.ok) {
+    errors.push({ field: 'requirements', message: parsed.message })
+    return []
+  }
+  return parsed.requirements
 }
 
 function parseImageUrl(value: string, errors: FieldError[]): string | null {

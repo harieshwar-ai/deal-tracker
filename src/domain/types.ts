@@ -18,6 +18,15 @@ export interface Store {
   updated_at: string
 }
 
+export interface ItemSpec {
+  name: string
+  value: string
+}
+
+export interface ItemRequirement {
+  label: string
+}
+
 export interface Item {
   id: string
   name: string
@@ -31,6 +40,8 @@ export interface Item {
   condition: string | null
   notes: string | null
   image_url: string | null
+  specs: ItemSpec[]
+  requirements: ItemRequirement[]
   active: boolean
   created_at: string
   updated_at: string
@@ -88,6 +99,8 @@ export interface ItemWrite {
   condition: string
   notes: string | null
   image_url: string | null
+  specs: ItemSpec[]
+  requirements: ItemRequirement[]
   active: boolean
 }
 
@@ -112,6 +125,8 @@ export interface ItemDraft {
   condition: string
   notes: string
   imageUrl: string
+  specs: string
+  requirements: string
   active: boolean
 }
 

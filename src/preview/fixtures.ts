@@ -27,6 +27,18 @@ export function createPreviewDataset(now = new Date()): Dataset {
     item('air', 'Air purifier', 'Home', ['hepa'], 250, 320, 'normal', false, 'Paused until smoke season.', today),
     item('monitor', '27" monitor', 'Electronics', ['usb-c'], 400, 500, 'normal', true, 'No prices recorded yet.', today),
   ]
+  const keyboard = items.find((entry) => entry.id === 'keys')
+  if (keyboard) {
+    keyboard.specs = [
+      { name: 'Switch', value: 'Hot-swap mechanical' },
+      { name: 'Layout', value: '75%' },
+      { name: 'Connection', value: 'USB-C' },
+    ]
+    keyboard.requirements = [
+      { label: 'Hot-swap' },
+      { label: 'Aluminum case' },
+    ]
+  }
   const snapshots: PriceSnapshot[] = [
     ...walk(nextId, 'tv', 'bestbuy', 70, 4, 2499, 1899, 2499, 'LG C4 65"', 'https://www.bestbuy.ca/oled', false, today),
     ...walk(nextId, 'tv', 'costco', 70, 5, 2299, 1999, 2499, 'LG OLED 65"', 'https://www.costco.ca/oled', true, today),
@@ -97,6 +109,8 @@ function item(
     condition: 'new',
     notes,
     image_url: null,
+    specs: [],
+    requirements: [],
     active,
     created_at: `${shift(today, 80)}T16:00:00.000Z`,
     updated_at: `${today}T16:00:00.000Z`,

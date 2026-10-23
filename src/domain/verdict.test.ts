@@ -18,6 +18,8 @@ function item(target: number | null = null): Item {
     condition: 'new',
     notes: 'private note',
     image_url: null,
+    specs: [],
+    requirements: [],
     active: true,
     created_at: '2026-09-01T16:00:00.000Z',
     updated_at: '2026-10-01T16:00:00.000Z',

@@ -48,6 +48,8 @@ function makeItem(id: string, name: string, category: string, target: number, pr
     condition: 'new',
     notes: null,
     image_url: null,
+    specs: [],
+    requirements: [],
     active: true,
     created_at: daysAgo(20),
     updated_at: daysAgo(1),
@@ -169,6 +171,8 @@ describe('drafts and rows', () => {
       condition: '',
       notes: '',
       imageUrl: '',
+      specs: 'Panel | OLED',
+      requirements: 'OLED panel',
       active: true,
     })
     expect(item.ok).toBe(true)
@@ -178,6 +182,8 @@ describe('drafts and rows', () => {
       expect(item.value.condition).toBe('new')
       expect(item.value.target_price).toBe(1800)
       expect(item.value.public_summary).toBe('A television.')
+      expect(item.value.specs).toEqual([{ name: 'Panel', value: 'OLED' }])
+      expect(item.value.requirements).toEqual([{ label: 'OLED panel' }])
     }
     expect(parseItemDraft({ ...blankish(), name: ' ', targetPrice: '12.345' }).ok).toBe(false)
     const store = parseStoreDraft({
@@ -365,6 +371,8 @@ function blankish() {
     condition: 'new',
     notes: '',
     imageUrl: '',
+    specs: '',
+    requirements: '',
     active: true,
   }
 }

@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useCanEdit } from '../auth/AuthProvider'
 import { PriceHistoryChart } from '../components/charts'
 import { ProductPhoto } from '../components/product'
+import { RequirementChecklist, SpecChecklist } from '../components/SpecChecklist'
 import { ItemForm } from '../components/ItemForm'
 import { useToast } from '../components/toast'
 import { Badge, Button, ConfirmDialog, EmptyState, LoadingBlock, Modal } from '../components/ui'
@@ -99,6 +100,8 @@ export function ItemPage() {
         <span className="text-muted"> Confidence {call.confidence}.</span>
       </p>
       {item.public_summary ? <p className="mt-4 max-w-2xl text-sm leading-6">{item.public_summary}</p> : null}
+      <SpecChecklist specs={item.specs} />
+      {canEdit ? <RequirementChecklist specs={item.specs} requirements={item.requirements} /> : null}
       {canEdit && item.description ? <p className="mt-4 max-w-2xl text-sm leading-6 text-muted">{item.description}</p> : null}
       {item.keywords.length > 0 ? (
         <ul className="mt-3 flex flex-wrap gap-2">

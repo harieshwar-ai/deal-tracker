@@ -4,6 +4,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useCanEdit } from '../auth/AuthProvider'
 import { HeroStrip } from '../components/HeroStrip'
 import { ProductPhoto, StoreMark } from '../components/product'
+import { SpecChecklist } from '../components/SpecChecklist'
 import { Sparkline } from '../components/Sparkline'
 import { ItemForm } from '../components/ItemForm'
 import { useToast } from '../components/toast'
@@ -221,6 +222,7 @@ function WatchCard({
             {canEdit && row.item.target_price != null ? ` · target ${formatCad(row.item.target_price)}` : ''}
           </p>
           {!canEdit && row.item.public_summary ? <p className="mt-2 text-sm leading-6 text-ink">{row.item.public_summary}</p> : null}
+          <SpecChecklist specs={row.item.specs} />
           {call ? <p className="mt-2 max-w-xl text-sm leading-6">{call.reason} <span className="text-muted">Confidence {call.confidence}.</span></p> : null}
         </div>
         <div className="text-left sm:text-right">

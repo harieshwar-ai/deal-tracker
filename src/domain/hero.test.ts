@@ -18,6 +18,8 @@ function item(id: string, name: string, active = true): Item {
     condition: 'new',
     notes: null,
     image_url: null,
+    specs: [],
+    requirements: [],
     active,
     created_at: '2026-09-01T16:00:00.000Z',
     updated_at: '2026-10-01T16:00:00.000Z',
