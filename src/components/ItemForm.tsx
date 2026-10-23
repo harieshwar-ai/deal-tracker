@@ -92,6 +92,12 @@ export function ItemForm({
       <Field label="Image URL" hint="Public product photo. Visitors can see this address." error={fieldError(errors, 'imageUrl')}>
         <input className={controlClass} value={draft.imageUrl} onChange={(event) => setDraft({ ...draft, imageUrl: event.target.value })} placeholder="https://" />
       </Field>
+      <Field label="Public specs" hint="One per line: Name | value. Visitors see this checklist. Leave out weight, height, and budgets." error={fieldError(errors, 'specs')}>
+        <textarea className={controlClass} rows={4} value={draft.specs} onChange={(event) => setDraft({ ...draft, specs: event.target.value })} placeholder={'Gas lift | Class 4'} />
+      </Field>
+      <Field label="Requirements" hint="Only you see these. One per line. Each line passes when the public specs cover it." error={fieldError(errors, 'requirements')}>
+        <textarea className={controlClass} rows={3} value={draft.requirements} onChange={(event) => setDraft({ ...draft, requirements: event.target.value })} placeholder={'Class 4 lift'} />
+      </Field>
       <Field label="Public summary" hint="Shown to visitors. Leave out targets, notes, and anything you would not put on a product page." error={fieldError(errors, 'publicSummary')}>
         <textarea className={controlClass} rows={3} value={draft.publicSummary} onChange={(event) => setDraft({ ...draft, publicSummary: event.target.value })} />
       </Field>

@@ -1,3 +1,4 @@
+import { parseRequirementList, parseSpecList } from '../domain/specs'
 import type { Deal, DealStatus, Item, PriceSnapshot, Priority, Store, Verdict } from '../domain/types'
 
 export function parseStoreRow(row: unknown): Store {
@@ -30,6 +31,8 @@ export function parseItemRow(row: unknown): Item {
     condition: optionalString(record, 'condition', 'items'),
     notes: optionalString(record, 'notes', 'items'),
     image_url: optionalString(record, 'image_url', 'items'),
+    specs: parseSpecList(record.specs),
+    requirements: parseRequirementList(record.requirements),
     active: requiredBoolean(record, 'active', 'items'),
     created_at: requiredString(record, 'created_at', 'items'),
     updated_at: requiredString(record, 'updated_at', 'items'),

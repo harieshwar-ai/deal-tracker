@@ -8,6 +8,7 @@ const publicItemColumns = [
   'priority',
   'active',
   'image_url',
+  'specs',
   'created_at',
   'updated_at',
 ] as const
@@ -18,6 +19,7 @@ const ownerItemColumns = [
   'notes',
   'target_price',
   'max_price',
+  'requirements',
 ] as const
 
 const publicStoreColumns = [
@@ -67,7 +69,7 @@ const snapshotColumns = [
 ] as const
 
 export const visitorHiddenColumns = {
-  items: ['description', 'notes', 'target_price', 'max_price'],
+  items: ['description', 'notes', 'target_price', 'max_price', 'requirements'],
   stores: ['membership', 'notes'],
   deals: ['reason'],
 } as const

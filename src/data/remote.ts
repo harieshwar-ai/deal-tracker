@@ -20,23 +20,26 @@ export async function loadDataset(owner: boolean): Promise<Dataset> {
   }
 }
 
-const optionalItemWrites = new Set(['image_url'])
+const optionalItemWrites: Record<string, string> = {
+  image_url: 'The image address cannot be saved until the latest database migration is applied.',
+  specs: 'Public specs cannot be saved until the latest database migration is applied.',
+  requirements: 'Requirements cannot be saved until the latest database migration is applied.',
+}
 
 export async function saveItem(write: ItemWrite, id?: string): Promise<void> {
   const payload: Record<string, unknown> = { ...write }
-  for (let attempt = 0; attempt < 4; attempt += 1) {
+  for (let attempt = 0; attempt < 6; attempt += 1) {
     const query = id
       ? supabase.from('items').update(payload).eq('id', id)
       : supabase.from('items').insert(payload)
     const { error } = await query
     if (!error) return
     const missing = missingColumnName(error)
-    if (!missing || !optionalItemWrites.has(missing) || !(missing in payload)) {
+    const explanation = missing ? optionalItemWrites[missing] : undefined
+    if (!missing || !explanation || !(missing in payload)) {
       throw new Error(friendlyError(error))
     }
-    if (payload[missing] != null) {
-      throw new Error('The image address cannot be saved until the latest database migration is applied.')
-    }
+    if (!blankColumn(payload[missing])) throw new Error(explanation)
     delete payload[missing]
   }
   throw new Error('Could not save the item.')
@@ -63,6 +66,11 @@ export async function deleteStore(id: string): Promise<void> {
 export async function setDealStatus(id: string, status: DealStatus): Promise<void> {
   const { error } = await supabase.from('deals').update({ status }).eq('id', id)
   if (error) throw new Error(friendlyError(error))
+}
+
+function blankColumn(value: unknown): boolean {
+  if (value == null || value === '') return true
+  return Array.isArray(value) && value.length === 0
 }
 
 async function fetchAll(

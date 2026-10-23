@@ -12,6 +12,9 @@ describe('visitor selects', () => {
     }
     expect(selectColumns('items', false).split(',')).toContain('public_summary')
     expect(selectColumns('items', false).split(',')).toContain('image_url')
+    expect(selectColumns('items', false).split(',')).toContain('specs')
+    expect(selectColumns('items', false).split(',')).not.toContain('requirements')
+    expect(selectColumns('items', true).split(',')).toContain('requirements')
     expect(selectColumns('items', true).split(',')).toContain('image_url')
     expect(selectColumns('items', true).split(',')).toEqual(expect.arrayContaining([...visitorHiddenColumns.items]))
     expect(selectColumns('stores', true).split(',')).toEqual(expect.arrayContaining([...visitorHiddenColumns.stores]))
@@ -35,6 +38,8 @@ describe('visitor selects', () => {
     })
     expect(item.public_summary).toBe('A chair for a tall desk.')
     expect(item.image_url).toBeNull()
+    expect(item.specs).toEqual([])
+    expect(item.requirements).toEqual([])
     expect(item.description).toBeNull()
     expect(item.notes).toBeNull()
     expect(item.target_price).toBeNull()
