@@ -11,7 +11,7 @@ import { TimelineList } from '../components/Timeline'
 import { ItemForm } from '../components/ItemForm'
 import { useToast } from '../components/toast'
 import { Badge, buttonClass, ConfirmDialog, controlClass, EmptyState, ErrorState, LoadingBlock, Modal, Segmented } from '../components/ui'
-import { blankItemDraft, itemToDraft } from '../domain/drafts'
+import { blankItemDraft, itemToDraft, pendingItemFromUrl } from '../domain/drafts'
 import { parseActivity, parsePriorityFilter, parseSort } from '../domain/filters'
 import { discountPercent, formatCad, formatRelative, safeHttpUrl } from '../domain/format'
 import { heroStats } from '../domain/hero'
@@ -34,6 +34,10 @@ export function WatchlistPage() {
   const push = useToast()
   const [params, setParams] = useSearchParams()
   const [editing, setEditing] = useState<Item | null | 'new'>(null)
+  const [linkOpen, setLinkOpen] = useState(false)
+  const [linkValue, setLinkValue] = useState('')
+  const [linkError, setLinkError] = useState<string | null>(null)
+  const [linkPending, setLinkPending] = useState(false)
   const [removing, setRemoving] = useState<Item | null>(null)
   const [pendingDelete, setPendingDelete] = useState(false)
   const query = params.get('q') ?? ''
@@ -77,10 +81,15 @@ export function WatchlistPage() {
           <p className="mt-1 text-sm text-muted">{catalog.items.filter((item) => item.active).length} active items</p>
         </div>
         {canEdit ? (
-          <button type="button" className={buttonClass()} onClick={() => setEditing('new')}>
-            <Plus className="h-4 w-4" />
-            Add item
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className={buttonClass('secondary')} onClick={() => { setLinkValue(''); setLinkError(null); setLinkOpen(true) }}>
+              Add from link
+            </button>
+            <button type="button" className={buttonClass()} onClick={() => setEditing('new')}>
+              <Plus className="h-4 w-4" />
+              Add item
+            </button>
+          </div>
         ) : null}
       </div>
       <HeroStrip stats={hero} />
@@ -154,6 +163,45 @@ export function WatchlistPage() {
         </div>
       </section>
       <Modal
+        open={linkOpen}
+        title="Add from a link"
+        description="Harbour stores the link only. The next scan fills in the name, specs, summary, and photo."
+        onClose={() => setLinkOpen(false)}
+      >
+        <form
+          className="grid gap-4"
+          onSubmit={(event) => {
+            event.preventDefault()
+            const parsed = pendingItemFromUrl(linkValue)
+            if (!parsed.ok) {
+              setLinkError(parsed.errors[0]?.message ?? 'Use an http or https link.')
+              return
+            }
+            setLinkPending(true)
+            setLinkError(null)
+            void catalog.saveItem(parsed.value).then(() => {
+              push('ok', 'Link saved. The next scan can fill in the details.')
+              setLinkOpen(false)
+            }).catch((error: unknown) => {
+              setLinkError(error instanceof Error ? error.message : 'Could not save the link.')
+            }).finally(() => setLinkPending(false))
+          }}
+        >
+          <input
+            className={controlClass}
+            value={linkValue}
+            onChange={(event) => setLinkValue(event.target.value)}
+            placeholder="https://"
+            aria-label="Product URL"
+            inputMode="url"
+          />
+          {linkError ? <p className="text-sm text-clay">{linkError}</p> : null}
+          <div className="flex justify-end">
+            <button type="submit" className={buttonClass()} disabled={linkPending}>{linkPending ? 'Saving…' : 'Save link'}</button>
+          </div>
+        </form>
+      </Modal>
+      <Modal
         open={editing != null}
         title={editing === 'new' ? 'New item' : 'Edit item'}
         description="Every field is saved on the item. Prices themselves come from the daily check."
@@ -224,6 +272,7 @@ function WatchCard({
             </h2>
             <Badge className={priorityTone(row.item.priority)}>{priorityLabel(row.item.priority)}</Badge>
             {!row.item.active ? <Badge className="bg-paper text-muted">Paused</Badge> : null}
+            {row.item.enrichment_status === 'pending_enrichment' ? <Badge className="bg-gold-soft text-gold">Waiting for the next scan</Badge> : null}
             {call ? <Badge className={priceCallTone(call.call)}>{priceCallLabel(call.call)}</Badge> : null}
             {row.atLow ? <Badge className="bg-gold-soft text-gold">All-time low</Badge> : null}
             {deal ? <Badge className={verdictTone(deal.verdict ?? 'unrated')}>{verdictLabel(deal.verdict ?? 'unrated')}</Badge> : null}
@@ -235,6 +284,7 @@ function WatchCard({
           {!canEdit && row.item.public_summary ? <p className="mt-2 text-sm leading-6 text-ink">{row.item.public_summary}</p> : null}
           <SpecChecklist specs={row.item.specs} />
           {call ? <p className="mt-2 max-w-xl text-sm leading-6">{call.reason} <span className="text-muted">Confidence {call.confidence}.</span></p> : null}
+          {safeHttpUrl(row.item.product_url) ? <a className="mt-2 inline-block text-sm text-pine underline" href={safeHttpUrl(row.item.product_url) ?? undefined} target="_blank" rel="noopener noreferrer">Product link</a> : null}
         </div>
         <div className="text-left sm:text-right">
           <p className="font-display text-4xl tabular-nums">{row.best ? formatCad(row.best.price) : '—'}</p>

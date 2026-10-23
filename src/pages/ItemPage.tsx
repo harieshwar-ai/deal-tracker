@@ -89,6 +89,7 @@ export function ItemPage() {
             <h1 className="font-display text-4xl">{item.name}</h1>
             <Badge className={priorityTone(item.priority)}>{priorityLabel(item.priority)}</Badge>
             {!item.active ? <Badge className="bg-paper text-muted">Paused</Badge> : null}
+            {item.enrichment_status === 'pending_enrichment' ? <Badge className="bg-gold-soft text-gold">Waiting for the next scan</Badge> : null}
           </div>
           <p className="mt-2 text-sm text-muted">
             {[item.category, item.condition].filter(Boolean).join(' · ') || 'No category'}

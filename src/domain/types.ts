@@ -1,4 +1,5 @@
 export type Priority = 'low' | 'normal' | 'high'
+export type EnrichmentStatus = 'ready' | 'pending_enrichment'
 export type Verdict = 'must_buy' | 'good' | 'ok' | 'skip'
 export type DealStatus = 'open' | 'bought' | 'dismissed' | 'expired'
 export type VerdictGroup = Verdict | 'unrated'
@@ -42,6 +43,8 @@ export interface Item {
   image_url: string | null
   specs: ItemSpec[]
   requirements: ItemRequirement[]
+  product_url: string | null
+  enrichment_status: EnrichmentStatus
   active: boolean
   created_at: string
   updated_at: string
@@ -103,6 +106,8 @@ export interface ItemWrite {
   image_url: string | null
   specs: ItemSpec[]
   requirements: ItemRequirement[]
+  product_url: string | null
+  enrichment_status: EnrichmentStatus
   active: boolean
 }
 
@@ -129,6 +134,8 @@ export interface ItemDraft {
   imageUrl: string
   specs: string
   requirements: string
+  productUrl: string
+  enrichmentStatus: EnrichmentStatus
   active: boolean
 }
 

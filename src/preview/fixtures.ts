@@ -111,6 +111,8 @@ function item(
     image_url: null,
     specs: [],
     requirements: [],
+    product_url: null,
+    enrichment_status: 'ready',
     active,
     created_at: `${shift(today, 80)}T16:00:00.000Z`,
     updated_at: `${today}T16:00:00.000Z`,

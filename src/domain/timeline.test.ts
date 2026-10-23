@@ -19,6 +19,8 @@ const item: Item = {
   image_url: null,
   specs: [],
   requirements: [],
+  product_url: null,
+  enrichment_status: 'ready',
   active: true,
   created_at: now.toISOString(),
   updated_at: now.toISOString(),
