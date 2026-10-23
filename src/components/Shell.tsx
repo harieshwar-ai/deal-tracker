@@ -1,7 +1,7 @@
 import { BarChart3, List, LogOut, RefreshCw, Store, Tag } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
-import { Suspense, useEffect, useRef } from 'react'
-import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { useEffect, useRef } from 'react'
+import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
 import { consumeReturnPath, rememberReturnPath } from '../auth/returnPath'
 import { cn } from '../lib/cn'
@@ -116,11 +116,7 @@ export function Shell() {
           </p>
         ) : null}
         <main id="content" className="px-4 pt-6 pb-[calc(7rem+env(safe-area-inset-bottom))] md:px-8 md:pb-12">
-          <Suspense fallback={<LoadingBlock />}>
-            <RouteTransition>
-              <Outlet />
-            </RouteTransition>
-          </Suspense>
+          <RouteTransition fallback={<LoadingBlock />} />
         </main>
       </div>
       <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-line bg-paper-2/95 shadow-[0_-8px_24px_rgb(16_20_24/0.04)] backdrop-blur pb-[env(safe-area-inset-bottom)] md:hidden" aria-label="Primary">
@@ -155,11 +151,15 @@ function NavItem({
       {({ isActive }) => (
         <>
           {isActive ? (
-            <motion.span
-              layoutId="desktop-nav"
-              className="absolute inset-0 rounded-lg bg-white/10"
-              transition={reduce ? { duration: 0 } : { type: 'tween', duration: 0.22, ease: navEase }}
-            />
+            reduce ? (
+              <span className="absolute inset-0 rounded-lg bg-white/10" />
+            ) : (
+              <motion.span
+                layoutId="desktop-nav"
+                className="absolute inset-0 rounded-lg bg-white/10"
+                transition={{ type: 'tween', duration: 0.22, ease: navEase }}
+              />
+            )
           ) : null}
           <span className="relative inline-flex items-center gap-2">
             <Icon className="h-4 w-4" aria-hidden="true" />
@@ -195,11 +195,15 @@ function MobileNavItem({
       {({ isActive }) => (
         <>
           {isActive ? (
-            <motion.span
-              layoutId="mobile-nav"
-              className="absolute inset-x-4 top-1 h-0.5 rounded-full bg-pine"
-              transition={reduce ? { duration: 0 } : { type: 'tween', duration: 0.22, ease: navEase }}
-            />
+            reduce ? (
+              <span className="absolute inset-x-4 top-1 h-0.5 rounded-full bg-pine" />
+            ) : (
+              <motion.span
+                layoutId="mobile-nav"
+                className="absolute inset-x-4 top-1 h-0.5 rounded-full bg-pine"
+                transition={{ type: 'tween', duration: 0.22, ease: navEase }}
+              />
+            )
           ) : null}
           <Icon className="h-5 w-5" aria-hidden="true" />
           {label}
