@@ -24,6 +24,7 @@ export function blankItemDraft(): ItemDraft {
     priority: 'normal',
     condition: 'new',
     notes: '',
+    imageUrl: '',
     active: true,
   }
 }
@@ -51,6 +52,7 @@ export function itemToDraft(item: Item): ItemDraft {
     priority: item.priority,
     condition: item.condition ?? 'new',
     notes: item.notes ?? '',
+    imageUrl: item.image_url ?? '',
     active: item.active,
   }
 }
@@ -73,6 +75,7 @@ export function parseItemDraft(draft: ItemDraft): ParseResult<ItemWrite> {
   const description = optionalText(draft.description, 'description', 4000, errors)
   const category = optionalText(draft.category, 'category', 80, errors)
   const notes = optionalText(draft.notes, 'notes', 4000, errors)
+  const imageUrl = parseImageUrl(draft.imageUrl, errors)
   const condition = optionalText(draft.condition, 'condition', 40, errors) ?? 'new'
   const target = parsePrice(draft.targetPrice, 'targetPrice', errors)
   const max = parsePrice(draft.maxPrice, 'maxPrice', errors)
@@ -91,6 +94,7 @@ export function parseItemDraft(draft: ItemDraft): ParseResult<ItemWrite> {
       priority: draft.priority,
       condition,
       notes,
+      image_url: imageUrl,
       active: draft.active,
     },
   }
@@ -179,6 +183,21 @@ function parseKeywords(value: string, errors: FieldError[]): string[] {
     return []
   }
   return keywords
+}
+
+function parseImageUrl(value: string, errors: FieldError[]): string | null {
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  if (trimmed.length > 500) {
+    errors.push({ field: 'imageUrl', message: 'That image address is too long.' })
+    return null
+  }
+  const safe = safeHttpUrl(trimmed)
+  if (!safe) {
+    errors.push({ field: 'imageUrl', message: 'Use an http or https image address.' })
+    return null
+  }
+  return safe
 }
 
 function parseUrl(value: string, errors: FieldError[]): string | null {

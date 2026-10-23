@@ -29,6 +29,7 @@ export function parseItemRow(row: unknown): Item {
     priority: priority(record.priority),
     condition: optionalString(record, 'condition', 'items'),
     notes: optionalString(record, 'notes', 'items'),
+    image_url: optionalString(record, 'image_url', 'items'),
     active: requiredBoolean(record, 'active', 'items'),
     created_at: requiredString(record, 'created_at', 'items'),
     updated_at: requiredString(record, 'updated_at', 'items'),
@@ -171,6 +172,14 @@ function score(value: unknown): number {
 function readCode(error: unknown): string {
   if (error && typeof error === 'object' && 'code' in error && typeof error.code === 'string') return error.code
   return ''
+}
+
+export function missingColumnName(error: unknown): string | null {
+  const message = readMessage(error)
+  const quoted = message.match(/could not find the '([a-z_][a-z0-9_]*)' column/i)
+  if (quoted?.[1]) return quoted[1]
+  const missing = message.match(/column (?:[\w]+\.)?["']?([a-z_][a-z0-9_]*)["']? does not exist/i)
+  return missing?.[1] ?? null
 }
 
 function readMessage(error: unknown): string {

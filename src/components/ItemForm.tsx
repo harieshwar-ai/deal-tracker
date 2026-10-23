@@ -89,6 +89,9 @@ export function ItemForm({
       <Field label="Keywords" hint="Comma-separated. Used by search and the price checker." error={fieldError(errors, 'keywords')}>
         <input className={controlClass} value={draft.keywords} onChange={(event) => setDraft({ ...draft, keywords: event.target.value })} placeholder="oled, 65 inch" />
       </Field>
+      <Field label="Image URL" hint="Public product photo. Visitors can see this address." error={fieldError(errors, 'imageUrl')}>
+        <input className={controlClass} value={draft.imageUrl} onChange={(event) => setDraft({ ...draft, imageUrl: event.target.value })} placeholder="https://" />
+      </Field>
       <Field label="Public summary" hint="Shown to visitors. Leave out targets, notes, and anything you would not put on a product page." error={fieldError(errors, 'publicSummary')}>
         <textarea className={controlClass} rows={3} value={draft.publicSummary} onChange={(event) => setDraft({ ...draft, publicSummary: event.target.value })} />
       </Field>

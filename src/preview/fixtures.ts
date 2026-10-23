@@ -96,6 +96,7 @@ function item(
     priority,
     condition: 'new',
     notes,
+    image_url: null,
     active,
     created_at: `${shift(today, 80)}T16:00:00.000Z`,
     updated_at: `${today}T16:00:00.000Z`,

@@ -7,6 +7,7 @@ const publicItemColumns = [
   'condition',
   'priority',
   'active',
+  'image_url',
   'created_at',
   'updated_at',
 ] as const
