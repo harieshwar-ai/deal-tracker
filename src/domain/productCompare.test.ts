@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { compareCandidateProducts, sortComparedProducts, sortStoreRows, storeRowsFromQuotes } from './productCompare'
+import { compareCandidateProducts, qualifyingInStockPriceLabel, sortComparedProducts, sortStoreRows, storeRowsFromQuotes } from './productCompare'
 import { offerQuotes } from './quotes'
 import type { PriceSnapshot, Store } from './types'
 
@@ -89,10 +89,51 @@ describe('candidate product comparison', () => {
     const phantom4 = products.find((product) => product.name.includes('Phantom 4'))
     const phantom3 = products.find((product) => product.name.includes('Phantom 3'))
     expect(phantom4?.meets).toBe('misses')
-    expect(phantom4?.stock).toBeNull()
+    expect(phantom4?.stock).toBe(true)
     expect(phantom4?.lowest).toBeNull()
+    expect(qualifyingInStockPriceLabel(phantom4!)).toBe('None verified')
     expect(phantom3?.stock).toBe(true)
     expect(phantom3?.lowest).toMatchObject({ price: 300, outOfStock: false })
+    expect(qualifyingInStockPriceLabel(phantom3!)).toMatch(/300\.00/)
+  })
+
+  it('reports real stock on unverified listings and names an empty qualifying price', () => {
+    const bestbuy: Store = { ...amazon, id: 'bestbuy', name: 'Best Buy' }
+    const products = compareCandidateProducts([
+      snap(1, 'AndaSeat Kaiser 3 XL', {
+        product_url: 'https://www.amazon.ca/dp/B0KAISER3X',
+        meets_requirements: null,
+        in_stock: true,
+        price: 500,
+      }),
+      snap(2, 'AndaSeat Kaiser 3 XL', {
+        store_id: 'costco',
+        product_url: 'https://www.costco.ca/kaiser-3.product.100.html',
+        meets_requirements: true,
+        in_stock: false,
+        price: 450,
+      }),
+      snap(3, 'Anda Seat Dark Knight', {
+        store_id: 'bestbuy',
+        product_url: 'https://www.bestbuy.ca/en-ca/product/dark-knight/123',
+        meets_requirements: false,
+        in_stock: true,
+        price: 400,
+      }),
+      snap(4, 'SIHOO B100 PRO', { in_stock: false, price: 180, shipping: 0 }),
+    ], [amazon, costco, bestbuy])
+
+    const kaiser = products.find((product) => product.name.includes('Kaiser'))
+    const knight = products.find((product) => product.name.includes('Dark Knight'))
+    const soldOut = products.find((product) => product.name.includes('B100'))
+    expect(kaiser?.cells.find((cell) => cell.storeName === 'Amazon')?.inStock).toBe(true)
+    expect(kaiser?.stock).toBe(true)
+    expect(qualifyingInStockPriceLabel(kaiser!)).toBe('Out of stock')
+    expect(knight?.cells.find((cell) => cell.storeName === 'Best Buy')?.inStock).toBe(true)
+    expect(knight?.stock).toBe(true)
+    expect(qualifyingInStockPriceLabel(knight!)).toBe('None verified')
+    expect(soldOut?.stock).toBe(false)
+    expect(qualifyingInStockPriceLabel(soldOut!)).toBe('Out of stock')
   })
 
   it('sorts products by lowest seen and keeps missing prices last', () => {

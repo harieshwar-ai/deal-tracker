@@ -4,6 +4,7 @@ import { saleCountdown } from '../domain/compare'
 import { formatCad, formatDay, formatRelative, safeHttpUrl } from '../domain/format'
 import {
   checklistLabel,
+  qualifyingInStockPriceLabel,
   sortComparedProducts,
   sortStoreRows,
   storeNamesFor,
@@ -48,7 +49,7 @@ export function ProductCompare({ products }: { products: ComparedProduct[] }) {
             <AttributeRow label="Stock" values={ordered.map((product) => stockLabel(product.stock))} />
             <AttributeRow
               label="Lowest qualifying in-stock price"
-              values={ordered.map((product) => product.lowest && !product.lowest.outOfStock ? formatCad(product.lowest.price) : '—')}
+              values={ordered.map((product) => qualifyingInStockPriceLabel(product))}
             />
             {stores.map((store) => (
               <tr key={store} className="border-t border-line">

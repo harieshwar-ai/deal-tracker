@@ -5,7 +5,7 @@ import { clusterDeals } from './deals'
 import { heroStats } from './hero'
 import { isQualifying } from './offers'
 import { buildPriceHistory } from './history'
-import { compareCandidateProducts } from './productCompare'
+import { compareCandidateProducts, qualifyingInStockPriceLabel } from './productCompare'
 import { buildTimeline } from './timeline'
 import type { Deal, Item, PriceSnapshot, Store } from './types'
 import { priceCallForItem } from './verdict'
@@ -155,8 +155,10 @@ describe('out-of-stock and unqualified prices stay out of the public lows', () =
     const basic = compared.find((product) => product.name.includes('Basic'))
     expect(heavy?.stock).toBe(true)
     expect(heavy?.lowest).toMatchObject({ price: 429.99, outOfStock: false, storeName: 'Amazon' })
-    expect(basic?.stock).toBeNull()
+    expect(basic?.stock).toBe(true)
     expect(basic?.lowest).toBeNull()
+    expect(qualifyingInStockPriceLabel(basic!)).toBe('None verified')
+    expect(qualifyingInStockPriceLabel(heavy!)).toMatch(/429\.99/)
 
     const oosVariant = { ...soldOut, store_id: 'amazon', product_name: 'Cybeart NEO (Lunar Edition)', product_title: 'Cybeart NEO (Lunar Edition)' }
     const stockedVariant = { ...amazonDays[2], product_name: 'Cybeart NEO (Stealth Edition)', product_title: 'Cybeart NEO (Stealth Edition)' }

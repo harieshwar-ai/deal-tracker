@@ -1,4 +1,4 @@
-import { roundMoney } from './format'
+import { formatCad, roundMoney } from './format'
 import { assignProducts } from './identity'
 import { isQualifying } from './offers'
 import { cheapestEver, offerQuotes } from './quotes'
@@ -45,6 +45,13 @@ export interface StoreTableRow extends StoreComparison {
   lowest: number | null
   lowestOutOfStock: boolean
   productKey: string
+}
+
+export function qualifyingInStockPriceLabel(product: ComparedProduct): string {
+  if (product.lowest && !product.lowest.outOfStock) return formatCad(product.lowest.price)
+  const qualifying = product.cells.filter((cell) => cell.qualifying)
+  if (qualifying.length > 0 && qualifying.every((cell) => cell.inStock === false)) return 'Out of stock'
+  return 'None verified'
 }
 
 export function checklistLabel(state: ChecklistState): string {
@@ -165,10 +172,9 @@ function buildProduct(
 }
 
 function productStock(cells: ProductStoreCell[]): boolean | null {
-  const qualifying = cells.filter((cell) => cell.qualifying)
-  if (qualifying.length === 0) return null
-  if (qualifying.some((cell) => cell.inStock === true)) return true
-  if (qualifying.some((cell) => cell.inStock == null)) return null
+  if (cells.length === 0) return null
+  if (cells.some((cell) => cell.inStock === true)) return true
+  if (cells.some((cell) => cell.inStock == null)) return null
   return false
 }
 
