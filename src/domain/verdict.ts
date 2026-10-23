@@ -1,5 +1,6 @@
 import { dayKey, formatCad, formatDay, formatPct } from './format'
-import { allTimeLow, chooseBest, latestSnapshots, quoteFromSnapshot } from './quotes'
+import { isQualifying } from './offers'
+import { allTimeLow, chooseBest, latestOffers, quoteFromSnapshot } from './quotes'
 import type { Quote } from './quotes'
 import type { Dataset, Deal, Item, PriceSnapshot, Store } from './types'
 
@@ -34,11 +35,11 @@ export function priceCallLabel(call: PriceCall): string {
 export function priceCallTone(call: PriceCall): string {
   switch (call) {
     case 'buy':
-      return 'bg-pine-soft text-pine'
+      return 'bg-pine text-on-accent'
     case 'good':
-      return 'bg-gold-soft text-gold'
+      return 'bg-gold text-on-accent'
     case 'wait':
-      return 'bg-paper text-muted'
+      return 'bg-foam text-bark ring-1 ring-bark/25'
     default: {
       const neverCall: never = call
       return neverCall
@@ -78,10 +79,21 @@ export function priceCallForItem({
   includeTarget: boolean
   now?: Date
 }): PriceCallResult {
-  const quotes = latestSnapshots(snapshots).map((snapshot) => quoteFromSnapshot(snapshot, stores))
+  const qualifying = snapshots.filter(isQualifying)
+  const quotes = latestOffers(qualifying).map((snapshot) => quoteFromSnapshot(snapshot, stores))
   const current = chooseBest(quotes)
-  const low = allTimeLow(snapshots)
-  const days = dailyMins(snapshots)
+  const low = allTimeLow(qualifying)
+  const days = dailyMins(qualifying)
+  if (!current && snapshots.some((snapshot) => !isQualifying(snapshot))) {
+    return {
+      itemId: item.id,
+      call: 'wait',
+      confidence: 18,
+      reason: 'No qualifying offer yet.',
+      currentPrice: null,
+      storeName: null,
+    }
+  }
   const dayCount = days.length
   const average = dayCount >= 2 ? days.reduce((sum, day) => sum + day.price, 0) / dayCount : null
   const trendPct = trendPercent(days)

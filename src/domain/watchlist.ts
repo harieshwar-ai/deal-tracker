@@ -1,7 +1,8 @@
 import { categoryKey, toCents } from './format'
 import { priorityRank } from './labels'
 import { pickOpenDeal } from './deals'
-import { allTimeLow, chooseBest, latestSnapshots, quoteFromSnapshot, sparklineValues } from './quotes'
+import { isQualifying } from './offers'
+import { allTimeLow, chooseBest, latestOffers, quoteFromSnapshot, sparklineValues } from './quotes'
 import type { Quote } from './quotes'
 import type { ActivityFilter, Dataset, Deal, Item, Priority, WatchSort } from './types'
 
@@ -16,6 +17,7 @@ export interface WatchCriteria {
 export interface WatchRow {
   item: Item
   quotes: Quote[]
+  other: Quote[]
   best: Quote | null
   allTimeLow: number | null
   atLow: boolean
@@ -25,46 +27,56 @@ export interface WatchRow {
 }
 
 export function buildWatchRows(data: Dataset, now = new Date()): WatchRow[] {
-  const latest = latestSnapshots(data.snapshots)
-  const quotesByItem = new Map<string, Quote[]>()
-  for (const snapshot of latest) {
-    const quote = quoteFromSnapshot(snapshot, data.stores)
-    const list = quotesByItem.get(quote.itemId) ?? []
-    list.push(quote)
-    quotesByItem.set(quote.itemId, list)
-  }
+  const quotesByItem = quotesFor(data, (snapshot) => isQualifying(snapshot))
+  const otherByItem = quotesFor(data, (snapshot) => !isQualifying(snapshot))
   const dealsByItem = new Map<string, Deal[]>()
   for (const deal of data.deals) {
     const list = dealsByItem.get(deal.item_id) ?? []
     list.push(deal)
     dealsByItem.set(deal.item_id, list)
   }
-  const snapshotsByItem = new Map<string, Dataset['snapshots']>()
+  const qualifyingByItem = new Map<string, Dataset['snapshots']>()
   for (const snapshot of data.snapshots) {
-    const list = snapshotsByItem.get(snapshot.item_id) ?? []
+    if (!isQualifying(snapshot)) continue
+    const list = qualifyingByItem.get(snapshot.item_id) ?? []
     list.push(snapshot)
-    snapshotsByItem.set(snapshot.item_id, list)
+    qualifyingByItem.set(snapshot.item_id, list)
   }
 
   return data.items.map((item) => {
-    const quotes = [...(quotesByItem.get(item.id) ?? [])].sort(
-      (left, right) => left.price - right.price || left.storeName.localeCompare(right.storeName),
-    )
+    const quotes = sortQuotes(quotesByItem.get(item.id) ?? [])
+    const other = sortQuotes(otherByItem.get(item.id) ?? [])
     const best = chooseBest(quotes)
-    const low = allTimeLow(snapshotsByItem.get(item.id) ?? [])
+    const low = allTimeLow(qualifyingByItem.get(item.id) ?? [])
     const atLow = best != null && low != null && toCents(best.price) <= toCents(low.price)
     const targetGap = best && item.target_price != null ? best.price - item.target_price : null
     return {
       item,
       quotes,
+      other,
       best,
       allTimeLow: low?.price ?? null,
       atLow,
-      spark: sparklineValues(snapshotsByItem.get(item.id) ?? [], now),
+      spark: sparklineValues(qualifyingByItem.get(item.id) ?? [], now),
       openDeal: pickOpenDeal(dealsByItem.get(item.id) ?? []),
       targetGap,
     }
   })
+}
+
+function quotesFor(data: Dataset, include: (snapshot: Dataset['snapshots'][number]) => boolean): Map<string, Quote[]> {
+  const quotesByItem = new Map<string, Quote[]>()
+  for (const snapshot of latestOffers(data.snapshots.filter(include))) {
+    const quote = quoteFromSnapshot(snapshot, data.stores)
+    const list = quotesByItem.get(quote.itemId) ?? []
+    list.push(quote)
+    quotesByItem.set(quote.itemId, list)
+  }
+  return quotesByItem
+}
+
+function sortQuotes(quotes: Quote[]): Quote[] {
+  return [...quotes].sort((left, right) => left.price - right.price || left.storeName.localeCompare(right.storeName))
 }
 
 function haystack(item: Item): string {

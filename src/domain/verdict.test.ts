@@ -55,6 +55,8 @@ function snap(id: number, price: number, daysAgo: number, extra: Partial<PriceSn
     captured_at: new Date(now.getTime() - daysAgo * 86400000).toISOString(),
     sale_ends_at: null,
     shipping: null,
+    product_name: null,
+    meets_requirements: true,
     ...extra,
   }
 }

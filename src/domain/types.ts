@@ -64,6 +64,8 @@ export interface PriceSnapshot {
   captured_at: string
   sale_ends_at: string | null
   shipping: number | null
+  product_name: string | null
+  meets_requirements: boolean | null
 }
 
 export interface Deal {

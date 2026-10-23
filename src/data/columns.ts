@@ -70,6 +70,8 @@ const snapshotColumns = [
   'captured_at',
   'sale_ends_at',
   'shipping',
+  'product_name',
+  'meets_requirements',
 ] as const
 
 export const visitorHiddenColumns = {

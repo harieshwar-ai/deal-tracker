@@ -13,9 +13,11 @@ export interface Quote {
   memberOnly: boolean | null
   capturedAt: string
   productTitle: string | null
+  productName: string | null
   productUrl: string | null
   saleEndsAt: string | null
   shipping: number | null
+  meetsRequirements: boolean | null
 }
 
 export function storeName(stores: Store[], storeId: string | null): string {
@@ -41,9 +43,11 @@ export function quoteFromSnapshot(snapshot: PriceSnapshot, stores: Store[]): Quo
     memberOnly: snapshot.member_only,
     capturedAt: snapshot.captured_at,
     productTitle: snapshot.product_title,
+    productName: snapshot.product_name,
     productUrl: snapshot.product_url,
     saleEndsAt: snapshot.sale_ends_at,
     shipping: snapshot.shipping,
+    meetsRequirements: snapshot.meets_requirements,
   }
 }
 
@@ -55,9 +59,20 @@ function isNewer(candidate: PriceSnapshot, current: PriceSnapshot): boolean {
 }
 
 export function latestSnapshots(snapshots: PriceSnapshot[]): PriceSnapshot[] {
+  return latestBy(snapshots, (snapshot) => `${snapshot.item_id}\u0000${snapshot.store_id ?? ''}`)
+}
+
+export function latestOffers(snapshots: PriceSnapshot[]): PriceSnapshot[] {
+  return latestBy(snapshots, (snapshot) => {
+    const product = (snapshot.product_name || '').trim().toLowerCase()
+    return `${snapshot.item_id}\u0000${snapshot.store_id ?? ''}\u0000${product}`
+  })
+}
+
+function latestBy(snapshots: PriceSnapshot[], keyFor: (snapshot: PriceSnapshot) => string): PriceSnapshot[] {
   const winners = new Map<string, PriceSnapshot>()
   for (const snapshot of snapshots) {
-    const key = `${snapshot.item_id}\u0000${snapshot.store_id ?? ''}`
+    const key = keyFor(snapshot)
     const current = winners.get(key)
     if (!current || isNewer(snapshot, current)) winners.set(key, snapshot)
   }

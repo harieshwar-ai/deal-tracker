@@ -1,5 +1,6 @@
 import { isCadCurrency, roundMoney } from './format'
-import { allTimeLow, chooseBest, latestSnapshots, quoteFromSnapshot } from './quotes'
+import { isQualifying } from './offers'
+import { allTimeLow, chooseBest, latestOffers, quoteFromSnapshot } from './quotes'
 import type { Dataset } from './types'
 import { priceCallForItem, type PriceCall } from './verdict'
 
@@ -12,11 +13,14 @@ export interface HeroDeal {
   call: PriceCall
 }
 
+export type HeroEmpty = 'quiet' | 'unqualified'
+
 export interface HeroStats {
   tracked: number
   savings: number
   lastScan: string | null
   best: HeroDeal | null
+  empty: HeroEmpty
 }
 
 const callRank: Record<PriceCall, number> = {
@@ -38,9 +42,14 @@ export function heroStats(data: Dataset, includeTarget: boolean, now = new Date(
   const active = data.items.filter((item) => item.active)
   let savings = 0
   let best: (HeroDeal & { above: number }) | null = null
+  let sawUnqualified = false
   for (const item of active) {
     const snapshots = data.snapshots.filter((snapshot) => snapshot.item_id === item.id)
-    const current = chooseBest(latestSnapshots(snapshots).map((snapshot) => quoteFromSnapshot(snapshot, data.stores)))
+    const qualifying = snapshots.filter(isQualifying)
+    const current = chooseBest(latestOffers(qualifying).map((snapshot) => quoteFromSnapshot(snapshot, data.stores)))
+    if (!current && snapshots.some((snapshot) => isCadCurrency(snapshot.currency) && snapshot.in_stock !== false)) {
+      sawUnqualified = true
+    }
     const saving = current && isCadCurrency(current.currency) && current.inStock !== false && current.regularPrice != null && current.regularPrice > current.price
       ? current.regularPrice - current.price
       : 0
@@ -48,13 +57,13 @@ export function heroStats(data: Dataset, includeTarget: boolean, now = new Date(
     if (!current || current.inStock === false || !isCadCurrency(current.currency)) continue
     const call = priceCallForItem({
       item,
-      snapshots,
+      snapshots: qualifying,
       deals: data.deals.filter((deal) => deal.item_id === item.id),
       stores: data.stores,
       includeTarget,
       now,
     })
-    const low = allTimeLow(snapshots)
+    const low = allTimeLow(qualifying)
     const above = low && low.price > 0 ? (current.price - low.price) / low.price : 1
     const candidate = {
       itemId: item.id,
@@ -72,6 +81,7 @@ export function heroStats(data: Dataset, includeTarget: boolean, now = new Date(
     tracked: active.length,
     savings: roundMoney(savings),
     lastScan,
+    empty: best ? 'quiet' : sawUnqualified ? 'unqualified' : 'quiet',
     best: best
       ? {
           itemId: best.itemId,
