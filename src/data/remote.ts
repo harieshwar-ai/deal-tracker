@@ -1,7 +1,7 @@
 import type { DealStatus, Dataset, ItemWrite, StoreWrite } from '../domain/types'
 import { supabase } from '../lib/supabase'
 import { selectColumns } from './columns'
-import { friendlyError, parseDealRow, parseItemRow, parseSnapshotRow, parseStoreRow } from './parse'
+import { friendlyError, missingColumnName, parseDealRow, parseItemRow, parseSnapshotRow, parseStoreRow } from './parse'
 
 const pageSize = 1000
 
@@ -20,12 +20,26 @@ export async function loadDataset(owner: boolean): Promise<Dataset> {
   }
 }
 
+const optionalItemWrites = new Set(['image_url'])
+
 export async function saveItem(write: ItemWrite, id?: string): Promise<void> {
-  const query = id
-    ? supabase.from('items').update(write).eq('id', id)
-    : supabase.from('items').insert(write)
-  const { error } = await query
-  if (error) throw new Error(friendlyError(error))
+  const payload: Record<string, unknown> = { ...write }
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const query = id
+      ? supabase.from('items').update(payload).eq('id', id)
+      : supabase.from('items').insert(payload)
+    const { error } = await query
+    if (!error) return
+    const missing = missingColumnName(error)
+    if (!missing || !optionalItemWrites.has(missing) || !(missing in payload)) {
+      throw new Error(friendlyError(error))
+    }
+    if (payload[missing] != null) {
+      throw new Error('The image address cannot be saved until the latest database migration is applied.')
+    }
+    delete payload[missing]
+  }
+  throw new Error('Could not save the item.')
 }
 
 export async function deleteItem(id: string): Promise<void> {
@@ -57,7 +71,8 @@ async function fetchAll(
   owner: boolean,
 ): Promise<unknown[]> {
   const rows: unknown[] = []
-  const columns = selectColumns(table, owner)
+  let columns = selectColumns(table, owner)
+  let dropped = 0
   for (let from = 0; ; from += pageSize) {
     const { data, error } = await supabase
       .from(table)
@@ -65,6 +80,13 @@ async function fetchAll(
       .order(order, { ascending: true })
       .order('id', { ascending: true })
       .range(from, from + pageSize - 1)
+    const missing = error ? missingColumnName(error) : null
+    if (missing && dropped < 8 && columns.split(',').includes(missing)) {
+      columns = columns.split(',').filter((column) => column !== missing).join(',')
+      dropped += 1
+      from -= pageSize
+      continue
+    }
     if (error) throw new Error(friendlyError(error))
     const batch = data ?? []
     rows.push(...batch)

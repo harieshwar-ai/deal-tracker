@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useCanEdit } from '../auth/AuthProvider'
 import { PriceHistoryChart } from '../components/charts'
+import { ProductPhoto } from '../components/product'
 import { ItemForm } from '../components/ItemForm'
 import { useToast } from '../components/toast'
 import { Badge, Button, ConfirmDialog, EmptyState, LoadingBlock, Modal } from '../components/ui'
@@ -69,7 +70,11 @@ export function ItemPage() {
   return (
     <div>
       <Link className="text-sm text-pine underline" to="/">Watchlist</Link>
-      <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
+      <div className="mt-3 grid gap-4 sm:grid-cols-[7.5rem_minmax(0,1fr)] sm:items-start">
+        <div className="overflow-hidden rounded-2xl">
+          <ProductPhoto name={item.name} imageUrl={item.image_url} />
+        </div>
+        <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="font-display text-4xl">{item.name}</h1>
@@ -86,6 +91,7 @@ export function ItemPage() {
             <Button variant="danger" onClick={() => setRemoving(true)}>Delete</Button>
           </div>
         ) : null}
+        </div>
       </div>
       <p className="mt-4 max-w-2xl text-sm leading-6">
         <Badge className={priceCallTone(call.call)}>{priceCallLabel(call.call)}</Badge>

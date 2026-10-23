@@ -2,6 +2,8 @@ import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useCanEdit } from '../auth/AuthProvider'
+import { HeroStrip } from '../components/HeroStrip'
+import { ProductPhoto, StoreMark } from '../components/product'
 import { Sparkline } from '../components/Sparkline'
 import { ItemForm } from '../components/ItemForm'
 import { useToast } from '../components/toast'
@@ -9,6 +11,7 @@ import { Badge, buttonClass, ConfirmDialog, controlClass, EmptyState, ErrorState
 import { blankItemDraft, itemToDraft } from '../domain/drafts'
 import { parseActivity, parsePriorityFilter, parseSort } from '../domain/filters'
 import { discountPercent, formatCad, formatRelative, safeHttpUrl } from '../domain/format'
+import { heroStats } from '../domain/hero'
 import { priorityLabel, priorityTone, sortLabel, verdictLabel, verdictTone } from '../domain/labels'
 import type { Item, WatchSort } from '../domain/types'
 import { priceCallLabel, priceCallsForDataset, priceCallTone } from '../domain/verdict'
@@ -50,6 +53,7 @@ export function WatchlistPage() {
     () => priceCallsForDataset(catalog, canEdit),
     [catalog, canEdit],
   )
+  const hero = useMemo(() => heroStats(catalog, canEdit), [catalog, canEdit])
 
   function update(updates: Record<string, string | null>) {
     setParams(writeParams(params, updates), { replace: true })
@@ -74,6 +78,7 @@ export function WatchlistPage() {
           </button>
         ) : null}
       </div>
+      <HeroStrip stats={hero} />
       <div className="mt-6 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
         <input
           className={controlClass}
@@ -195,7 +200,10 @@ function WatchCard({
   const gap = gapCopy(row.targetGap)
   const deal = row.openDeal
   return (
-    <article className="rounded-3xl border border-line bg-paper-2 p-4 md:p-5">
+    <article className="overflow-hidden rounded-3xl border border-line bg-paper-2">
+      <div className="grid sm:grid-cols-[8.5rem_minmax(0,1fr)]">
+        <ProductPhoto name={row.item.name} imageUrl={row.item.image_url} />
+        <div className="p-4 md:p-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -258,6 +266,8 @@ function WatchCard({
           </div>
         ) : null}
       </div>
+        </div>
+      </div>
     </article>
   )
 }
@@ -277,7 +287,8 @@ function ChipBody({
 }) {
   return (
     <>
-      <span className="text-muted">{quoteName}</span> {formatCad(price)}
+      <StoreMark name={quoteName} />
+      <span>{quoteName}</span> {formatCad(price)}
       {discount != null && discount > 0 ? <span className="text-pine"> {Math.round(discount)}%</span> : null}
       {member ? <span className="text-gold"> member</span> : null}
       {stock === false ? <span className="text-clay"> out</span> : null}
@@ -287,8 +298,8 @@ function ChipBody({
 
 function chipClass(best: boolean): string {
   return best
-    ? 'inline-flex flex-wrap gap-1 rounded-full border border-pine bg-pine-soft px-2.5 py-1 text-sm tabular-nums'
-    : 'inline-flex flex-wrap gap-1 rounded-full border border-line px-2.5 py-1 text-sm tabular-nums'
+    ? 'inline-flex flex-wrap items-center gap-1 rounded-full border border-pine bg-pine-soft px-2.5 py-1 text-sm tabular-nums'
+    : 'inline-flex flex-wrap items-center gap-1 rounded-full border border-line px-2.5 py-1 text-sm tabular-nums'
 }
 
 function gapCopy(gap: number | null): { text: string; className: string } | null {

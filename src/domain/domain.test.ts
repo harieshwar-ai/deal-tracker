@@ -47,6 +47,7 @@ function makeItem(id: string, name: string, category: string, target: number, pr
     priority,
     condition: 'new',
     notes: null,
+    image_url: null,
     active: true,
     created_at: daysAgo(20),
     updated_at: daysAgo(1),
@@ -167,6 +168,7 @@ describe('drafts and rows', () => {
       priority: 'high',
       condition: '',
       notes: '',
+      imageUrl: '',
       active: true,
     })
     expect(item.ok).toBe(true)
@@ -362,6 +364,7 @@ function blankish() {
     priority: 'normal' as const,
     condition: 'new',
     notes: '',
+    imageUrl: '',
     active: true,
   }
 }

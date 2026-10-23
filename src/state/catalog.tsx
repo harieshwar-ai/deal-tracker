@@ -130,6 +130,7 @@ export function PreviewCatalogProvider({ children }: { children: ReactNode }) {
           priority: write.priority,
           condition: write.condition,
           notes: write.notes,
+          image_url: write.image_url,
           active: write.active,
           created_at: existing?.created_at ?? nowIso,
           updated_at: nowIso,

@@ -30,6 +30,7 @@ export interface Item {
   priority: Priority
   condition: string | null
   notes: string | null
+  image_url: string | null
   active: boolean
   created_at: string
   updated_at: string
@@ -86,6 +87,7 @@ export interface ItemWrite {
   priority: Priority
   condition: string
   notes: string | null
+  image_url: string | null
   active: boolean
 }
 
@@ -109,6 +111,7 @@ export interface ItemDraft {
   priority: Priority
   condition: string
   notes: string
+  imageUrl: string
   active: boolean
 }
 
