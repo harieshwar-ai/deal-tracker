@@ -150,6 +150,8 @@ function walk(
       in_stock: inStock || daysAgo > 0,
       member_only: memberOnly,
       captured_at: `${shift(today, daysAgo)}T16:00:00.000Z`,
+      sale_ends_at: null,
+      shipping: null,
     })
   }
   return snapshots

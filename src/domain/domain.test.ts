@@ -77,6 +77,8 @@ function makeSnapshot(
     in_stock: true,
     member_only: false,
     captured_at: daysAgo(days),
+    sale_ends_at: null,
+    shipping: null,
     ...extra,
   }
 }

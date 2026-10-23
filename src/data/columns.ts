@@ -66,6 +66,8 @@ const snapshotColumns = [
   'in_stock',
   'member_only',
   'captured_at',
+  'sale_ends_at',
+  'shipping',
 ] as const
 
 export const visitorHiddenColumns = {
