@@ -10,6 +10,7 @@ import { discountPercent, formatCad, formatDay, formatPct, formatRelative, safeH
 import { buildPriceHistory } from '../domain/history'
 import { priorityLabel, priorityTone, verdictLabel, verdictTone } from '../domain/labels'
 import { allTimeLow, chooseBest, latestSnapshots, quoteFromSnapshot } from '../domain/quotes'
+import { priceCallForItem, priceCallLabel, priceCallTone } from '../domain/verdict'
 import { watchCategories } from '../domain/watchlist'
 import { useDocumentTitle } from '../lib/title'
 import { useCatalog } from '../state/catalog'
@@ -57,6 +58,13 @@ export function ItemPage() {
   }
 
   const gap = best && item.target_price != null ? best.price - item.target_price : null
+  const call = priceCallForItem({
+    item,
+    snapshots,
+    deals: catalog.deals.filter((deal) => deal.item_id === item.id),
+    stores: catalog.stores,
+    includeTarget: canEdit,
+  })
 
   return (
     <div>
@@ -79,6 +87,11 @@ export function ItemPage() {
           </div>
         ) : null}
       </div>
+      <p className="mt-4 max-w-2xl text-sm leading-6">
+        <Badge className={priceCallTone(call.call)}>{priceCallLabel(call.call)}</Badge>
+        <span className="ml-2">{call.reason}</span>
+        <span className="text-muted"> Confidence {call.confidence}.</span>
+      </p>
       {item.public_summary ? <p className="mt-4 max-w-2xl text-sm leading-6">{item.public_summary}</p> : null}
       {canEdit && item.description ? <p className="mt-4 max-w-2xl text-sm leading-6 text-muted">{item.description}</p> : null}
       {item.keywords.length > 0 ? (

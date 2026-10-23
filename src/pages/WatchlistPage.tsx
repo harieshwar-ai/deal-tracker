@@ -11,6 +11,7 @@ import { parseActivity, parsePriorityFilter, parseSort } from '../domain/filters
 import { discountPercent, formatCad, formatRelative, safeHttpUrl } from '../domain/format'
 import { priorityLabel, priorityTone, sortLabel, verdictLabel, verdictTone } from '../domain/labels'
 import type { Item, WatchSort } from '../domain/types'
+import { priceCallLabel, priceCallsForDataset, priceCallTone } from '../domain/verdict'
 import { buildWatchRows, filterWatchRows, sortWatchRows, watchCategories } from '../domain/watchlist'
 import type { WatchRow } from '../domain/watchlist'
 import { writeParams } from '../lib/search'
@@ -45,6 +46,10 @@ export function WatchlistPage() {
     return sortWatchRows(filterWatchRows(built, { query, category, priority, activity, sort }), sort)
   }, [catalog.items, catalog.stores, catalog.snapshots, catalog.deals, query, category, priority, activity, sort])
   const categories = watchCategories(catalog.items)
+  const calls = useMemo(
+    () => priceCallsForDataset(catalog, canEdit),
+    [catalog, canEdit],
+  )
 
   function update(updates: Record<string, string | null>) {
     setParams(writeParams(params, updates), { replace: true })
@@ -123,6 +128,7 @@ export function WatchlistPage() {
             <WatchCard
               key={row.item.id}
               row={row}
+              call={calls.get(row.item.id) ?? null}
               canEdit={canEdit}
               onEdit={() => setEditing(row.item)}
               onDelete={() => setRemoving(row.item)}
@@ -175,11 +181,13 @@ export function WatchlistPage() {
 
 function WatchCard({
   row,
+  call,
   canEdit,
   onEdit,
   onDelete,
 }: {
   row: WatchRow
+  call: { call: 'buy' | 'good' | 'wait'; confidence: number; reason: string } | null
   canEdit: boolean
   onEdit: () => void
   onDelete: () => void
@@ -196,6 +204,7 @@ function WatchCard({
             </h2>
             <Badge className={priorityTone(row.item.priority)}>{priorityLabel(row.item.priority)}</Badge>
             {!row.item.active ? <Badge className="bg-paper text-muted">Paused</Badge> : null}
+            {call ? <Badge className={priceCallTone(call.call)}>{priceCallLabel(call.call)}</Badge> : null}
             {row.atLow ? <Badge className="bg-gold-soft text-gold">All-time low</Badge> : null}
             {deal ? <Badge className={verdictTone(deal.verdict ?? 'unrated')}>{verdictLabel(deal.verdict ?? 'unrated')}</Badge> : null}
           </div>
@@ -204,6 +213,7 @@ function WatchCard({
             {canEdit && row.item.target_price != null ? ` · target ${formatCad(row.item.target_price)}` : ''}
           </p>
           {!canEdit && row.item.public_summary ? <p className="mt-2 text-sm leading-6 text-ink">{row.item.public_summary}</p> : null}
+          {call ? <p className="mt-2 max-w-xl text-sm leading-6">{call.reason} <span className="text-muted">Confidence {call.confidence}.</span></p> : null}
         </div>
         <div className="text-left sm:text-right">
           <p className="font-display text-4xl tabular-nums">{row.best ? formatCad(row.best.price) : '—'}</p>
