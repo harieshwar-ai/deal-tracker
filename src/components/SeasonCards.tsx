@@ -12,7 +12,7 @@ export function SeasonCards({ now = new Date() }: { now?: Date }) {
       <div className="mt-3 grid gap-3 md:grid-cols-3">
         {cards.map((card, index) => (
           <MotionCard key={card.id} index={index} className="rounded-xl border border-line bg-paper-2 px-4 py-4 shadow-sm">
-            <p className="text-xs uppercase tracking-[0.14em] text-muted">{card.name}</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-muted">{card.name}</p>
             <p className="mt-2 font-display text-3xl">{card.days == null ? 'No date' : card.days === 0 ? 'Today' : `${card.days} days`}</p>
             <p className="mt-1 text-sm">{card.when}</p>
             <p className="mt-2 text-sm leading-6 text-muted">{card.detail}</p>

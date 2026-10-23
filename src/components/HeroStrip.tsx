@@ -13,7 +13,7 @@ export function HeroStrip({ stats }: { stats: HeroStats }) {
   return (
     <section className="mt-6 grid gap-3 lg:grid-cols-[minmax(0,1.5fr)_repeat(3,minmax(0,0.7fr))]" aria-label="Watchlist summary">
       <article className="rounded-xl border-2 border-pine shadow-sm bg-[color-mix(in_srgb,var(--color-pine)_18%,var(--color-bark))] px-5 py-4 text-foam">
-        <p className="text-xs uppercase tracking-[0.14em] text-foam/70">Best deal right now</p>
+        <p className="text-xs font-medium tracking-wide text-foam/90 uppercase">Best deal right now</p>
         {stats.best ? (
           <>
             <h2 className="mt-2 font-display text-3xl leading-none">
@@ -54,11 +54,11 @@ function HeroStat({
 }) {
   return (
     <article className="rounded-xl border border-line bg-paper-2 px-4 py-4 shadow-sm">
-      <p className="text-xs uppercase tracking-[0.14em] text-muted">{label}</p>
+      <p className="text-xs font-medium tracking-wide text-muted uppercase">{label}</p>
       <p className="mt-2 font-mono text-2xl font-medium tracking-tight tabular-nums">
         {count != null && format ? <CountUp value={count} format={format} /> : value}
       </p>
-      <p className="mt-1 text-sm text-muted">{detail}</p>
+      <p className="mt-1 text-sm font-medium text-muted">{detail}</p>
     </article>
   )
 }

@@ -287,7 +287,7 @@ function WatchCard({
       className="overflow-hidden rounded-xl border border-line bg-paper-2 shadow-sm"
     >
       <div className="grid sm:grid-cols-[8.5rem_minmax(0,1fr)]">
-        <ProductPhoto name={row.item.name} imageUrl={row.item.image_url} />
+        <ProductPhoto name={row.item.name} imageUrl={row.item.image_url} category={row.item.category} />
         <div className="p-4 md:p-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">

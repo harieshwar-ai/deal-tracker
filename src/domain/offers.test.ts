@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { heroStats } from './hero'
 import { isQualifying, requirementLabel } from './offers'
-import { allTimeLow, chooseBest, latestOffers, quoteFromSnapshot } from './quotes'
+import { allTimeLow, cheapestEver, chooseBest, latestOffers, quoteFromSnapshot } from './quotes'
 import type { Dataset, Item, PriceSnapshot, Store } from './types'
 import { priceCallForItem } from './verdict'
 
@@ -87,6 +87,8 @@ describe('qualifying offers', () => {
     expect(best?.price).toBe(340)
     expect(best?.productName).toBe('Heavy-duty chair')
     expect(allTimeLow(qualifying)?.price).toBe(340)
+    expect(cheapestEver(qualifying)?.snapshot.price).toBe(340)
+    expect(cheapestEver(qualifying)?.outOfStock).toBe(false)
     const call = priceCallForItem({
       item: item(),
       snapshots,
@@ -127,5 +129,21 @@ describe('qualifying offers', () => {
     expect(stats.best).toBeNull()
     expect(stats.savings).toBe(0)
     expect(stats.empty).toBe('unqualified')
+  })
+
+  it('keeps an out-of-stock price out of cheapest ever when an in-stock offer exists', () => {
+    const stocked = snap(1, 349, true, 'Heavy-duty chair', 1)
+    const soldOut = { ...snap(2, 121.88, true, 'Clearance chair', 0), in_stock: false }
+    const ever = cheapestEver([stocked, soldOut])
+    expect(ever?.snapshot.price).toBe(349)
+    expect(ever?.outOfStock).toBe(false)
+    expect(allTimeLow([stocked, soldOut])?.price).toBe(121.88)
+  })
+
+  it('labels the only qualifying price when it is out of stock', () => {
+    const soldOut = { ...snap(1, 121.88, true, 'Clearance chair'), in_stock: false }
+    const ever = cheapestEver([soldOut])
+    expect(ever?.snapshot.price).toBe(121.88)
+    expect(ever?.outOfStock).toBe(true)
   })
 })
