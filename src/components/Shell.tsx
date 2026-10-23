@@ -1,13 +1,18 @@
 import { BarChart3, List, LogOut, RefreshCw, Store, Tag } from 'lucide-react'
+import { motion, useReducedMotion } from 'motion/react'
 import { Suspense, useEffect, useRef } from 'react'
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
 import { consumeReturnPath, rememberReturnPath } from '../auth/returnPath'
-import { ThemeToggle } from './ThemeToggle'
-import { LoadingBlock } from './ui'
 import { cn } from '../lib/cn'
 import { leavePreview } from '../preview/mode'
 import { useCatalog } from '../state/catalog'
+import { RouteTransition } from './motion'
+import { ThemeToggle } from './ThemeToggle'
+import { LoadingBlock } from './ui/skeleton'
+import { Tooltip } from './ui/tooltip'
+
+const navEase = [0.2, 0, 0, 1] as const
 
 const links = [
   { to: '/', label: 'Watchlist', icon: List, end: true },
@@ -67,27 +72,33 @@ export function Shell() {
           </p>
           <div className="ml-auto flex items-center gap-2">
             <ThemeToggle />
-            <button
-              type="button"
-              className="rounded-full p-2 text-muted hover:bg-paper"
-              onClick={() => void catalog.refresh()}
-              aria-label={catalog.source === 'preview' ? 'Reset sample data' : 'Refresh'}
-            >
-              <RefreshCw className={cn('h-4 w-4', catalog.refreshing && 'animate-spin')} />
-            </button>
+            <Tooltip label={catalog.source === 'preview' ? 'Reset sample data' : 'Refresh'}>
+              <button
+                type="button"
+                className="rounded-lg p-2 text-muted hover:bg-paper"
+                onClick={() => void catalog.refresh()}
+                aria-label={catalog.source === 'preview' ? 'Reset sample data' : 'Refresh'}
+              >
+                <RefreshCw className={cn('h-4 w-4', catalog.refreshing && 'animate-spin')} />
+              </button>
+            </Tooltip>
             {catalog.source === 'preview' ? (
               <>
                 <span className="hidden max-w-48 truncate text-sm text-muted sm:inline">Preview</span>
-                <button type="button" className="rounded-full p-2 text-muted hover:bg-paper" onClick={() => void exit()} aria-label="Leave preview">
-                  <LogOut className="h-4 w-4" />
-                </button>
+                <Tooltip label="Leave preview">
+                  <button type="button" className="rounded-lg p-2 text-muted hover:bg-paper" onClick={() => void exit()} aria-label="Leave preview">
+                    <LogOut className="h-4 w-4" />
+                  </button>
+                </Tooltip>
               </>
             ) : session ? (
               <>
                 <span className="hidden max-w-48 truncate text-sm text-muted sm:inline">{email}</span>
-                <button type="button" className="rounded-full p-2 text-muted hover:bg-paper" onClick={() => void exit()} aria-label="Sign out">
-                  <LogOut className="h-4 w-4" />
-                </button>
+                <Tooltip label="Sign out">
+                  <button type="button" className="rounded-lg p-2 text-muted hover:bg-paper" onClick={() => void exit()} aria-label="Sign out">
+                    <LogOut className="h-4 w-4" />
+                  </button>
+                </Tooltip>
               </>
             ) : (
               <Link to="/signin" className="text-sm text-muted underline" onClick={() => rememberReturnPath()}>
@@ -106,22 +117,15 @@ export function Shell() {
         ) : null}
         <main id="content" className="px-4 pt-6 pb-[calc(7rem+env(safe-area-inset-bottom))] md:px-8 md:pb-12">
           <Suspense fallback={<LoadingBlock />}>
-            <Outlet />
+            <RouteTransition>
+              <Outlet />
+            </RouteTransition>
           </Suspense>
         </main>
       </div>
-      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-line bg-paper-2 pb-[env(safe-area-inset-bottom)] md:hidden" aria-label="Primary">
+      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-line bg-paper-2/95 shadow-[0_-8px_24px_rgb(16_20_24/0.04)] backdrop-blur pb-[env(safe-area-inset-bottom)] md:hidden" aria-label="Primary">
         {links.map((link) => (
-          <NavLink
-            key={link.to}
-            to={link.to}
-            end={link.end}
-            className={({ isActive }) => cn('flex min-h-14 flex-col items-center justify-center gap-1 px-2 py-2 text-xs', isActive ? 'text-pine' : 'text-muted')}
-          >
-            <link.icon className="h-5 w-5" aria-hidden="true" />
-            {link.label}
-            {link.to === '/deals' && openDeals > 0 ? <span className="sr-only">{openDeals} open</span> : null}
-          </NavLink>
+          <MobileNavItem key={link.to} {...link} count={link.to === '/deals' ? openDeals : 0} />
         ))}
       </nav>
     </div>
@@ -141,17 +145,67 @@ function NavItem({
   end: boolean
   count: number
 }) {
+  const reduce = useReducedMotion()
   return (
     <NavLink
       to={to}
       end={end}
-      className={({ isActive }) => cn('flex items-center justify-between rounded-2xl px-3 py-2.5 text-sm', isActive ? 'bg-white/10 text-foam' : 'text-foam/70 hover:bg-white/5')}
+      className={({ isActive }) => cn('relative flex items-center justify-between rounded-lg px-3 py-2.5 text-sm', isActive ? 'text-foam' : 'text-foam/70 hover:bg-white/5')}
     >
-      <span className="inline-flex items-center gap-2">
-        <Icon className="h-4 w-4" aria-hidden="true" />
-        {label}
-      </span>
-      {count > 0 ? <span className="rounded-full bg-gold px-2 py-0.5 text-xs text-on-accent">{count}</span> : null}
+      {({ isActive }) => (
+        <>
+          {isActive ? (
+            <motion.span
+              layoutId="desktop-nav"
+              className="absolute inset-0 rounded-lg bg-white/10"
+              transition={reduce ? { duration: 0 } : { type: 'tween', duration: 0.22, ease: navEase }}
+            />
+          ) : null}
+          <span className="relative inline-flex items-center gap-2">
+            <Icon className="h-4 w-4" aria-hidden="true" />
+            {label}
+          </span>
+          {count > 0 ? <span className="relative rounded-md bg-gold px-2 py-0.5 text-xs text-on-accent">{count}</span> : null}
+        </>
+      )}
+    </NavLink>
+  )
+}
+
+function MobileNavItem({
+  to,
+  label,
+  icon: Icon,
+  end,
+  count,
+}: {
+  to: string
+  label: string
+  icon: typeof List
+  end: boolean
+  count: number
+}) {
+  const reduce = useReducedMotion()
+  return (
+    <NavLink
+      to={to}
+      end={end}
+      className={({ isActive }) => cn('relative flex min-h-14 flex-col items-center justify-center gap-1 px-2 py-2 text-xs', isActive ? 'text-pine' : 'text-muted')}
+    >
+      {({ isActive }) => (
+        <>
+          {isActive ? (
+            <motion.span
+              layoutId="mobile-nav"
+              className="absolute inset-x-4 top-1 h-0.5 rounded-full bg-pine"
+              transition={reduce ? { duration: 0 } : { type: 'tween', duration: 0.22, ease: navEase }}
+            />
+          ) : null}
+          <Icon className="h-5 w-5" aria-hidden="true" />
+          {label}
+          {count > 0 ? <span className="sr-only">{count} open</span> : null}
+        </>
+      )}
     </NavLink>
   )
 }

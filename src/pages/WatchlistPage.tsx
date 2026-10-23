@@ -1,4 +1,5 @@
 import { Pencil, Plus, Trash2 } from 'lucide-react'
+import { motion } from 'motion/react'
 import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useCanEdit } from '../auth/AuthProvider'
@@ -10,7 +11,8 @@ import { Sparkline } from '../components/Sparkline'
 import { TimelineList } from '../components/Timeline'
 import { ItemForm } from '../components/ItemForm'
 import { useToast } from '../components/toast'
-import { Badge, buttonClass, ConfirmDialog, controlClass, EmptyState, ErrorState, LoadingBlock, Modal, Segmented } from '../components/ui'
+import { FadeIn, useTween } from '../components/motion'
+import { Badge, buttonClass, ConfirmDialog, controlClass, EmptyState, ErrorState, LoadingBlock, Modal, Segmented, Select } from '../components/ui'
 import { blankItemDraft, itemToDraft, pendingItemFromUrl } from '../domain/drafts'
 import { parseActivity, parsePriorityFilter, parseSort } from '../domain/filters'
 import { discountPercent, formatCad, formatRelative, safeHttpUrl } from '../domain/format'
@@ -74,6 +76,7 @@ export function WatchlistPage() {
   }
 
   return (
+    <FadeIn>
     <div>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
@@ -101,19 +104,29 @@ export function WatchlistPage() {
           placeholder="Search name, notes, keywords"
           aria-label="Search items"
         />
-        <select className={controlClass} aria-label="Category" value={criteria.category ?? 'all'} onChange={(event) => update({ category: event.target.value === 'all' ? null : event.target.value })}>
-          <option value="all">All categories</option>
-          {categories.map((category) => <option key={category} value={category}>{category}</option>)}
-        </select>
-        <select className={controlClass} aria-label="Priority" value={criteria.priority} onChange={(event) => update({ priority: event.target.value === 'all' ? null : event.target.value })}>
-          <option value="all">All priorities</option>
-          <option value="high">High</option>
-          <option value="normal">Normal</option>
-          <option value="low">Low</option>
-        </select>
-        <select className={controlClass} aria-label="Sort" value={criteria.sort} onChange={(event) => update({ sort: event.target.value === 'target_gap' ? null : event.target.value })}>
-          {(canEdit ? sorts : sorts.filter((entry) => entry !== 'target_gap')).map((sort) => <option key={sort} value={sort}>{sortLabel(sort)}</option>)}
-        </select>
+        <Select
+          label="Category"
+          value={criteria.category ?? 'all'}
+          onValueChange={(value) => update({ category: value === 'all' ? null : value })}
+          options={[{ value: 'all', label: 'All categories' }, ...categories.map((category) => ({ value: category, label: category }))]}
+        />
+        <Select
+          label="Priority"
+          value={criteria.priority}
+          onValueChange={(value) => update({ priority: value === 'all' ? null : value })}
+          options={[
+            { value: 'all', label: 'All priorities' },
+            { value: 'high', label: 'High' },
+            { value: 'normal', label: 'Normal' },
+            { value: 'low', label: 'Low' },
+          ]}
+        />
+        <Select
+          label="Sort"
+          value={criteria.sort}
+          onValueChange={(value) => update({ sort: value === 'target_gap' ? null : value })}
+          options={(canEdit ? sorts : sorts.filter((entry) => entry !== 'target_gap')).map((sort) => ({ value: sort, label: sortLabel(sort) }))}
+        />
       </div>
       <div className="mt-3">
         <Segmented
@@ -143,9 +156,10 @@ export function WatchlistPage() {
         </div>
       ) : (
         <div className="mt-6 grid gap-4">
-          {rows.map((row) => (
+          {rows.map((row, index) => (
             <WatchCard
               key={row.item.id}
+              index={index}
               row={row}
               call={calls.get(row.item.id) ?? null}
               canEdit={canEdit}
@@ -241,16 +255,19 @@ export function WatchlistPage() {
         }}
       />
     </div>
+    </FadeIn>
   )
 }
 
 function WatchCard({
+  index,
   row,
   call,
   canEdit,
   onEdit,
   onDelete,
 }: {
+  index: number
   row: WatchRow
   call: { call: 'buy' | 'good' | 'wait'; confidence: number; reason: string } | null
   canEdit: boolean
@@ -259,8 +276,16 @@ function WatchCard({
 }) {
   const gap = gapCopy(row.targetGap)
   const deal = row.openDeal
+  const tween = useTween(index)
   return (
-    <article className="overflow-hidden rounded-3xl border border-line bg-paper-2">
+    <motion.article
+      layout
+      initial={tween.reduce ? false : { opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={tween.reduce ? undefined : { y: -2 }}
+      transition={tween.transition}
+      className="overflow-hidden rounded-xl border border-line bg-paper-2 shadow-sm"
+    >
       <div className="grid sm:grid-cols-[8.5rem_minmax(0,1fr)]">
         <ProductPhoto name={row.item.name} imageUrl={row.item.image_url} />
         <div className="p-4 md:p-5">
@@ -287,7 +312,7 @@ function WatchCard({
           {safeHttpUrl(row.item.product_url) ? <a className="mt-2 inline-block text-sm text-pine underline" href={safeHttpUrl(row.item.product_url) ?? undefined} target="_blank" rel="noopener noreferrer">Product link</a> : null}
         </div>
         <div className="text-left sm:text-right">
-          <p className="font-display text-4xl tabular-nums">{row.best ? formatCad(row.best.price) : '—'}</p>
+          <p className="font-mono text-3xl font-medium tracking-tight tabular-nums">{row.best ? formatCad(row.best.price) : '—'}</p>
           <p className="text-sm text-muted">
             {row.best ? `${row.best.storeName} · ${formatRelative(row.best.capturedAt)}` : row.other.length > 0 ? 'No qualifying offer yet' : 'No price yet'}
             {row.best?.inStock === false ? ' · Out of stock' : ''}
@@ -333,7 +358,7 @@ function WatchCard({
       </div>
         </div>
       </div>
-    </article>
+    </motion.article>
   )
 }
 

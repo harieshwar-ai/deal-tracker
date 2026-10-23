@@ -22,20 +22,20 @@ import type { HistorySeries } from '../domain/history'
 
 type ChartColors = { [Key in keyof typeof palette]: string }
 
-const darkStoreStrokes = ['#7dcea8', '#e2b15a', '#8eb4d8', '#e0a3bc', '#a8d48f', '#7dcec8', '#e2a15a', '#aeb6e8'] as const
+const darkStoreStrokes = ['#3dbe9a', '#e2b15a', '#8eb4d8', '#e0a3bc', '#a8d48f', '#7dcec8', '#e2a15a', '#aeb6e8'] as const
 
 function useChartColors(): ChartColors {
   const { resolved } = useTheme()
   if (resolved === 'dark') {
     return {
       ...palette,
-      pine: '#7dcea8',
+      pine: '#3dbe9a',
       gold: '#e2b15a',
       sea: '#8eb4d8',
-      ink: '#f3efe6',
-      muted: '#b7b0a4',
-      grid: '#3a342c',
-      paper: '#24211c',
+      ink: '#eef2f6',
+      muted: '#9aa6b2',
+      grid: '#2a3340',
+      paper: '#151a21',
     }
   }
   return palette
@@ -47,7 +47,7 @@ function useStoreStrokes(): readonly string[] {
 }
 
 function chartLook(colors: ChartColors) {
-  const tick = { fill: colors.muted, fontSize: 12 }
+  const tick = { fill: colors.muted, fontSize: 12, fontFamily: 'Geist Variable, ui-sans-serif, sans-serif' }
   return {
     colors,
     grid: { stroke: colors.grid, vertical: false as const },
@@ -58,6 +58,7 @@ function chartLook(colors: ChartColors) {
       border: `1px solid ${colors.grid}`,
       borderRadius: 12,
       fontSize: 13,
+      fontFamily: 'Geist Variable, ui-sans-serif, sans-serif',
       color: colors.ink,
     },
   }

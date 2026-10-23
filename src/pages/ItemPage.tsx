@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { FadeIn } from '../components/motion'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useCanEdit } from '../auth/AuthProvider'
 import { PriceHistoryChart } from '../components/charts'
@@ -8,7 +9,7 @@ import { RequirementChecklist, SpecChecklist } from '../components/SpecChecklist
 import { TimelineList } from '../components/Timeline'
 import { ItemForm } from '../components/ItemForm'
 import { useToast } from '../components/toast'
-import { Badge, Button, ConfirmDialog, EmptyState, LoadingBlock, Modal, Segmented } from '../components/ui'
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger, Badge, Button, ConfirmDialog, EmptyState, LoadingBlock, Modal, Segmented, Select } from '../components/ui'
 import { compareStores } from '../domain/compare'
 import { itemToDraft } from '../domain/drafts'
 import { discountPercent, formatCad, formatDay, formatPct, formatRelative, safeHttpUrl } from '../domain/format'
@@ -85,6 +86,7 @@ export function ItemPage() {
   })
 
   return (
+    <FadeIn>
     <div>
       <Link className="text-sm text-pine underline" to="/">Watchlist</Link>
       <div className="mt-3 grid gap-4 lg:grid-cols-[minmax(0,1fr)_17rem] lg:items-start">
@@ -114,13 +116,13 @@ export function ItemPage() {
             <span className="text-muted"> Confidence {call.confidence}.</span>
           </p>
         </div>
-        <aside className="grid grid-cols-[7.5rem_minmax(0,1fr)] items-center gap-3 rounded-3xl border border-line bg-paper-2 p-3 lg:grid-cols-1">
+        <aside className="grid grid-cols-[7.5rem_minmax(0,1fr)] items-center gap-3 rounded-xl border border-line bg-paper-2 shadow-sm p-3 lg:grid-cols-1">
           <div className="overflow-hidden rounded-2xl">
             <ProductPhoto name={item.name} imageUrl={item.image_url} />
           </div>
           <div>
             <p className="text-xs uppercase tracking-[0.14em] text-muted">Current qualifying price</p>
-            <p className="mt-1 font-display text-4xl tabular-nums">{best ? formatCad(best.price) : '—'}</p>
+            <p className="mt-1 font-mono text-3xl font-medium tracking-tight tabular-nums">{best ? formatCad(best.price) : '—'}</p>
             <p className="mt-1 text-sm text-muted">
               {best ? `${best.storeName} · ${formatRelative(best.capturedAt)}` : otherQuotes.length > 0 ? 'No qualifying offer yet' : 'No price yet'}
             </p>
@@ -159,11 +161,15 @@ export function ItemPage() {
         <p className="mt-1 text-sm text-muted">Current qualifying price at each store. Ontario HST is 13% of the item price. Shipping is added when a scan saved it.</p>
         {quotes.length === 0 ? <p className="mt-3 text-sm">No qualifying offer yet</p> : <StoreComparison offers={compareStores(quotes, deals, best?.snapshotId ?? null)} />}
         {otherQuotes.length > 0 ? (
-          <div className="mt-6">
-            <h3 className="font-display text-xl text-muted">Other offers seen</h3>
-            <p className="mt-1 text-sm text-muted">Unverified listings, and listings that do not meet the specs. They are left out of the best price.</p>
-            <StoreComparison offers={compareStores(otherQuotes, deals, null)} muted />
-          </div>
+          <Accordion type="single" collapsible className="mt-6">
+            <AccordionItem value="other">
+              <AccordionTrigger>Other offers seen</AccordionTrigger>
+              <AccordionContent>
+                <p className="text-sm text-muted">Unverified listings, and listings that do not meet the specs. They are left out of the best price.</p>
+                <StoreComparison offers={compareStores(otherQuotes, deals, null)} muted />
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         ) : null}
       </section>
 
@@ -174,7 +180,7 @@ export function ItemPage() {
         </div>
       </section>
 
-      <section className="mt-8 rounded-3xl border border-line bg-paper-2 p-4 md:p-5">
+      <section className="mt-8 rounded-xl border border-line bg-paper-2 shadow-sm p-4 md:p-5">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 className="font-display text-2xl">Price history</h2>
@@ -208,21 +214,28 @@ export function ItemPage() {
         <div className="flex flex-wrap items-end justify-between gap-3">
           <h2 className="font-display text-2xl">Snapshots</h2>
           <div className="flex flex-wrap gap-2">
-            <select className="rounded-full border border-line bg-paper-2 px-3 py-2 text-base md:py-1.5 md:text-sm" aria-label="Filter snapshots by store" value={storeFilter} onChange={(event) => setStoreFilter(event.target.value)}>
-              <option value="all">All stores</option>
-              {catalog.stores.map((store) => <option key={store.id} value={store.id}>{store.name}</option>)}
-            </select>
-            <select className="rounded-full border border-line bg-paper-2 px-3 py-2 text-base md:py-1.5 md:text-sm" aria-label="Sort snapshots" value={sort} onChange={(event) => setSort(parseSnapshotSort(event.target.value))}>
-              <option value="newest">Newest</option>
-              <option value="price">Lowest price</option>
-              <option value="store">Store</option>
-            </select>
+            <Select
+              label="Filter snapshots by store"
+              value={storeFilter}
+              onValueChange={setStoreFilter}
+              options={[{ value: 'all', label: 'All stores' }, ...catalog.stores.map((store) => ({ value: store.id, label: store.name }))]}
+            />
+            <Select
+              label="Sort snapshots"
+              value={sort}
+              onValueChange={(value) => setSort(parseSnapshotSort(value))}
+              options={[
+                { value: 'newest', label: 'Newest' },
+                { value: 'price', label: 'Lowest price' },
+                { value: 'store', label: 'Store' },
+              ]}
+            />
           </div>
         </div>
         {ordered.length === 0 ? (
           <p className="mt-4 text-sm text-muted">No snapshots for this filter.</p>
         ) : (
-          <div className="mt-4 max-h-[32rem] overflow-auto rounded-3xl border border-line">
+          <div className="mt-4 max-h-[32rem] overflow-auto rounded-xl border border-line shadow-sm">
             <table className="w-full min-w-[44rem] text-left text-sm">
               <caption className="sr-only">Price snapshots for {item.name}</caption>
               <thead className="sticky top-0 bg-paper text-muted">
@@ -313,14 +326,15 @@ export function ItemPage() {
         }}
       />
     </div>
+    </FadeIn>
   )
 }
 
 function Stat({ label, value, detail }: { label: string; value: string; detail: string }) {
   return (
-    <article className="rounded-3xl border border-line bg-paper-2 p-4">
+    <article className="rounded-xl border border-line bg-paper-2 shadow-sm p-4">
       <p className="text-sm text-muted">{label}</p>
-      <p className="mt-1 font-display text-3xl tabular-nums">{value}</p>
+      <p className="mt-1 font-mono text-2xl font-medium tracking-tight tabular-nums">{value}</p>
       <p className="mt-1 text-sm text-muted">{detail}</p>
     </article>
   )

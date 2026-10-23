@@ -4,7 +4,8 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import { AuthProvider, useAuth } from './auth/AuthProvider'
 import { Shell } from './components/Shell'
 import { ToastProvider } from './components/toast'
-import { Button } from './components/ui'
+import { Button } from './components/ui/button'
+import { TooltipProvider } from './components/ui/tooltip'
 import { routerBasename } from './lib/config'
 import { LoginPage } from './pages/LoginPage'
 import { previewRequested } from './preview/mode'
@@ -82,7 +83,9 @@ export function App() {
     <AppErrorBoundary>
       <AuthProvider>
         <ToastProvider>
-          <RouterProvider router={router} />
+          <TooltipProvider>
+            <RouterProvider router={router} />
+          </TooltipProvider>
         </ToastProvider>
       </AuthProvider>
     </AppErrorBoundary>

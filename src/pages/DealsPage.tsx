@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { FadeIn, MotionCard } from '../components/motion'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useCanEdit } from '../auth/AuthProvider'
 import { useToast } from '../components/toast'
@@ -52,6 +53,7 @@ export function DealsPage() {
   }
 
   return (
+    <FadeIn>
     <div>
       <h1 className="font-display text-4xl">Deals</h1>
       <p className="mt-1 text-sm text-muted">
@@ -79,9 +81,9 @@ export function DealsPage() {
             <section key={group.verdict}>
               <h2 className="font-display text-2xl">{verdictLabel(group.verdict)} <span className="text-muted">{group.deals.length}</span></h2>
               <div className="mt-3 grid gap-3">
-                {group.deals.map((deal) => (
+                {group.deals.map((deal, index) => (
+                  <MotionCard key={deal.id} index={index}>
                   <DealCard
-                    key={deal.id}
                     deal={deal}
                     itemName={catalog.items.find((item) => item.id === deal.item_id)?.name ?? 'Unknown item'}
                     storeName={catalog.stores.find((store) => store.id === deal.store_id)?.name ?? 'Unknown store'}
@@ -89,6 +91,7 @@ export function DealsPage() {
                     canEdit={canEdit}
                     onMark={(next) => void mark(deal, next)}
                   />
+                  </MotionCard>
                 ))}
               </div>
             </section>
@@ -96,6 +99,7 @@ export function DealsPage() {
         </div>
       )}
     </div>
+    </FadeIn>
   )
 }
 
@@ -118,7 +122,7 @@ function DealCard({
   const discount = discountPercent(deal.price, deal.regular_price)
   const pastExpiry = deal.expires_at != null && Date.parse(deal.expires_at) < Date.now() && deal.status === 'open'
   return (
-    <article className="rounded-3xl border border-line bg-paper-2 p-4 md:p-5">
+    <article className="rounded-xl border border-line bg-paper-2 shadow-sm p-4 md:p-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -134,7 +138,7 @@ function DealCard({
           </p>
         </div>
         <div>
-          <p className="font-display text-4xl tabular-nums">{formatCad(deal.price)}</p>
+          <p className="font-mono text-3xl font-medium tracking-tight tabular-nums">{formatCad(deal.price)}</p>
           {deal.regular_price != null ? (
             <p className="text-sm text-muted">
               <s>{formatCad(deal.regular_price)}</s>

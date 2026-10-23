@@ -13,7 +13,8 @@ import type { AuthFailure } from '../auth/callback'
 import { isOwnerSession } from '../auth/owner'
 import { consumeReturnPath } from '../auth/returnPath'
 import { ThemeToggle } from '../components/ThemeToggle'
-import { Button, controlClass } from '../components/ui'
+import { Button } from '../components/ui/button'
+import { controlClass } from '../components/ui/input'
 import { magicLinkRedirect } from '../lib/config'
 import { supabase } from '../lib/supabase'
 import { useDocumentTitle } from '../lib/title'
@@ -136,7 +137,7 @@ export function LoginPage() {
         {useCode ? (
           sentTo ? (
             <form className="mt-8 grid gap-4" onSubmit={(event) => void verifyCode(event)}>
-              <div className="rounded-3xl border border-pine/20 bg-pine-soft p-5">
+              <div className="rounded-xl border border-pine/20 bg-pine-soft shadow-sm p-5">
                 <p className="font-medium">Check {sentTo}</p>
                 <p className="mt-2 text-sm leading-6 text-muted">
                   Type the 6-digit code. A link in the same email works in this browser.

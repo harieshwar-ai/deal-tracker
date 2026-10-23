@@ -1,5 +1,6 @@
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
+import { FadeIn, MotionCard } from '../components/motion'
 import { useCanEdit } from '../auth/AuthProvider'
 import { StoreForm } from '../components/StoreForm'
 import { useToast } from '../components/toast'
@@ -32,6 +33,7 @@ export function StoresPage() {
   }
 
   return (
+    <FadeIn>
     <div>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
@@ -53,10 +55,10 @@ export function StoresPage() {
         </div>
       ) : (
         <div className="mt-6 grid gap-4 md:grid-cols-2">
-          {stores.map((store) => {
+          {stores.map((store, index) => {
             const href = safeHttpUrl(store.base_url)
             return (
-              <article key={store.id} className="rounded-3xl border border-line bg-paper-2 p-5">
+              <MotionCard key={store.id} index={index} className="rounded-xl border border-line bg-paper-2 p-5 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h2 className="font-display text-3xl">{store.name}</h2>
@@ -85,7 +87,7 @@ export function StoresPage() {
                     </button>
                   </div>
                 ) : null}
-              </article>
+              </MotionCard>
             )
           })}
         </div>
@@ -120,6 +122,7 @@ export function StoresPage() {
         }}
       />
     </div>
+    </FadeIn>
   )
 }
 
