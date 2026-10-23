@@ -6,6 +6,7 @@ import { HeroStrip } from '../components/HeroStrip'
 import { ProductPhoto, StoreMark } from '../components/product'
 import { SpecChecklist } from '../components/SpecChecklist'
 import { Sparkline } from '../components/Sparkline'
+import { TimelineList } from '../components/Timeline'
 import { ItemForm } from '../components/ItemForm'
 import { useToast } from '../components/toast'
 import { Badge, buttonClass, ConfirmDialog, controlClass, EmptyState, ErrorState, LoadingBlock, Modal, Segmented } from '../components/ui'
@@ -15,6 +16,7 @@ import { discountPercent, formatCad, formatRelative, safeHttpUrl } from '../doma
 import { heroStats } from '../domain/hero'
 import { priorityLabel, priorityTone, sortLabel, verdictLabel, verdictTone } from '../domain/labels'
 import type { Item, WatchSort } from '../domain/types'
+import { buildTimeline } from '../domain/timeline'
 import { priceCallLabel, priceCallsForDataset, priceCallTone } from '../domain/verdict'
 import { buildWatchRows, filterWatchRows, sortWatchRows, watchCategories } from '../domain/watchlist'
 import type { WatchRow } from '../domain/watchlist'
@@ -55,6 +57,7 @@ export function WatchlistPage() {
     [catalog, canEdit],
   )
   const hero = useMemo(() => heroStats(catalog, canEdit), [catalog, canEdit])
+  const changes = useMemo(() => buildTimeline(catalog).slice(0, 8), [catalog])
 
   function update(updates: Record<string, string | null>) {
     setParams(writeParams(params, updates), { replace: true })
@@ -142,6 +145,12 @@ export function WatchlistPage() {
           ))}
         </div>
       )}
+      <section className="mt-8">
+        <h2 className="font-display text-2xl">Recent price changes</h2>
+        <div className="mt-3">
+          <TimelineList events={changes} linkItems />
+        </div>
+      </section>
       <Modal
         open={editing != null}
         title={editing === 'new' ? 'New item' : 'Edit item'}

@@ -4,6 +4,7 @@ import { useCanEdit } from '../auth/AuthProvider'
 import { PriceHistoryChart } from '../components/charts'
 import { ProductPhoto } from '../components/product'
 import { RequirementChecklist, SpecChecklist } from '../components/SpecChecklist'
+import { TimelineList } from '../components/Timeline'
 import { ItemForm } from '../components/ItemForm'
 import { useToast } from '../components/toast'
 import { Badge, Button, ConfirmDialog, EmptyState, LoadingBlock, Modal } from '../components/ui'
@@ -12,6 +13,7 @@ import { discountPercent, formatCad, formatDay, formatPct, formatRelative, safeH
 import { buildPriceHistory } from '../domain/history'
 import { priorityLabel, priorityTone, verdictLabel, verdictTone } from '../domain/labels'
 import { allTimeLow, chooseBest, latestSnapshots, quoteFromSnapshot } from '../domain/quotes'
+import { buildTimeline } from '../domain/timeline'
 import { priceCallForItem, priceCallLabel, priceCallTone } from '../domain/verdict'
 import { watchCategories } from '../domain/watchlist'
 import { useDocumentTitle } from '../lib/title'
@@ -47,6 +49,10 @@ export function ItemPage() {
   const deals = catalog.deals.filter((deal) => deal.item_id === itemId && deal.status === 'open')
   const filtered = snapshots.filter((snapshot) => storeFilter === 'all' || snapshot.store_id === storeFilter)
   const ordered = [...filtered].sort((left, right) => compareSnapshots(left, right, sort, catalog.stores))
+  const changes = useMemo(
+    () => buildTimeline({ ...catalog, items: catalog.items.filter((entry) => entry.id === itemId), snapshots }).filter((event) => event.itemId === itemId),
+    [catalog, itemId, snapshots],
+  )
 
   if (!catalog.ready) return <LoadingBlock />
   if (!item) {
@@ -124,6 +130,13 @@ export function ItemPage() {
           <Stat label="From all-time low" value={best && low && low.price > 0 ? formatPct(((best.price - low.price) / low.price) * 100, 0) : '—'} detail={low ? 'Compared with the lowest CAD price saved' : 'No CAD snapshots yet'} />
         )}
       </div>
+
+      <section className="mt-8">
+        <h2 className="font-display text-2xl">Price changes</h2>
+        <div className="mt-3">
+          <TimelineList events={changes} linkItems={false} />
+        </div>
+      </section>
 
       <section className="mt-8 rounded-3xl border border-line bg-paper-2 p-4 md:p-5">
         <h2 className="font-display text-2xl">Price history</h2>
