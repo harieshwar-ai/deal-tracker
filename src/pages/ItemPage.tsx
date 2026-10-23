@@ -12,7 +12,7 @@ import { Badge, Button, ConfirmDialog, EmptyState, LoadingBlock, Modal } from '.
 import { compareStores } from '../domain/compare'
 import { itemToDraft } from '../domain/drafts'
 import { discountPercent, formatCad, formatDay, formatPct, formatRelative, safeHttpUrl } from '../domain/format'
-import { buildPriceHistory } from '../domain/history'
+import { buildPriceHistory, historyChartState } from '../domain/history'
 import { priorityLabel, priorityTone, verdictLabel, verdictTone } from '../domain/labels'
 import { allTimeLow, chooseBest, latestSnapshots, quoteFromSnapshot } from '../domain/quotes'
 import { buildTimeline } from '../domain/timeline'
@@ -148,14 +148,20 @@ export function ItemPage() {
 
       <section className="mt-8 rounded-3xl border border-line bg-paper-2 p-4 md:p-5">
         <h2 className="font-display text-2xl">Price history</h2>
-        <p className="mt-1 text-sm text-muted">{canEdit ? 'Daily lowest CAD price at each store. The dashed line is your target.' : 'Daily lowest CAD price at each store.'}</p>
-        {history.rows.length === 0 ? (
+        <p className="mt-1 text-sm text-muted">{canEdit ? 'Daily lowest CAD price at each store. Green marks the all-time low. The gold dashed line is your target.' : 'Daily lowest CAD price at each store. Green marks the all-time low.'}</p>
+        {historyChartState(history.rows.length) === 'empty' ? (
           <div className="mt-4">
             <EmptyState title="No prices yet" body="Once the daily check records a snapshot, the chart and the table below will fill in." />
           </div>
+        ) : historyChartState(history.rows.length) === 'sparse' ? (
+          <p className="mt-4 text-sm leading-6">
+            {low ? `${formatCad(low.price)} on ${formatDay(low.captured_at)} is the only priced day, so that is the all-time low.` : 'Only one priced day is saved.'}
+            {' '}The line chart starts after a second day.
+            {canEdit && item.target_price != null ? ` Your target is ${formatCad(item.target_price)}.` : ''}
+          </p>
         ) : (
           <div className="mt-4">
-            <PriceHistoryChart rows={history.rows} series={history.series} target={canEdit ? item.target_price : null} />
+            <PriceHistoryChart rows={history.rows} series={history.series} target={canEdit ? item.target_price : null} low={low?.price ?? null} />
           </div>
         )}
       </section>

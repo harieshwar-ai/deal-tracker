@@ -3,7 +3,7 @@ import { computeAnalytics } from './analytics'
 import { groupDeals, pickOpenDeal } from './deals'
 import { parseItemDraft, parseStoreDraft } from './drafts'
 import { dayKey, discountPercent, formatCad, safeHttpUrl } from './format'
-import { buildPriceHistory } from './history'
+import { buildPriceHistory, historyChartState } from './history'
 import { withoutItem, withoutStore } from './mutate'
 import { allTimeLow, chooseBest, latestSnapshots, quoteFromSnapshot } from './quotes'
 import type { Quote } from './quotes'
@@ -339,6 +339,9 @@ describe('history, preview, and deletes', () => {
     const row = history.rows.find((entry) => entry.date === today)
     expect(row?.costco).toBe(1900)
     expect(row?.amazon).toBe(2100)
+    expect(historyChartState(0)).toBe('empty')
+    expect(historyChartState(1)).toBe('sparse')
+    expect(historyChartState(history.rows.length)).toBe('ready')
   })
 
   it('builds a connected sample and detaches store history on delete', () => {
