@@ -1,4 +1,6 @@
 import { dayKey, isCadCurrency, toCents } from './format'
+import { assignProducts, variantHeading, variantKey } from './identity'
+import type { VariantKind } from './identity'
 import type { PriceSnapshot, Store } from './types'
 
 export interface Quote {
@@ -18,6 +20,27 @@ export interface Quote {
   saleEndsAt: string | null
   shipping: number | null
   meetsRequirements: boolean | null
+  productLabel: string | null
+  variantHeading: string | null
+  variants: OfferVariant[]
+}
+
+export interface OfferVariant {
+  snapshotId: number
+  label: string | null
+  kind: VariantKind | null
+  price: number
+  regularPrice: number | null
+  currency: string
+  inStock: boolean | null
+  memberOnly: boolean | null
+  capturedAt: string
+  productName: string | null
+  productUrl: string | null
+  saleEndsAt: string | null
+  shipping: number | null
+  meetsRequirements: boolean | null
+  best: boolean
 }
 
 export function storeName(stores: Store[], storeId: string | null): string {
@@ -48,6 +71,29 @@ export function quoteFromSnapshot(snapshot: PriceSnapshot, stores: Store[]): Quo
     saleEndsAt: snapshot.sale_ends_at,
     shipping: snapshot.shipping,
     meetsRequirements: snapshot.meets_requirements,
+    productLabel: snapshot.product_name,
+    variantHeading: null,
+    variants: [variantFromSnapshot(snapshot, null, null, true)],
+  }
+}
+
+function variantFromSnapshot(snapshot: PriceSnapshot, label: string | null, kind: VariantKind | null, best: boolean): OfferVariant {
+  return {
+    snapshotId: snapshot.id,
+    label,
+    kind,
+    price: snapshot.price,
+    regularPrice: snapshot.regular_price,
+    currency: snapshot.currency,
+    inStock: snapshot.in_stock,
+    memberOnly: snapshot.member_only,
+    capturedAt: snapshot.captured_at,
+    productName: snapshot.product_name,
+    productUrl: snapshot.product_url,
+    saleEndsAt: snapshot.sale_ends_at,
+    shipping: snapshot.shipping,
+    meetsRequirements: snapshot.meets_requirements,
+    best,
   }
 }
 
@@ -63,10 +109,85 @@ export function latestSnapshots(snapshots: PriceSnapshot[]): PriceSnapshot[] {
 }
 
 export function latestOffers(snapshots: PriceSnapshot[]): PriceSnapshot[] {
-  return latestBy(snapshots, (snapshot) => {
-    const product = (snapshot.product_name || '').trim().toLowerCase()
-    return `${snapshot.item_id}\u0000${snapshot.store_id ?? ''}\u0000${product}`
+  return groupOfferSnapshots(snapshots).map((group) => group.headline)
+}
+
+export function offerQuotes(snapshots: PriceSnapshot[], stores: Store[]): Quote[] {
+  return groupOfferSnapshots(snapshots).map((group) => {
+    const quote = quoteFromSnapshot(group.headline, stores)
+    const variants = group.variants.map((variant) => variantFromSnapshot(
+      variant.snapshot,
+      variant.label,
+      variant.kind,
+      variant.snapshot.id === group.headline.id,
+    ))
+    return {
+      ...quote,
+      productName: group.displayName ?? quote.productName,
+      productLabel: group.displayName,
+      variantHeading: group.heading,
+      variants,
+    }
   })
+}
+
+interface OfferGroup {
+  headline: PriceSnapshot
+  displayName: string | null
+  heading: string | null
+  variants: Array<{ snapshot: PriceSnapshot; label: string | null; kind: VariantKind | null }>
+}
+
+export function groupOfferSnapshots(snapshots: PriceSnapshot[]): OfferGroup[] {
+  const assignments = assignProducts(snapshots)
+  const buckets = new Map<string, PriceSnapshot[]>()
+  for (const snapshot of snapshots) {
+    const assigned = assignments.get(snapshot.id)
+    const key = `${snapshot.item_id}\u0000${snapshot.store_id ?? ''}\u0000${assigned?.productKey ?? snapshot.id}`
+    const list = buckets.get(key) ?? []
+    list.push(snapshot)
+    buckets.set(key, list)
+  }
+  const groups: OfferGroup[] = []
+  for (const bucket of buckets.values()) {
+    const byVariant = new Map<string, PriceSnapshot>()
+    for (const snapshot of bucket) {
+      const key = variantKey(snapshot)
+      const current = byVariant.get(key)
+      if (!current || isNewer(snapshot, current)) byVariant.set(key, snapshot)
+    }
+    const currents = [...byVariant.values()]
+    const headline = currents.reduce((best, snapshot) => betterOffer(snapshot, best, assignments) ? snapshot : best)
+    const multi = currents.length > 1
+    const headlineAssignment = assignments.get(headline.id)
+    const variants = currents
+      .map((snapshot) => {
+        const assigned = assignments.get(snapshot.id)
+        return { snapshot, label: assigned?.optionLabel ?? null, kind: assigned?.optionKind ?? null }
+      })
+      .sort((left, right) => Number(right.snapshot.id === headline.id) - Number(left.snapshot.id === headline.id)
+        || (left.label ?? '').localeCompare(right.label ?? '')
+        || left.snapshot.price - right.snapshot.price)
+    groups.push({
+      headline,
+      displayName: multi ? (headlineAssignment?.displayName ?? headline.product_name) : headline.product_name,
+      heading: multi ? variantHeading(variants.map((variant) => variant.kind)) : null,
+      variants,
+    })
+  }
+  return groups
+}
+
+function betterOffer(candidate: PriceSnapshot, current: PriceSnapshot, assignments: ReturnType<typeof assignProducts>): boolean {
+  const candidateStock = candidate.in_stock !== false
+  const currentStock = current.in_stock !== false
+  if (candidateStock !== currentStock) return candidateStock
+  if (candidate.price !== current.price) return candidate.price < current.price
+  const candidateLabel = assignments.get(candidate.id)?.optionLabel ?? ''
+  const currentLabel = assignments.get(current.id)?.optionLabel ?? ''
+  const labels = candidateLabel.localeCompare(currentLabel)
+  if (labels !== 0) return labels < 0
+  return candidate.id < current.id
 }
 
 function latestBy(snapshots: PriceSnapshot[], keyFor: (snapshot: PriceSnapshot) => string): PriceSnapshot[] {

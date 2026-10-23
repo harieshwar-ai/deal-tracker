@@ -5,7 +5,8 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useCanEdit } from '../auth/AuthProvider'
 import { HeroStrip } from '../components/HeroStrip'
 import { SeasonCards } from '../components/SeasonCards'
-import { ProductPhoto, StoreMark } from '../components/product'
+import { OfferChip } from '../components/OfferVariants'
+import { ProductPhoto } from '../components/product'
 import { SpecChecklist } from '../components/SpecChecklist'
 import { Sparkline } from '../components/Sparkline'
 import { TimelineList } from '../components/Timeline'
@@ -15,7 +16,7 @@ import { FadeIn, useTween } from '../components/motion'
 import { Badge, buttonClass, ConfirmDialog, controlClass, EmptyState, ErrorState, LoadingBlock, Modal, Segmented, Select } from '../components/ui'
 import { blankItemDraft, itemToDraft, pendingItemFromUrl } from '../domain/drafts'
 import { parseActivity, parsePriorityFilter, parseSort } from '../domain/filters'
-import { discountPercent, formatCad, formatRelative, safeHttpUrl } from '../domain/format'
+import { formatCad, formatRelative, safeHttpUrl } from '../domain/format'
 import { heroStats } from '../domain/hero'
 import { priorityLabel, priorityTone, sortLabel, verdictLabel, verdictTone } from '../domain/labels'
 import type { Item, WatchSort } from '../domain/types'
@@ -326,24 +327,9 @@ function WatchCard({
         <ul className="flex min-w-0 flex-1 flex-wrap gap-2">
           {row.quotes.length === 0 && row.other.length === 0 ? <li className="text-sm text-muted">Waiting for the first snapshot.</li> : null}
           {row.quotes.length === 0 && row.other.length > 0 ? <li className="text-sm text-muted">Other offers seen, none qualify yet.</li> : null}
-          {row.quotes.map((quote) => {
-            const href = safeHttpUrl(quote.productUrl)
-            const discount = discountPercent(quote.price, quote.regularPrice)
-            const best = row.best?.snapshotId === quote.snapshotId
-            return (
-              <li key={`${quote.storeId ?? 'unknown'}-${quote.snapshotId}`}>
-                {href ? (
-                  <a href={href} target="_blank" rel="noopener noreferrer" className={chipClass(best)}>
-                    <ChipBody quoteName={quote.storeName} price={quote.price} discount={discount} member={quote.memberOnly === true} stock={quote.inStock} />
-                  </a>
-                ) : (
-                  <span className={chipClass(best)}>
-                    <ChipBody quoteName={quote.storeName} price={quote.price} discount={discount} member={quote.memberOnly === true} stock={quote.inStock} />
-                  </span>
-                )}
-              </li>
-            )
-          })}
+          {row.quotes.map((quote) => (
+            <OfferChip key={`${quote.storeId ?? 'unknown'}-${quote.snapshotId}`} quote={quote} best={row.best?.snapshotId === quote.snapshotId} />
+          ))}
         </ul>
         {canEdit ? (
           <div className="flex gap-1">
@@ -360,36 +346,6 @@ function WatchCard({
       </div>
     </motion.article>
   )
-}
-
-function ChipBody({
-  quoteName,
-  price,
-  discount,
-  member,
-  stock,
-}: {
-  quoteName: string
-  price: number
-  discount: number | null
-  member: boolean
-  stock: boolean | null
-}) {
-  return (
-    <>
-      <StoreMark name={quoteName} />
-      <span>{quoteName}</span> {formatCad(price)}
-      {discount != null && discount > 0 ? <span className="text-pine"> {Math.round(discount)}%</span> : null}
-      {member ? <span className="text-gold"> member</span> : null}
-      {stock === false ? <span className="text-clay"> out</span> : null}
-    </>
-  )
-}
-
-function chipClass(best: boolean): string {
-  return best
-    ? 'inline-flex flex-wrap items-center gap-1 rounded-full border border-pine bg-pine-soft px-2.5 py-1 text-sm tabular-nums'
-    : 'inline-flex flex-wrap items-center gap-1 rounded-full border border-line px-2.5 py-1 text-sm tabular-nums'
 }
 
 function gapCopy(gap: number | null): { text: string; className: string } | null {

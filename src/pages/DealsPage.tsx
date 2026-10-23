@@ -4,7 +4,8 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useCanEdit } from '../auth/AuthProvider'
 import { useToast } from '../components/toast'
 import { Badge, Button, EmptyState, ErrorState, LoadingBlock, Segmented } from '../components/ui'
-import { groupDeals, verdictGroup } from '../domain/deals'
+import { clusterDeals, groupDeals, verdictGroup } from '../domain/deals'
+import type { DealCluster } from '../domain/deals'
 import { parseStatusFilter } from '../domain/filters'
 import type { StatusFilter } from '../domain/filters'
 import { discountPercent, formatCad, formatDay, formatRelative, safeHttpUrl } from '../domain/format'
@@ -30,10 +31,21 @@ export function DealsPage() {
   const [params, setParams] = useSearchParams()
   const [pendingId, setPendingId] = useState<string | null>(null)
   const status = parseStatusFilter(params.get('status'))
-  const visible = useMemo(() => {
+  const clusters = useMemo(() => {
     const selected = catalog.deals.filter((deal) => status === 'all' || deal.status === status)
-    return groupDeals(selected)
-  }, [catalog.deals, status])
+    return clusterDeals(selected, catalog.snapshots)
+  }, [catalog.deals, catalog.snapshots, status])
+  const visible = useMemo(() => {
+    const byId = new Map(clusters.map((cluster) => [cluster.deal.id, cluster]))
+    return groupDeals(clusters.map((cluster) => cluster.deal)).map((group) => ({
+      verdict: group.verdict,
+      clusters: group.deals.map((deal) => byId.get(deal.id)).filter((cluster): cluster is DealCluster => cluster != null),
+    }))
+  }, [clusters])
+  const openCount = useMemo(
+    () => clusterDeals(catalog.deals.filter((deal) => deal.status === 'open'), catalog.snapshots).length,
+    [catalog.deals, catalog.snapshots],
+  )
 
   async function mark(deal: Deal, next: DealStatus) {
     setPendingId(deal.id)
@@ -57,7 +69,7 @@ export function DealsPage() {
     <div>
       <h1 className="font-display text-4xl">Deals</h1>
       <p className="mt-1 text-sm text-muted">
-        {catalog.deals.filter((deal) => deal.status === 'open').length} open. Grouped by the checker’s verdict.
+        {openCount} open. Grouped by the checker’s verdict. Same model, different colour or finish, counts once.
       </p>
       <div className="mt-5">
         <Segmented
@@ -79,17 +91,18 @@ export function DealsPage() {
         <div className="mt-8 grid gap-8">
           {visible.map((group) => (
             <section key={group.verdict}>
-              <h2 className="font-display text-2xl">{verdictLabel(group.verdict)} <span className="text-muted">{group.deals.length}</span></h2>
+              <h2 className="font-display text-2xl">{verdictLabel(group.verdict)} <span className="text-muted">{group.clusters.length}</span></h2>
               <div className="mt-3 grid gap-3">
-                {group.deals.map((deal, index) => (
-                  <MotionCard key={deal.id} index={index}>
+                {group.clusters.map((cluster, index) => (
+                  <MotionCard key={cluster.deal.id} index={index}>
                   <DealCard
-                    deal={deal}
-                    itemName={catalog.items.find((item) => item.id === deal.item_id)?.name ?? 'Unknown item'}
-                    storeName={catalog.stores.find((store) => store.id === deal.store_id)?.name ?? 'Unknown store'}
-                    pending={pendingId === deal.id}
+                    deal={cluster.deal}
+                    options={cluster.options}
+                    itemName={catalog.items.find((item) => item.id === cluster.deal.item_id)?.name ?? 'Unknown item'}
+                    storeName={catalog.stores.find((store) => store.id === cluster.deal.store_id)?.name ?? 'Unknown store'}
+                    pending={pendingId === cluster.deal.id}
                     canEdit={canEdit}
-                    onMark={(next) => void mark(deal, next)}
+                    onMark={(next) => void mark(cluster.deal, next)}
                   />
                   </MotionCard>
                 ))}
@@ -105,6 +118,7 @@ export function DealsPage() {
 
 function DealCard({
   deal,
+  options,
   itemName,
   storeName,
   pending,
@@ -112,6 +126,7 @@ function DealCard({
   onMark,
 }: {
   deal: Deal
+  options: DealCluster['options']
   itemName: string
   storeName: string
   pending: boolean
@@ -151,6 +166,20 @@ function DealCard({
         <div className="mt-3 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-line" aria-hidden="true">
           <div className="h-full bg-pine" style={{ width: `${deal.score}%` }} />
         </div>
+      ) : null}
+      {options.length > 1 ? (
+        <ul className="mt-3 grid gap-1 text-sm">
+          {options.map((option) => {
+            const href = safeHttpUrl(option.url)
+            return (
+              <li key={`${option.label ?? 'option'}-${option.price}`} className="flex flex-wrap items-baseline gap-x-2">
+                <span>{option.label ?? 'Option'}</span>
+                <span className="tabular-nums">{formatCad(option.price)}</span>
+                {href ? <a className="text-pine underline" href={href} target="_blank" rel="noopener noreferrer">Open listing</a> : null}
+              </li>
+            )
+          })}
+        </ul>
       ) : null}
       {canEdit && deal.reason ? <p className="mt-3 max-w-2xl text-sm leading-6">{deal.reason}</p> : null}
       <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-muted">

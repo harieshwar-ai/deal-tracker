@@ -1,4 +1,5 @@
 import { isCadCurrency, toCents } from './format'
+import { assignProducts } from './identity'
 import { storeName } from './quotes'
 import type { Dataset, PriceSnapshot } from './types'
 
@@ -46,29 +47,33 @@ export function buildTimeline(data: Dataset): TimelineEvent[] {
 
   const events: TimelineEvent[] = []
   for (const [itemId, snapshots] of grouped) {
+    const assignments = assignProducts(snapshots)
     const ordered = [...snapshots].sort(byTime)
     let low: number | null = null
     const previous = new Map<string, PriceSnapshot>()
     for (const snapshot of ordered) {
-      const prior = previous.get(snapshot.store_id ?? '')
+      const assigned = assignments.get(snapshot.id)
+      const track = `${snapshot.store_id ?? ''}\u0000${assigned?.productKey ?? ''}`
+      const prior = previous.get(track)
+      const productName = eventProductName(snapshot.product_name, assigned?.displayName ?? null, assigned?.optionLabel ?? null, assigned?.multiVariant ?? false)
       const cad = isCadCurrency(snapshot.currency)
       const cents = toCents(snapshot.price)
       const priorCents = prior && isCadCurrency(prior.currency) ? toCents(prior.price) : null
       if (cad && low != null && cents < low) {
-        events.push(makeEvent(snapshot, 'new_low', names.get(itemId) ?? 'Item', data, priorCents == null ? null : prior?.price ?? null))
+        events.push(makeEvent(snapshot, 'new_low', names.get(itemId) ?? 'Item', data, priorCents == null ? null : prior?.price ?? null, productName))
       } else if (cad && priorCents != null && cents < priorCents) {
-        events.push(makeEvent(snapshot, 'drop', names.get(itemId) ?? 'Item', data, prior?.price ?? null))
+        events.push(makeEvent(snapshot, 'drop', names.get(itemId) ?? 'Item', data, prior?.price ?? null, productName))
       } else if (cad && priorCents != null && cents > priorCents) {
-        events.push(makeEvent(snapshot, 'raise', names.get(itemId) ?? 'Item', data, prior?.price ?? null))
+        events.push(makeEvent(snapshot, 'raise', names.get(itemId) ?? 'Item', data, prior?.price ?? null, productName))
       }
       if (prior && prior.in_stock === false && snapshot.in_stock === true) {
-        events.push(makeEvent(snapshot, 'restock', names.get(itemId) ?? 'Item', data, null))
+        events.push(makeEvent(snapshot, 'restock', names.get(itemId) ?? 'Item', data, null, productName))
       }
       if (prior && prior.in_stock !== false && snapshot.in_stock === false) {
-        events.push(makeEvent(snapshot, 'out_of_stock', names.get(itemId) ?? 'Item', data, null))
+        events.push(makeEvent(snapshot, 'out_of_stock', names.get(itemId) ?? 'Item', data, null, productName))
       }
       if (cad && (low == null || cents < low)) low = cents
-      previous.set(snapshot.store_id ?? '', snapshot)
+      previous.set(track, snapshot)
     }
   }
 
@@ -79,19 +84,27 @@ export function buildTimeline(data: Dataset): TimelineEvent[] {
   })
 }
 
+function eventProductName(productName: string | null, displayName: string | null, optionLabel: string | null, multiVariant: boolean): string | null {
+  if (!multiVariant) return productName
+  const name = displayName || productName
+  if (!name) return optionLabel
+  return optionLabel ? `${name} · ${optionLabel}` : name
+}
+
 function makeEvent(
   snapshot: PriceSnapshot,
   kind: TimelineKind,
   itemName: string,
   data: Dataset,
   previousPrice: number | null,
+  productName: string | null,
 ): TimelineEvent {
   return {
     id: `${snapshot.id}:${kind}`,
     itemId: snapshot.item_id,
     itemName,
     storeName: storeName(data.stores, snapshot.store_id),
-    productName: snapshot.product_name,
+    productName,
     kind,
     at: snapshot.captured_at,
     price: isCadCurrency(snapshot.currency) ? snapshot.price : null,
