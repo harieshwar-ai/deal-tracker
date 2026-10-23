@@ -30,7 +30,7 @@ export function ItemPage() {
   const navigate = useNavigate()
   const push = useToast()
   const item = catalog.items.find((entry) => entry.id === itemId)
-  useDocumentTitle(item?.name ?? 'Item')
+  useDocumentTitle(item?.name ?? 'Item', item?.public_summary)
   const [editing, setEditing] = useState(false)
   const [removing, setRemoving] = useState(false)
   const [pendingDelete, setPendingDelete] = useState(false)

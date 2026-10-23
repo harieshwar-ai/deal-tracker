@@ -2,6 +2,7 @@ import { copyFileSync } from 'node:fs'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { defineConfig } from 'vitest/config'
+import { prerenderItems } from './scripts/prerender-items.mjs'
 
 export default defineConfig({
   base: '/deal-tracker/',
@@ -20,11 +21,19 @@ export default defineConfig({
           next()
         })
       },
-      closeBundle() {
+      async closeBundle() {
+        if (process.env.VITEST) return
         try {
           copyFileSync('dist/index.html', 'dist/404.html')
         } catch {
-          // Tests and the dev server do not emit dist/index.html.
+          // The dev server does not emit dist/index.html.
+          return
+        }
+        try {
+          await prerenderItems('dist')
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'unknown error'
+          console.warn(`Item prerender skipped (${message}). The default preview still ships.`)
         }
       },
     },
