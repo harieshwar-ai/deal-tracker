@@ -76,7 +76,7 @@ export function clusterDeals(deals: Deal[], snapshots: PriceSnapshot[]): DealClu
     buckets.set(key, list)
   }
   return [...buckets.values()].map((group) => {
-    const deal = group.reduce((best, candidate) => preferDeal(candidate, best) ? candidate : best)
+    const deal = group.reduce((best, candidate) => preferDeal(candidate, best, snapshots) ? candidate : best)
     return {
       deal,
       options: group
@@ -107,7 +107,17 @@ function dealClusterKey(deal: Deal, snapshots: PriceSnapshot[], assignments: Ret
   return `deal:${deal.id}`
 }
 
-function preferDeal(candidate: Deal, current: Deal): boolean {
+function linkedInStock(deal: Deal, snapshots: PriceSnapshot[]): boolean {
+  if (deal.snapshot_id == null) return true
+  const snapshot = snapshots.find((entry) => entry.id === deal.snapshot_id)
+  if (!snapshot) return true
+  return snapshot.in_stock !== false
+}
+
+function preferDeal(candidate: Deal, current: Deal, snapshots: PriceSnapshot[]): boolean {
+  const candidateStock = linkedInStock(candidate, snapshots)
+  const currentStock = linkedInStock(current, snapshots)
+  if (candidateStock !== currentStock) return candidateStock
   const rank = verdictRank(candidate.verdict) - verdictRank(current.verdict)
   if (rank !== 0) return rank < 0
   if (candidate.price !== current.price) return candidate.price < current.price

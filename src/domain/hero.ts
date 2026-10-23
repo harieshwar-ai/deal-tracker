@@ -1,6 +1,6 @@
 import { isCadCurrency, roundMoney } from './format'
 import { isQualifying } from './offers'
-import { allTimeLow, chooseBest, offerQuotes } from './quotes'
+import { cheapestEver, chooseBest, offerQuotes } from './quotes'
 import type { Dataset } from './types'
 import { priceCallForItem, type PriceCall } from './verdict'
 
@@ -63,7 +63,8 @@ export function heroStats(data: Dataset, includeTarget: boolean, now = new Date(
       includeTarget,
       now,
     })
-    const low = allTimeLow(qualifying)
+    const ever = cheapestEver(qualifying)
+    const low = ever && !ever.outOfStock ? ever.snapshot : null
     const above = low && low.price > 0 ? (current.price - low.price) / low.price : 1
     const candidate = {
       itemId: item.id,

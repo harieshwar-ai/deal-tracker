@@ -74,6 +74,27 @@ describe('candidate product comparison', () => {
     expect(b100?.best).toBe(true)
   })
 
+  it('does not treat an unqualified in-stock listing as the qualifying low', () => {
+    const products = compareCandidateProducts([
+      snap(1, 'Anda Seat Phantom 4 Premium Gaming Chair Red', {
+        product_url: 'https://www.amazon.ca/dp/B0PHANTOM4',
+        price: 348,
+        meets_requirements: false,
+      }),
+      snap(2, 'Anda Seat Phantom 3', {
+        product_url: 'https://www.amazon.ca/dp/B0PHANTOM3',
+        price: 300,
+      }),
+    ], [amazon])
+    const phantom4 = products.find((product) => product.name.includes('Phantom 4'))
+    const phantom3 = products.find((product) => product.name.includes('Phantom 3'))
+    expect(phantom4?.meets).toBe('misses')
+    expect(phantom4?.stock).toBeNull()
+    expect(phantom4?.lowest).toBeNull()
+    expect(phantom3?.stock).toBe(true)
+    expect(phantom3?.lowest).toMatchObject({ price: 300, outOfStock: false })
+  })
+
   it('sorts products by lowest seen and keeps missing prices last', () => {
     const products = compareCandidateProducts([
       snap(1, 'SIHOO B100 PRO', { price: 300, shipping: 0 }),

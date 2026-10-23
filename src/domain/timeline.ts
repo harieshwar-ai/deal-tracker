@@ -1,5 +1,6 @@
 import { isCadCurrency, toCents } from './format'
 import { assignProducts } from './identity'
+import { isQualifying } from './offers'
 import { storeName } from './quotes'
 import type { Dataset, PriceSnapshot } from './types'
 
@@ -59,7 +60,8 @@ export function buildTimeline(data: Dataset): TimelineEvent[] {
       const cad = isCadCurrency(snapshot.currency)
       const cents = toCents(snapshot.price)
       const priorCents = prior && isCadCurrency(prior.currency) ? toCents(prior.price) : null
-      if (cad && low != null && cents < low) {
+      const countsTowardLow = cad && isQualifying(snapshot) && snapshot.in_stock !== false
+      if (countsTowardLow && low != null && cents < low) {
         events.push(makeEvent(snapshot, 'new_low', names.get(itemId) ?? 'Item', data, priorCents == null ? null : prior?.price ?? null, productName))
       } else if (cad && priorCents != null && cents < priorCents) {
         events.push(makeEvent(snapshot, 'drop', names.get(itemId) ?? 'Item', data, prior?.price ?? null, productName))
@@ -72,7 +74,7 @@ export function buildTimeline(data: Dataset): TimelineEvent[] {
       if (prior && prior.in_stock !== false && snapshot.in_stock === false) {
         events.push(makeEvent(snapshot, 'out_of_stock', names.get(itemId) ?? 'Item', data, null, productName))
       }
-      if (cad && (low == null || cents < low)) low = cents
+      if (countsTowardLow && (low == null || cents < low)) low = cents
       previous.set(track, snapshot)
     }
   }

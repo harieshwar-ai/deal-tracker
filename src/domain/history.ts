@@ -24,7 +24,7 @@ export function historyChartState(dayCount: number): HistoryChartState {
 }
 
 export function buildPriceHistory(snapshots: PriceSnapshot[], stores: Store[]): PriceHistory {
-  const relevant = snapshots.filter((snapshot) => isCadCurrency(snapshot.currency))
+  const relevant = snapshots.filter((snapshot) => isCadCurrency(snapshot.currency) && snapshot.in_stock !== false)
   const assignments = assignProducts(relevant)
   const ordered = [...stores].sort((left, right) => left.name.localeCompare(right.name))
   const ids = [...new Set(relevant.map((snapshot) => seriesId(snapshot, assignments.get(snapshot.id))))]

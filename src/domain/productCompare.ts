@@ -165,10 +165,11 @@ function buildProduct(
 }
 
 function productStock(cells: ProductStoreCell[]): boolean | null {
-  if (cells.some((cell) => cell.qualifying && cell.inStock === true)) return true
-  if (cells.some((cell) => cell.qualifying && cell.inStock == null)) return null
-  if (cells.some((cell) => cell.qualifying)) return false
-  return cells[0]?.inStock ?? null
+  const qualifying = cells.filter((cell) => cell.qualifying)
+  if (qualifying.length === 0) return null
+  if (qualifying.some((cell) => cell.inStock === true)) return true
+  if (qualifying.some((cell) => cell.inStock == null)) return null
+  return false
 }
 
 function productMeets(quotes: Quote[], other: Quote[]): ChecklistState {

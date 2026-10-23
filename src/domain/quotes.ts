@@ -245,7 +245,7 @@ export function sparklineValues(snapshots: PriceSnapshot[], now = new Date(), da
   const start = now.getTime() - days * 86400000
   const byDay = new Map<string, number>()
   for (const snapshot of snapshots) {
-    if (!isCadCurrency(snapshot.currency)) continue
+    if (!isCadCurrency(snapshot.currency) || snapshot.in_stock === false) continue
     const time = capturedTime(snapshot.captured_at)
     if (time < start) continue
     const day = dayKey(snapshot.captured_at)

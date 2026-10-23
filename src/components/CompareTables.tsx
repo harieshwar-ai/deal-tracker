@@ -47,8 +47,8 @@ export function ProductCompare({ products }: { products: ComparedProduct[] }) {
             <AttributeRow label="Checklist" values={ordered.map((product) => checklistLabel(product.meets))} emphasize={ordered.map((product) => product.meets === 'meets')} />
             <AttributeRow label="Stock" values={ordered.map((product) => stockLabel(product.stock))} />
             <AttributeRow
-              label="Lowest in-stock price"
-              values={ordered.map((product) => product.lowest ? `${formatCad(product.lowest.price)}${product.lowest.outOfStock ? ' out of stock' : ''}` : '—')}
+              label="Lowest qualifying in-stock price"
+              values={ordered.map((product) => product.lowest && !product.lowest.outOfStock ? formatCad(product.lowest.price) : '—')}
             />
             {stores.map((store) => (
               <tr key={store} className="border-t border-line">

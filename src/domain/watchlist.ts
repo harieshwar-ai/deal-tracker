@@ -2,7 +2,7 @@ import { categoryKey, toCents } from './format'
 import { priorityRank } from './labels'
 import { pickOpenDeal } from './deals'
 import { isQualifying } from './offers'
-import { allTimeLow, chooseBest, offerQuotes, sparklineValues } from './quotes'
+import { cheapestEver, chooseBest, offerQuotes, sparklineValues } from './quotes'
 import type { Quote } from './quotes'
 import type { ActivityFilter, Dataset, Deal, Item, Priority, WatchSort } from './types'
 
@@ -47,8 +47,9 @@ export function buildWatchRows(data: Dataset, now = new Date()): WatchRow[] {
     const quotes = sortQuotes(quotesByItem.get(item.id) ?? [])
     const other = sortQuotes(otherByItem.get(item.id) ?? [])
     const best = chooseBest(quotes)
-    const low = allTimeLow(qualifyingByItem.get(item.id) ?? [])
-    const atLow = best != null && low != null && toCents(best.price) <= toCents(low.price)
+    const ever = cheapestEver(qualifyingByItem.get(item.id) ?? [])
+    const low = ever && !ever.outOfStock ? ever.snapshot : null
+    const atLow = best != null && best.inStock !== false && low != null && toCents(best.price) <= toCents(low.price)
     const targetGap = best && item.target_price != null ? best.price - item.target_price : null
     return {
       item,

@@ -3,7 +3,7 @@ import { periodPhrase } from './labels'
 import { clusterDeals, verdictGroup } from './deals'
 import { assignProducts } from './identity'
 import { isQualifying } from './offers'
-import { allTimeLow, chooseBest, offerQuotes, storeName } from './quotes'
+import { cheapestEver, chooseBest, offerQuotes, storeName } from './quotes'
 import type { Quote } from './quotes'
 import type { Dataset, DatePreset, Deal, DealStatus, Item, PriceSnapshot, Store } from './types'
 
@@ -136,12 +136,13 @@ export function computeAnalytics(data: Dataset, filters: AnalyticsFilters): Anal
   const periodDeals = scopedDeals.filter((deal) => inRange(deal.found_at, start, nowIso))
   const qualifyingHistory = history.filter(isQualifying)
   const qualifyingPeriod = period.filter(isQualifying)
+  const stockedPeriod = qualifyingPeriod.filter((snapshot) => snapshot.in_stock !== false)
   const quotesByItem = quotesFromHistory(qualifyingHistory, data.stores)
   const current = summarizeCurrent(scopedItems, quotesByItem, includeTargets)
-  const { perItemDay, allDays } = dailyPrices(qualifyingPeriod, data.stores)
+  const { perItemDay, allDays } = dailyPrices(stockedPeriod, data.stores)
   const trend = buildTrend(scopedItems, perItemDay, allDays)
-  const storeStats = buildStoreStats(data.stores, qualifyingPeriod, perItemDay, filters.storeId)
-  const storeIndex = buildStoreIndex(qualifyingPeriod, allDays, data.stores)
+  const storeStats = buildStoreStats(data.stores, stockedPeriod, perItemDay, filters.storeId)
+  const storeIndex = buildStoreIndex(stockedPeriod, allDays, data.stores)
   const dealFlowGrain = flowGrain(periodDeals)
   const dealFlow = buildDealFlow(periodDeals, dealFlowGrain)
   const allTimeLows = buildAtl(scopedItems, qualifyingHistory, quotesByItem, data.stores)
@@ -515,8 +516,9 @@ function buildAtl(
 ): AtlRow[] {
   const rows: AtlRow[] = []
   for (const item of items) {
-    const low = allTimeLow(history.filter((snapshot) => snapshot.item_id === item.id))
-    if (!low) continue
+    const ever = cheapestEver(history.filter((snapshot) => snapshot.item_id === item.id))
+    if (!ever || ever.outOfStock) continue
+    const low = ever.snapshot
     const best = chooseBest(quotesByItem.get(item.id) ?? [])
     rows.push({
       itemId: item.id,
