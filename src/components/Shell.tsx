@@ -3,6 +3,7 @@ import { Suspense, useEffect, useRef } from 'react'
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
 import { consumeReturnPath, rememberReturnPath } from '../auth/returnPath'
+import { ThemeToggle } from './ThemeToggle'
 import { LoadingBlock } from './ui'
 import { cn } from '../lib/cn'
 import { leavePreview } from '../preview/mode'
@@ -42,17 +43,17 @@ export function Shell() {
       <a href="#content" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:m-3 focus:rounded-full focus:bg-paper-2 focus:px-3 focus:py-2">
         Skip to content
       </a>
-      <aside className="hidden bg-bark text-paper-2 md:flex md:flex-col md:px-4 md:py-6">
+      <aside className="hidden bg-bark text-foam md:flex md:flex-col md:px-4 md:py-6">
         <div className="px-3">
           <p className="font-display text-3xl">Harbour</p>
-          <p className="mt-1 text-sm text-paper-2/60">Hamilton · CAD</p>
+          <p className="mt-1 text-sm text-foam/60">Hamilton · CAD</p>
         </div>
         <nav className="mt-8 grid gap-1" aria-label="Primary">
           {links.map((link) => (
             <NavItem key={link.to} {...link} count={link.to === '/deals' ? openDeals : 0} />
           ))}
         </nav>
-        <div className="mt-auto px-3 pt-6 text-sm text-paper-2/70">
+        <div className="mt-auto px-3 pt-6 text-sm text-foam/70">
           {catalog.source === 'preview' ? 'Sample data' : session ? 'Owner' : (
             <Link to="/signin" className="underline" onClick={() => rememberReturnPath()}>Owner sign-in</Link>
           )}
@@ -65,6 +66,7 @@ export function Shell() {
             {catalog.source === 'preview' ? 'Sample data on this browser. Refresh restores it.' : 'Prices from the daily Canadian store check.'}
           </p>
           <div className="ml-auto flex items-center gap-2">
+            <ThemeToggle />
             <button
               type="button"
               className="rounded-full p-2 text-muted hover:bg-paper"
@@ -102,19 +104,19 @@ export function Shell() {
             {catalog.error}
           </p>
         ) : null}
-        <main id="content" className="px-4 pt-6 pb-28 md:px-8 md:pb-12">
+        <main id="content" className="px-4 pt-6 pb-[calc(7rem+env(safe-area-inset-bottom))] md:px-8 md:pb-12">
           <Suspense fallback={<LoadingBlock />}>
             <Outlet />
           </Suspense>
         </main>
       </div>
-      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-line bg-paper-2 md:hidden" aria-label="Primary">
+      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-line bg-paper-2 pb-[env(safe-area-inset-bottom)] md:hidden" aria-label="Primary">
         {links.map((link) => (
           <NavLink
             key={link.to}
             to={link.to}
             end={link.end}
-            className={({ isActive }) => cn('flex flex-col items-center gap-1 px-2 py-2 text-xs', isActive ? 'text-pine' : 'text-muted')}
+            className={({ isActive }) => cn('flex min-h-14 flex-col items-center justify-center gap-1 px-2 py-2 text-xs', isActive ? 'text-pine' : 'text-muted')}
           >
             <link.icon className="h-5 w-5" aria-hidden="true" />
             {link.label}
@@ -143,13 +145,13 @@ function NavItem({
     <NavLink
       to={to}
       end={end}
-      className={({ isActive }) => cn('flex items-center justify-between rounded-2xl px-3 py-2.5 text-sm', isActive ? 'bg-white/10 text-white' : 'text-paper-2/70 hover:bg-white/5')}
+      className={({ isActive }) => cn('flex items-center justify-between rounded-2xl px-3 py-2.5 text-sm', isActive ? 'bg-white/10 text-foam' : 'text-foam/70 hover:bg-white/5')}
     >
       <span className="inline-flex items-center gap-2">
         <Icon className="h-4 w-4" aria-hidden="true" />
         {label}
       </span>
-      {count > 0 ? <span className="rounded-full bg-gold px-2 py-0.5 text-xs text-white">{count}</span> : null}
+      {count > 0 ? <span className="rounded-full bg-gold px-2 py-0.5 text-xs text-on-accent">{count}</span> : null}
     </NavLink>
   )
 }

@@ -7,8 +7,8 @@ import { Badge } from './ui'
 export function HeroStrip({ stats }: { stats: HeroStats }) {
   return (
     <section className="mt-6 grid gap-3 lg:grid-cols-[minmax(0,1.5fr)_repeat(3,minmax(0,0.7fr))]" aria-label="Watchlist summary">
-      <article className="rounded-3xl bg-bark px-5 py-4 text-paper">
-        <p className="text-xs uppercase tracking-[0.14em] text-paper/70">Best deal right now</p>
+      <article className="rounded-3xl bg-bark px-5 py-4 text-foam">
+        <p className="text-xs uppercase tracking-[0.14em] text-foam/70">Best deal right now</p>
         {stats.best ? (
           <>
             <h2 className="mt-2 font-display text-3xl leading-none">
@@ -21,7 +21,7 @@ export function HeroStrip({ stats }: { stats: HeroStats }) {
             <Badge className={`mt-3 ${priceCallTone(stats.best.call)}`}>{priceCallLabel(stats.best.call)}</Badge>
           </>
         ) : (
-          <p className="mt-3 text-sm text-paper/80">No in-stock CAD price yet.</p>
+          <p className="mt-3 text-sm text-foam/80">No in-stock CAD price yet.</p>
         )}
       </article>
       <HeroStat label="Items tracked" value={String(stats.tracked)} detail="Active items on the list" />

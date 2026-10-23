@@ -2,7 +2,14 @@
 <html lang="en-CA">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <script>
+      try {
+        var stored = localStorage.getItem('harbour-theme')
+        var theme = stored === 'light' || stored === 'dark' ? stored : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+        document.documentElement.dataset.theme = theme
+      } catch (e) {}
+    </script>
     <meta name="robots" content="noindex, nofollow" />
     <!-- harbour-meta:start -->
     <title>Harbour</title>
