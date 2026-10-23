@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useCanEdit } from '../auth/AuthProvider'
 import { HeroStrip } from '../components/HeroStrip'
+import { SeasonCards } from '../components/SeasonCards'
 import { ProductPhoto, StoreMark } from '../components/product'
 import { SpecChecklist } from '../components/SpecChecklist'
 import { Sparkline } from '../components/Sparkline'
@@ -145,6 +146,7 @@ export function WatchlistPage() {
           ))}
         </div>
       )}
+      <SeasonCards />
       <section className="mt-8">
         <h2 className="font-display text-2xl">Recent price changes</h2>
         <div className="mt-3">
