@@ -51,6 +51,8 @@ function snap(id: number, itemId: string, price: number, daysAgo: number, regula
     in_stock: true,
     member_only: false,
     captured_at: new Date(now.getTime() - daysAgo * 86400000).toISOString(),
+    sale_ends_at: null,
+    shipping: null,
   }
 }
 

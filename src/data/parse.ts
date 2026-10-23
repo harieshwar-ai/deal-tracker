@@ -55,6 +55,8 @@ export function parseSnapshotRow(row: unknown): PriceSnapshot {
     in_stock: optionalBoolean(record, 'in_stock', 'price_snapshots'),
     member_only: optionalBoolean(record, 'member_only', 'price_snapshots'),
     captured_at: requiredString(record, 'captured_at', 'price_snapshots'),
+    sale_ends_at: optionalString(record, 'sale_ends_at', 'price_snapshots'),
+    shipping: money(record.shipping, 'price_snapshots', true),
   }
 }
 

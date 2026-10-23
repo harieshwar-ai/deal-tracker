@@ -14,6 +14,8 @@ export interface Quote {
   capturedAt: string
   productTitle: string | null
   productUrl: string | null
+  saleEndsAt: string | null
+  shipping: number | null
 }
 
 export function storeName(stores: Store[], storeId: string | null): string {
@@ -40,6 +42,8 @@ export function quoteFromSnapshot(snapshot: PriceSnapshot, stores: Store[]): Quo
     capturedAt: snapshot.captured_at,
     productTitle: snapshot.product_title,
     productUrl: snapshot.product_url,
+    saleEndsAt: snapshot.sale_ends_at,
+    shipping: snapshot.shipping,
   }
 }
 

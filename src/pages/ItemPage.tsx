@@ -2,12 +2,14 @@ import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useCanEdit } from '../auth/AuthProvider'
 import { PriceHistoryChart } from '../components/charts'
+import { StoreComparison } from '../components/StoreComparison'
 import { ProductPhoto } from '../components/product'
 import { RequirementChecklist, SpecChecklist } from '../components/SpecChecklist'
 import { TimelineList } from '../components/Timeline'
 import { ItemForm } from '../components/ItemForm'
 import { useToast } from '../components/toast'
 import { Badge, Button, ConfirmDialog, EmptyState, LoadingBlock, Modal } from '../components/ui'
+import { compareStores } from '../domain/compare'
 import { itemToDraft } from '../domain/drafts'
 import { discountPercent, formatCad, formatDay, formatPct, formatRelative, safeHttpUrl } from '../domain/format'
 import { buildPriceHistory } from '../domain/history'
@@ -130,6 +132,12 @@ export function ItemPage() {
           <Stat label="From all-time low" value={best && low && low.price > 0 ? formatPct(((best.price - low.price) / low.price) * 100, 0) : '—'} detail={low ? 'Compared with the lowest CAD price saved' : 'No CAD snapshots yet'} />
         )}
       </div>
+
+      <section className="mt-8">
+        <h2 className="font-display text-2xl">Stores</h2>
+        <p className="mt-1 text-sm text-muted">Current price at each store. Ontario HST is 13% of the item price. Shipping is added when a scan saved it.</p>
+        <StoreComparison offers={compareStores(quotes, deals, best?.snapshotId ?? null)} />
+      </section>
 
       <section className="mt-8">
         <h2 className="font-display text-2xl">Price changes</h2>

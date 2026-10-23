@@ -59,6 +59,8 @@ export interface PriceSnapshot {
   in_stock: boolean | null
   member_only: boolean | null
   captured_at: string
+  sale_ends_at: string | null
+  shipping: number | null
 }
 
 export interface Deal {
