@@ -12,6 +12,7 @@ import {
 import type { AuthFailure } from '../auth/callback'
 import { isOwnerSession } from '../auth/owner'
 import { consumeReturnPath } from '../auth/returnPath'
+import { ThemeToggle } from '../components/ThemeToggle'
 import { Button, controlClass } from '../components/ui'
 import { magicLinkRedirect } from '../lib/config'
 import { supabase } from '../lib/supabase'
@@ -123,7 +124,10 @@ export function LoginPage() {
   return (
     <main className="grid min-h-screen place-items-center px-6 py-12">
       <div className="w-full max-w-md">
-        <p className="font-display text-3xl">Harbour</p>
+        <div className="flex items-center justify-between gap-3">
+          <p className="font-display text-3xl">Harbour</p>
+          <ThemeToggle />
+        </div>
         <h1 className="mt-6 font-display text-4xl">Owner sign-in</h1>
         <p className="mt-2 text-sm leading-6 text-muted">
           Prices stay public. Sign in to edit the watchlist, stores, and deals.

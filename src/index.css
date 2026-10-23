@@ -17,6 +17,32 @@
   --color-clay-soft: #f8e6e2;
   --color-sea: #1e4d7b;
   --color-sea-soft: #e7f0f8;
+  --color-foam: #fffdf8;
+  --color-on-accent: #fffdf8;
+}
+
+html[data-theme='light'] {
+  color-scheme: light;
+}
+
+html[data-theme='dark'] {
+  color-scheme: dark;
+  --color-paper: #1a1814;
+  --color-paper-2: #24211c;
+  --color-ink: #f3efe6;
+  --color-muted: #b7b0a4;
+  --color-line: #3a342c;
+  --color-pine: #7dcea8;
+  --color-pine-soft: #1c3a2e;
+  --color-bark: #12100e;
+  --color-gold: #e2b15a;
+  --color-gold-soft: #3a2e18;
+  --color-clay: #e08a80;
+  --color-clay-soft: #3a2422;
+  --color-sea: #8eb4d8;
+  --color-sea-soft: #1c2c3d;
+  --color-foam: #f6f1e7;
+  --color-on-accent: #12100e;
 }
 
 @layer base {
@@ -29,7 +55,7 @@
   body {
     min-height: 100vh;
     background:
-      radial-gradient(900px 420px at 100% -10%, rgba(14, 107, 79, 0.08), transparent 55%),
+      radial-gradient(900px 420px at 100% -10%, color-mix(in srgb, var(--color-pine) 14%, transparent), transparent 55%),
       var(--color-paper);
   }
 
@@ -41,7 +67,8 @@
   }
 
   ::selection {
-    background: #d5eee4;
+    background: color-mix(in srgb, var(--color-pine) 35%, var(--color-paper));
+    color: var(--color-ink);
   }
 }
 

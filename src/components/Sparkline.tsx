@@ -31,7 +31,7 @@ export function Sparkline({ values }: { values: number[] }) {
       <polyline
         points={points}
         fill="none"
-        stroke={falling ? '#0e6b4f' : '#8f2d2d'}
+        stroke={falling ? 'var(--color-pine)' : 'var(--color-clay)'}
         strokeWidth="2"
         strokeLinejoin="round"
         strokeLinecap="round"

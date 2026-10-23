@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { App } from './App'
 import { enablePreviewFromUrl } from './preview/mode'
+import { ThemeProvider } from './theme/theme'
 import './index.css'
 
 enablePreviewFromUrl()
@@ -11,6 +12,8 @@ if (!root) throw new Error('Root element missing.')
 
 createRoot(root).render(
   <StrictMode>
-    <App />
+    <ThemeProvider>
+      <App />
+    </ThemeProvider>
   </StrictMode>,
 )

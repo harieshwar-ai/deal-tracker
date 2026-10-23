@@ -171,11 +171,11 @@ export function ItemPage() {
         <div className="flex flex-wrap items-end justify-between gap-3">
           <h2 className="font-display text-2xl">Snapshots</h2>
           <div className="flex flex-wrap gap-2">
-            <select className="rounded-full border border-line bg-paper-2 px-3 py-1.5 text-sm" aria-label="Filter snapshots by store" value={storeFilter} onChange={(event) => setStoreFilter(event.target.value)}>
+            <select className="rounded-full border border-line bg-paper-2 px-3 py-2 text-base md:py-1.5 md:text-sm" aria-label="Filter snapshots by store" value={storeFilter} onChange={(event) => setStoreFilter(event.target.value)}>
               <option value="all">All stores</option>
               {catalog.stores.map((store) => <option key={store.id} value={store.id}>{store.name}</option>)}
             </select>
-            <select className="rounded-full border border-line bg-paper-2 px-3 py-1.5 text-sm" aria-label="Sort snapshots" value={sort} onChange={(event) => setSort(parseSnapshotSort(event.target.value))}>
+            <select className="rounded-full border border-line bg-paper-2 px-3 py-2 text-base md:py-1.5 md:text-sm" aria-label="Sort snapshots" value={sort} onChange={(event) => setSort(parseSnapshotSort(event.target.value))}>
               <option value="newest">Newest</option>
               <option value="price">Lowest price</option>
               <option value="store">Store</option>

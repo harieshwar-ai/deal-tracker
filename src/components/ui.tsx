@@ -8,10 +8,10 @@ type Variant = 'primary' | 'secondary' | 'ghost' | 'danger'
 type Size = 'sm' | 'md'
 
 const variantClass: Record<Variant, string> = {
-  primary: 'bg-pine text-white hover:bg-pine/90',
+  primary: 'bg-pine text-on-accent hover:bg-pine/90',
   secondary: 'border border-line bg-paper-2 text-ink hover:bg-paper',
   ghost: 'text-ink hover:bg-paper',
-  danger: 'bg-clay text-white hover:bg-clay/90',
+  danger: 'bg-clay text-on-accent hover:bg-clay/90',
 }
 
 const sizeClass: Record<Size, string> = {
@@ -39,7 +39,7 @@ export function Button({
 }
 
 export const controlClass =
-  'w-full rounded-2xl border border-line bg-white px-3 py-2 text-ink outline-none placeholder:text-muted/80 focus:border-pine'
+  'w-full rounded-2xl border border-line bg-paper-2 px-3 py-2 text-base text-ink outline-none placeholder:text-muted/80 focus:border-pine md:text-sm'
 
 export function Field({
   label,
@@ -182,7 +182,7 @@ export function Segmented<T extends string>({
             role="radio"
             aria-checked={selected}
             onClick={() => onChange(option.value)}
-            className={cn('rounded-full px-3 py-1.5 text-sm', selected ? 'bg-bark text-paper-2' : 'text-muted hover:text-ink')}
+            className={cn('min-h-11 rounded-full px-3 py-1.5 text-sm md:min-h-0', selected ? 'bg-bark text-foam' : 'text-muted hover:text-ink')}
           >
             {option.label}
           </button>
@@ -194,20 +194,23 @@ export function Segmented<T extends string>({
 
 export function EmptyState({ title, body, action }: { title: string; body: string; action?: ReactNode }) {
   return (
-    <div className="rounded-3xl border border-dashed border-line bg-paper-2 px-6 py-12 text-center">
-      <h2 className="font-display text-3xl">{title}</h2>
-      <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted">{body}</p>
-      {action ? <div className="mt-5">{action}</div> : null}
+    <div className="rounded-3xl border border-dashed border-line bg-paper-2 px-5 py-14 text-center sm:px-8">
+      <h2 className="font-display text-2xl sm:text-3xl">{title}</h2>
+      <p className="mx-auto mt-3 max-w-md text-base leading-7 text-muted">{body}</p>
+      {action ? <div className="mt-6">{action}</div> : null}
     </div>
   )
 }
 
 export function LoadingBlock({ label = 'Loading your prices…' }: { label?: string }) {
   return (
-    <div className="space-y-3" aria-busy="true" aria-live="polite">
-      <p className="text-sm text-muted">{label}</p>
-      <div className="h-28 animate-pulse rounded-3xl bg-line/80" />
-      <div className="h-28 animate-pulse rounded-3xl bg-line/60" />
+    <div className="space-y-3" role="status" aria-busy="true" aria-live="polite">
+      <p className="text-base text-muted md:text-sm">{label}</p>
+      <div className="h-36 animate-pulse rounded-3xl bg-line/80" />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="h-28 animate-pulse rounded-3xl bg-line/60" />
+        <div className="h-28 animate-pulse rounded-3xl bg-line/50" />
+      </div>
     </div>
   )
 }
