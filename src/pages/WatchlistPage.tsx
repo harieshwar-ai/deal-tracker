@@ -1,5 +1,5 @@
 import { Pencil, Plus, Trash2 } from 'lucide-react'
-import { motion } from 'motion/react'
+import { motion, useIsPresent } from 'motion/react'
 import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useCanEdit } from '../auth/AuthProvider'
@@ -278,9 +278,10 @@ function WatchCard({
   const gap = gapCopy(row.targetGap)
   const deal = row.openDeal
   const tween = useTween(index)
+  const present = useIsPresent()
   return (
     <motion.article
-      layout
+      layout={present && !tween.reduce}
       initial={tween.reduce ? false : { opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       whileHover={tween.reduce ? undefined : { y: -2 }}
