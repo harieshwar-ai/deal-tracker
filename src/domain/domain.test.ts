@@ -81,6 +81,8 @@ function makeSnapshot(
     captured_at: daysAgo(days),
     sale_ends_at: null,
     shipping: null,
+    product_name: null,
+    meets_requirements: true,
     ...extra,
   }
 }
@@ -354,8 +356,10 @@ describe('history, preview, and deletes', () => {
     expect(row?.costco).toBe(1900)
     expect(row?.amazon).toBe(2100)
     expect(historyChartState(0)).toBe('empty')
-    expect(historyChartState(1)).toBe('sparse')
-    expect(historyChartState(history.rows.length)).toBe('ready')
+    expect(historyChartState(1)).toBe('points')
+    expect(historyChartState(4)).toBe('points')
+    expect(historyChartState(5)).toBe('ready')
+    expect(history.rows.length).toBeGreaterThan(0)
   })
 
   it('builds a connected sample and detaches store history on delete', () => {

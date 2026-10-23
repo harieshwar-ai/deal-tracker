@@ -289,16 +289,18 @@ function WatchCard({
         <div className="text-left sm:text-right">
           <p className="font-display text-4xl tabular-nums">{row.best ? formatCad(row.best.price) : '—'}</p>
           <p className="text-sm text-muted">
-            {row.best ? `${row.best.storeName} · ${formatRelative(row.best.capturedAt)}` : 'No price yet'}
+            {row.best ? `${row.best.storeName} · ${formatRelative(row.best.capturedAt)}` : row.other.length > 0 ? 'No qualifying offer yet' : 'No price yet'}
             {row.best?.inStock === false ? ' · Out of stock' : ''}
           </p>
+          {row.best?.productName ? <p className="text-sm text-muted">{row.best.productName}</p> : null}
           {canEdit && gap ? <p className={`text-sm ${gap.className}`}>{gap.text}</p> : null}
         </div>
       </div>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
         <Sparkline values={row.spark} />
         <ul className="flex min-w-0 flex-1 flex-wrap gap-2">
-          {row.quotes.length === 0 ? <li className="text-sm text-muted">Waiting for the first snapshot.</li> : null}
+          {row.quotes.length === 0 && row.other.length === 0 ? <li className="text-sm text-muted">Waiting for the first snapshot.</li> : null}
+          {row.quotes.length === 0 && row.other.length > 0 ? <li className="text-sm text-muted">Other offers seen, none qualify yet.</li> : null}
           {row.quotes.map((quote) => {
             const href = safeHttpUrl(quote.productUrl)
             const discount = discountPercent(quote.price, quote.regularPrice)

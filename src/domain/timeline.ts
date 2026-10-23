@@ -9,6 +9,7 @@ export interface TimelineEvent {
   itemId: string
   itemName: string
   storeName: string
+  productName: string | null
   kind: TimelineKind
   at: string
   price: number | null
@@ -90,6 +91,7 @@ function makeEvent(
     itemId: snapshot.item_id,
     itemName,
     storeName: storeName(data.stores, snapshot.store_id),
+    productName: snapshot.product_name,
     kind,
     at: snapshot.captured_at,
     price: isCadCurrency(snapshot.currency) ? snapshot.price : null,

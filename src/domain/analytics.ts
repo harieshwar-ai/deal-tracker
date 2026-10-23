@@ -1,7 +1,8 @@
 import { categoryKey, dayKey, isCadCurrency, roundMoney, toCents } from './format'
 import { periodPhrase } from './labels'
 import { verdictGroup } from './deals'
-import { allTimeLow, chooseBest, latestSnapshots, quoteFromSnapshot, storeName } from './quotes'
+import { isQualifying } from './offers'
+import { allTimeLow, chooseBest, latestOffers, quoteFromSnapshot, storeName } from './quotes'
 import type { Quote } from './quotes'
 import type { Dataset, DatePreset, Deal, DealStatus, Item, PriceSnapshot, Store } from './types'
 
@@ -132,15 +133,17 @@ export function computeAnalytics(data: Dataset, filters: AnalyticsFilters): Anal
     (deal) => itemIds.has(deal.item_id) && matchesStore(deal.store_id, filters.storeId),
   )
   const periodDeals = scopedDeals.filter((deal) => inRange(deal.found_at, start, nowIso))
-  const quotesByItem = quotesFromHistory(history, data.stores)
+  const qualifyingHistory = history.filter(isQualifying)
+  const qualifyingPeriod = period.filter(isQualifying)
+  const quotesByItem = quotesFromHistory(qualifyingHistory, data.stores)
   const current = summarizeCurrent(scopedItems, quotesByItem, includeTargets)
-  const { perItemDay, allDays } = dailyPrices(period, data.stores)
+  const { perItemDay, allDays } = dailyPrices(qualifyingPeriod, data.stores)
   const trend = buildTrend(scopedItems, perItemDay, allDays)
-  const storeStats = buildStoreStats(data.stores, period, perItemDay, filters.storeId)
-  const storeIndex = buildStoreIndex(period, allDays, data.stores)
+  const storeStats = buildStoreStats(data.stores, qualifyingPeriod, perItemDay, filters.storeId)
+  const storeIndex = buildStoreIndex(qualifyingPeriod, allDays, data.stores)
   const dealFlowGrain = flowGrain(periodDeals)
   const dealFlow = buildDealFlow(periodDeals, dealFlowGrain)
-  const allTimeLows = buildAtl(scopedItems, history, quotesByItem, data.stores)
+  const allTimeLows = buildAtl(scopedItems, qualifyingHistory, quotesByItem, data.stores)
   const categories = buildCategories(scopedItems, scopedDeals, quotesByItem, includeTargets)
   const statusTotals = emptyStatusTotals()
   for (const deal of periodDeals) statusTotals[deal.status] += 1
@@ -225,7 +228,7 @@ function inRange(iso: string, start: string | null, end: string | null): boolean
 
 function quotesFromHistory(history: PriceSnapshot[], stores: Store[]): Map<string, Quote[]> {
   const grouped = new Map<string, Quote[]>()
-  for (const snapshot of latestSnapshots(history)) {
+  for (const snapshot of latestOffers(history)) {
     const quote = quoteFromSnapshot(snapshot, stores)
     const list = grouped.get(quote.itemId) ?? []
     list.push(quote)

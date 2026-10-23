@@ -3,7 +3,7 @@ import { saleCountdown } from '../domain/compare'
 import type { StoreComparison as StoreOffer } from '../domain/compare'
 import { StoreMark } from './product'
 
-export function StoreComparison({ offers, now = new Date() }: { offers: StoreOffer[]; now?: Date }) {
+export function StoreComparison({ offers, muted = false, now = new Date() }: { offers: StoreOffer[]; muted?: boolean; now?: Date }) {
   if (offers.length === 0) {
     return <p className="text-sm text-muted">No current store prices yet.</p>
   }
@@ -12,13 +12,16 @@ export function StoreComparison({ offers, now = new Date() }: { offers: StoreOff
       {offers.map((offer) => {
         const href = safeHttpUrl(offer.productUrl)
         const countdown = saleCountdown(offer.saleEndsAt, now)
+        const highlighted = offer.bestPrice && !muted
         return (
-          <li key={offer.snapshotId} className={offer.bestPrice ? 'rounded-3xl border border-pine bg-pine-soft p-4' : 'rounded-3xl border border-line bg-paper-2 p-4'}>
-            <div className="flex items-center gap-2">
+          <li key={offer.snapshotId} className={highlighted ? 'rounded-3xl border border-pine bg-pine-soft p-4' : muted ? 'rounded-3xl border border-dashed border-line bg-paper p-4 text-muted' : 'rounded-3xl border border-line bg-paper-2 p-4'}>
+            <div className="flex flex-wrap items-center gap-2">
               <StoreMark name={offer.storeName} />
               <h3 className="font-semibold">{offer.storeName}</h3>
-              {offer.bestPrice ? <span className="text-xs text-pine">Lowest price</span> : null}
+              {highlighted ? <span className="text-xs text-pine">Lowest price</span> : null}
+              {muted && offer.statusLabel ? <span className="text-xs">{offer.statusLabel}</span> : null}
             </div>
+            {offer.productName ? <p className="mt-2 text-sm">{offer.productName}</p> : null}
             <p className="mt-3 font-display text-3xl tabular-nums">{formatCad(offer.price)}</p>
             <dl className="mt-3 grid gap-1 text-sm">
               <div className="flex justify-between gap-3">

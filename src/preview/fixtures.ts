@@ -26,7 +26,17 @@ export function createPreviewDataset(now = new Date()): Dataset {
     item('phones', 'Noise-cancelling headphones', 'Electronics', ['headphones'], 280, 350, 'normal', true, null, today),
     item('air', 'Air purifier', 'Home', ['hepa'], 250, 320, 'normal', false, 'Paused until smoke season.', today),
     item('monitor', '27" monitor', 'Electronics', ['usb-c'], 400, 500, 'normal', true, 'No prices recorded yet.', today),
+    item('chair', 'Ergonomic chair', 'Furniture', ['chair'], 400, 500, 'high', true, null, today),
+    item('stool', 'Drafting stool', 'Furniture', ['stool'], 180, 240, 'normal', true, null, today),
   ]
+  const chair = items.find((entry) => entry.id === 'chair')
+  if (chair) {
+    chair.specs = [
+      { name: 'Tilt', value: 'Frog' },
+      { name: 'Weight rating', value: '150 kg' },
+    ]
+    chair.requirements = [{ label: 'true frog tilt' }, { label: '150 kg rating' }]
+  }
   const keyboard = items.find((entry) => entry.id === 'keys')
   if (keyboard) {
     keyboard.specs = [
@@ -57,6 +67,12 @@ export function createPreviewDataset(now = new Date()): Dataset {
     ...walk(nextId, 'phones', 'staples', 20, 7, 399, 349, 399, 'Sony headphones', 'https://www.staples.ca/sony', false, today, false),
     ...walk(nextId, 'air', 'costco', 90, 10, 329, 279, 349, 'Winix air purifier', 'https://www.costco.ca/winix', true, today),
     ...walk(nextId, 'air', 'amazon', 40, 8, 299, 269, 329, 'Winix purifier', 'https://www.amazon.ca/winix', true, today),
+    ...walk(nextId, 'chair', 'costco', 4, 4, 399, 349, 449, 'Heavy-duty chair, frog tilt', 'https://www.costco.ca/chair', true, today),
+    ...marked(walk(nextId, 'chair', 'cc', 0, 1, 195.89, 195.89, 249, 'Basic office chair', 'https://www.canadacomputers.com/chair', false, today), false),
+    ...marked(walk(nextId, 'chair', 'amazon', 1, 1, 121.88, 121.88, 199, 'Compact task chair', 'https://www.amazon.ca/chair', true, today), false),
+    ...marked(walk(nextId, 'chair', 'bestbuy', 0, 1, 250, 250, 300, 'Listing still being checked', 'https://www.bestbuy.ca/chair', false, today), null),
+    ...marked(walk(nextId, 'stool', 'cc', 0, 1, 99, 99, 140, 'Short stool', 'https://www.canadacomputers.com/stool', false, today), false),
+    ...marked(walk(nextId, 'stool', 'walmart', 0, 1, 120, 120, 150, 'Drafting stool listing', 'https://www.walmart.ca/stool', false, today), null),
   ]
   const deals: Deal[] = [
     deal('d-tv', 'tv', 'bestbuy', 'LG C4 below target', 'https://www.bestbuy.ca/oled', 1899, 2499, 92, 'must_buy', 'Under target and near the lowest price recorded.', 'open', 1, today),
@@ -119,6 +135,10 @@ function item(
   }
 }
 
+function marked(snapshots: PriceSnapshot[], meets: boolean | null): PriceSnapshot[] {
+  return snapshots.map((snapshot) => ({ ...snapshot, meets_requirements: meets }))
+}
+
 function walk(
   nextId: () => number,
   itemId: string,
@@ -154,6 +174,8 @@ function walk(
       captured_at: `${shift(today, daysAgo)}T16:00:00.000Z`,
       sale_ends_at: null,
       shipping: null,
+      product_name: title,
+      meets_requirements: true,
     })
   }
   return snapshots

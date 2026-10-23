@@ -22,7 +22,7 @@ describe('visitor selects', () => {
     expect(selectColumns('deals', false).split(',')).not.toContain('reason')
     expect(selectColumns('deals', true).split(',')).toContain('reason')
     expect(selectColumns('price_snapshots', false)).toBe(selectColumns('price_snapshots', true))
-    expect(selectColumns('price_snapshots', false).split(',')).toEqual(expect.arrayContaining(['sale_ends_at', 'shipping']))
+    expect(selectColumns('price_snapshots', false).split(',')).toEqual(expect.arrayContaining(['sale_ends_at', 'shipping', 'product_name', 'meets_requirements']))
   })
 
   it('parses a public item without private fields', () => {

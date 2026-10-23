@@ -1,8 +1,8 @@
 import { formatCad } from '../domain/format'
 
 export function Sparkline({ values }: { values: number[] }) {
-  if (values.length < 2) {
-    return <p className="text-xs text-muted">Not enough prices for a trend</p>
+  if (values.length < 3) {
+    return <p className="text-xs text-muted">Collecting history</p>
   }
   const width = 120
   const height = 36

@@ -96,11 +96,13 @@ export function PriceHistoryChart({
   series,
   target,
   low,
+  points = false,
 }: {
   rows: Record<string, string | number | null>[]
   series: HistorySeries[]
   target: number | null
   low: number | null
+  points?: boolean
 }) {
   const look = chartLook(useChartColors())
   return (
@@ -117,13 +119,13 @@ export function PriceHistoryChart({
           {series.map((entry) => (
             <Line
               key={entry.id}
-              type="monotone"
+              type={points ? 'linear' : 'monotone'}
               dataKey={entry.id}
               name={entry.name}
               stroke={entry.color}
               strokeWidth={2}
-              dot={{ r: 2 }}
-              connectNulls={false}
+              dot={{ r: points ? 4 : 2 }}
+              connectNulls={points}
               isAnimationActive={prefersMotion()}
             />
           ))}

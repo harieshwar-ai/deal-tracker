@@ -1,4 +1,5 @@
 import { roundMoney } from './format'
+import { requirementLabel } from './offers'
 import type { Quote } from './quotes'
 import type { Deal } from './types'
 
@@ -13,6 +14,8 @@ export interface StoreComparison {
   shipping: number | null
   saleEndsAt: string | null
   productUrl: string | null
+  productName: string | null
+  statusLabel: string | null
   tax: number
   total: number
   shippingKnown: boolean
@@ -37,6 +40,8 @@ export function compareStores(quotes: Quote[], deals: Deal[], bestSnapshotId: nu
       shipping,
       saleEndsAt: quote.saleEndsAt ?? openSaleEnd(deals, quote.storeId),
       productUrl: quote.productUrl,
+      productName: quote.productName,
+      statusLabel: requirementLabel(quote.meetsRequirements),
       tax,
       total: roundMoney(quote.price + tax + (shipping ?? 0)),
       shippingKnown,

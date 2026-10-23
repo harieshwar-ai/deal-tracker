@@ -16,6 +16,7 @@ export function TimelineList({ events, linkItems }: { events: TimelineEvent[]; l
             <span className="text-muted"> · </span>
             {linkItems ? <Link className="underline" to={`/items/${event.itemId}`}>{event.itemName}</Link> : <span>{event.itemName}</span>}
             <span> at {event.storeName}</span>
+            {event.productName ? <span className="text-muted"> · {event.productName}</span> : null}
             {event.price != null ? <span> · {formatCad(event.price)}</span> : null}
             {event.previousPrice != null ? <span className="text-muted"> from {formatCad(event.previousPrice)}</span> : null}
           </p>
