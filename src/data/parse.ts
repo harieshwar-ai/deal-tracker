@@ -1,5 +1,5 @@
 import { parseRequirementList, parseSpecList } from '../domain/specs'
-import type { Deal, DealStatus, Item, PriceSnapshot, Priority, Store, Verdict } from '../domain/types'
+import type { Deal, DealStatus, EnrichmentStatus, Item, PriceSnapshot, Priority, Store, Verdict } from '../domain/types'
 
 export function parseStoreRow(row: unknown): Store {
   const record = asRecord(row, 'stores')
@@ -33,6 +33,8 @@ export function parseItemRow(row: unknown): Item {
     image_url: optionalString(record, 'image_url', 'items'),
     specs: parseSpecList(record.specs),
     requirements: parseRequirementList(record.requirements),
+    product_url: optionalString(record, 'product_url', 'items'),
+    enrichment_status: enrichmentStatus(record.enrichment_status),
     active: requiredBoolean(record, 'active', 'items'),
     created_at: requiredString(record, 'created_at', 'items'),
     updated_at: requiredString(record, 'updated_at', 'items'),
@@ -151,6 +153,12 @@ function keywords(value: unknown): string[] {
     throw new Error('Invalid items row.')
   }
   return value
+}
+
+function enrichmentStatus(value: unknown): EnrichmentStatus {
+  if (value == null || value === 'ready') return 'ready'
+  if (value === 'pending_enrichment') return 'pending_enrichment'
+  return 'ready'
 }
 
 function priority(value: unknown): Priority {

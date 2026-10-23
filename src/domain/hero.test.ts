@@ -20,6 +20,8 @@ function item(id: string, name: string, active = true): Item {
     image_url: null,
     specs: [],
     requirements: [],
+    product_url: null,
+    enrichment_status: 'ready',
     active,
     created_at: '2026-09-01T16:00:00.000Z',
     updated_at: '2026-10-01T16:00:00.000Z',

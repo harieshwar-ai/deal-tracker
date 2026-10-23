@@ -9,6 +9,8 @@ const publicItemColumns = [
   'active',
   'image_url',
   'specs',
+  'product_url',
+  'enrichment_status',
   'created_at',
   'updated_at',
 ] as const

@@ -24,11 +24,13 @@ const optionalItemWrites: Record<string, string> = {
   image_url: 'The image address cannot be saved until the latest database migration is applied.',
   specs: 'Public specs cannot be saved until the latest database migration is applied.',
   requirements: 'Requirements cannot be saved until the latest database migration is applied.',
+  product_url: 'The product link cannot be saved until the latest database migration is applied.',
+  enrichment_status: 'The enrichment status cannot be saved until the latest database migration is applied.',
 }
 
 export async function saveItem(write: ItemWrite, id?: string): Promise<void> {
   const payload: Record<string, unknown> = { ...write }
-  for (let attempt = 0; attempt < 6; attempt += 1) {
+  for (let attempt = 0; attempt < 8; attempt += 1) {
     const query = id
       ? supabase.from('items').update(payload).eq('id', id)
       : supabase.from('items').insert(payload)
@@ -69,7 +71,7 @@ export async function setDealStatus(id: string, status: DealStatus): Promise<voi
 }
 
 function blankColumn(value: unknown): boolean {
-  if (value == null || value === '') return true
+  if (value == null || value === '' || value === 'ready') return true
   return Array.isArray(value) && value.length === 0
 }
 

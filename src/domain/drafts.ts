@@ -28,6 +28,8 @@ export function blankItemDraft(): ItemDraft {
     imageUrl: '',
     specs: '',
     requirements: '',
+    productUrl: '',
+    enrichmentStatus: 'ready',
     active: true,
   }
 }
@@ -58,6 +60,8 @@ export function itemToDraft(item: Item): ItemDraft {
     imageUrl: item.image_url ?? '',
     specs: formatSpecLines(item.specs),
     requirements: formatRequirementLines(item.requirements),
+    productUrl: item.product_url ?? '',
+    enrichmentStatus: item.enrichment_status,
     active: item.active,
   }
 }
@@ -87,6 +91,7 @@ export function parseItemDraft(draft: ItemDraft): ParseResult<ItemWrite> {
   const target = parsePrice(draft.targetPrice, 'targetPrice', errors)
   const max = parsePrice(draft.maxPrice, 'maxPrice', errors)
   const keywords = parseKeywords(draft.keywords, errors)
+  const productUrl = parseOptionalUrl(draft.productUrl, 'productUrl', errors)
   if (errors.length > 0 || !name) return { ok: false, errors }
   return {
     ok: true,
@@ -104,6 +109,8 @@ export function parseItemDraft(draft: ItemDraft): ParseResult<ItemWrite> {
       image_url: imageUrl,
       specs,
       requirements,
+      product_url: productUrl,
+      enrichment_status: draft.enrichmentStatus,
       active: draft.active,
     },
   }
@@ -210,6 +217,60 @@ function parseRequirementField(value: string, errors: FieldError[]): { label: st
     return []
   }
   return parsed.requirements
+}
+
+export function pendingItemFromUrl(value: string): ParseResult<ItemWrite> {
+  const errors: FieldError[] = []
+  const productUrl = parseOptionalUrl(value, 'productUrl', errors)
+  if (!productUrl || errors.length > 0) {
+    if (errors.length === 0) errors.push({ field: 'productUrl', message: 'Paste an http or https product link.' })
+    return { ok: false, errors }
+  }
+  const host = linkHost(productUrl)
+  return {
+    ok: true,
+    value: {
+      name: `Pending · ${host}`.slice(0, 160),
+      public_summary: null,
+      description: null,
+      category: null,
+      keywords: [],
+      target_price: null,
+      max_price: null,
+      priority: 'normal',
+      condition: 'new',
+      notes: null,
+      image_url: null,
+      specs: [],
+      requirements: [],
+      product_url: productUrl,
+      enrichment_status: 'pending_enrichment',
+      active: true,
+    },
+  }
+}
+
+function linkHost(value: string): string {
+  try {
+    return new URL(value).hostname.replace(/^www\./, '') || 'store'
+  } catch {
+    return 'store'
+  }
+}
+
+function parseOptionalUrl(value: string, field: string, errors: FieldError[]): string | null {
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  if (trimmed.length > 500) {
+    errors.push({ field, message: 'That URL is too long.' })
+    return null
+  }
+  const safe = safeHttpUrl(trimmed)
+  if (!safe) {
+    errors.push({ field, message: 'Use an http or https link.' })
+    return null
+  }
+  return safe
 }
 
 function parseImageUrl(value: string, errors: FieldError[]): string | null {

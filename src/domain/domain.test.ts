@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { computeAnalytics } from './analytics'
 import { groupDeals, pickOpenDeal } from './deals'
-import { parseItemDraft, parseStoreDraft } from './drafts'
+import { parseItemDraft, parseStoreDraft, pendingItemFromUrl } from './drafts'
 import { dayKey, discountPercent, formatCad, safeHttpUrl } from './format'
 import { buildPriceHistory, historyChartState } from './history'
 import { withoutItem, withoutStore } from './mutate'
@@ -50,6 +50,8 @@ function makeItem(id: string, name: string, category: string, target: number, pr
     image_url: null,
     specs: [],
     requirements: [],
+    product_url: null,
+    enrichment_status: 'ready',
     active: true,
     created_at: daysAgo(20),
     updated_at: daysAgo(1),
@@ -175,6 +177,8 @@ describe('drafts and rows', () => {
       imageUrl: '',
       specs: 'Panel | OLED',
       requirements: 'OLED panel',
+      productUrl: '',
+      enrichmentStatus: 'ready',
       active: true,
     })
     expect(item.ok).toBe(true)
@@ -188,6 +192,16 @@ describe('drafts and rows', () => {
       expect(item.value.requirements).toEqual([{ label: 'OLED panel' }])
     }
     expect(parseItemDraft({ ...blankish(), name: ' ', targetPrice: '12.345' }).ok).toBe(false)
+    const pending = pendingItemFromUrl('https://www.bestbuy.ca/en-ca/product/chair/123')
+    expect(pending.ok).toBe(true)
+    if (pending.ok) {
+      expect(pending.value.enrichment_status).toBe('pending_enrichment')
+      expect(pending.value.name).toBe('Pending · bestbuy.ca')
+      expect(pending.value.product_url).toMatch(/^https:\/\/www\.bestbuy\.ca\//)
+      expect(pending.value.public_summary).toBeNull()
+      expect(pending.value.notes).toBeNull()
+    }
+    expect(pendingItemFromUrl('javascript:alert(1)').ok).toBe(false)
     const store = parseStoreDraft({
       name: 'Best Buy',
       baseUrl: 'javascript:alert(1)',
@@ -378,6 +392,8 @@ function blankish() {
     imageUrl: '',
     specs: '',
     requirements: '',
+    productUrl: '',
+    enrichmentStatus: 'ready' as const,
     active: true,
   }
 }
