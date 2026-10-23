@@ -1,7 +1,7 @@
-import { AnimatePresence, animate, motion, useReducedMotion } from 'motion/react'
-import { useEffect, useState } from 'react'
+import { AnimatePresence, animate, motion, useIsPresent, useReducedMotion } from 'motion/react'
+import { Suspense, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useOutlet } from 'react-router-dom'
 
 const ease = [0.2, 0, 0, 1] as const
 
@@ -22,19 +22,25 @@ export function useTween(index = 0) {
   }
 }
 
-export function RouteTransition({ children }: { children: ReactNode }) {
+export function RouteTransition({ fallback = null }: { fallback?: ReactNode }) {
   const location = useLocation()
+  // Freeze the matched route element. A live <Outlet /> swaps in the next page
+  // while this node is still exiting, so the next page's layout projections
+  // subscribe to an exit that never finishes and mode="wait" never reveals it.
+  const outlet = useOutlet()
   const reduce = useReducedMotion()
+  // Reduced motion still needs an exit definition. `exit={undefined}` never
+  // resolves, and mode="wait" then keeps the previous page on screen.
   return (
     <AnimatePresence mode="wait" initial={false}>
       <motion.div
         key={location.pathname}
         initial={reduce ? false : { opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        exit={reduce ? undefined : { opacity: 0, y: -6 }}
+        exit={reduce ? { opacity: 1 } : { opacity: 0, y: -6 }}
         transition={reduce ? { duration: 0 } : { type: 'tween', duration: 0.22, ease }}
       >
-        {children}
+        <Suspense fallback={fallback}>{outlet}</Suspense>
       </motion.div>
     </AnimatePresence>
   )
@@ -89,13 +95,15 @@ export function MotionCard({
   children: ReactNode
 }) {
   const tween = useTween(index)
+  // Layout projection under a route exit never finishes its safeToRemove
+  // callback, so AnimatePresence mode="wait" keeps the previous page mounted.
+  const present = useIsPresent()
   return (
     <motion.div
-      layout
+      layout={present && !tween.reduce}
       className={className}
       initial={tween.reduce ? false : { opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0 }}
       whileHover={tween.reduce ? undefined : { y: -2 }}
       transition={tween.transition}
     >
