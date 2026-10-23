@@ -1,6 +1,6 @@
 import { dayKey, formatCad, formatDay, formatPct } from './format'
 import { isQualifying } from './offers'
-import { allTimeLow, chooseBest, latestOffers, quoteFromSnapshot } from './quotes'
+import { allTimeLow, chooseBest, offerQuotes } from './quotes'
 import type { Quote } from './quotes'
 import type { Dataset, Deal, Item, PriceSnapshot, Store } from './types'
 
@@ -80,7 +80,7 @@ export function priceCallForItem({
   now?: Date
 }): PriceCallResult {
   const qualifying = snapshots.filter(isQualifying)
-  const quotes = latestOffers(qualifying).map((snapshot) => quoteFromSnapshot(snapshot, stores))
+  const quotes = offerQuotes(qualifying, stores)
   const current = chooseBest(quotes)
   const low = allTimeLow(qualifying)
   const days = dailyMins(qualifying)

@@ -11,12 +11,13 @@ import { ItemForm } from '../components/ItemForm'
 import { useToast } from '../components/toast'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger, Badge, Button, ConfirmDialog, EmptyState, LoadingBlock, Modal, Segmented, Select } from '../components/ui'
 import { compareStores } from '../domain/compare'
+import { clusterDeals } from '../domain/deals'
 import { itemToDraft } from '../domain/drafts'
 import { discountPercent, formatCad, formatDay, formatPct, formatRelative, safeHttpUrl } from '../domain/format'
 import { buildPriceHistory, historyChartState } from '../domain/history'
 import { priorityLabel, priorityTone, verdictLabel, verdictTone } from '../domain/labels'
 import { isQualifying } from '../domain/offers'
-import { allTimeLow, cheapestEver, chooseBest, latestOffers, quoteFromSnapshot } from '../domain/quotes'
+import { allTimeLow, cheapestEver, chooseBest, offerQuotes } from '../domain/quotes'
 import { buildTimeline } from '../domain/timeline'
 import { priceCallForItem, priceCallLabel, priceCallTone } from '../domain/verdict'
 import { watchCategories } from '../domain/watchlist'
@@ -48,17 +49,20 @@ export function ItemPage() {
   const chartSnapshots = chartOffers === 'all' ? snapshots : qualifyingSnapshots
   const history = useMemo(() => buildPriceHistory(chartSnapshots, catalog.stores), [chartSnapshots, catalog.stores])
   const quotes = useMemo(
-    () => latestOffers(qualifyingSnapshots).map((snapshot) => quoteFromSnapshot(snapshot, catalog.stores)),
+    () => offerQuotes(qualifyingSnapshots, catalog.stores),
     [qualifyingSnapshots, catalog.stores],
   )
   const otherQuotes = useMemo(
-    () => latestOffers(snapshots.filter((snapshot) => !isQualifying(snapshot))).map((snapshot) => quoteFromSnapshot(snapshot, catalog.stores)),
+    () => offerQuotes(snapshots.filter((snapshot) => !isQualifying(snapshot)), catalog.stores),
     [snapshots, catalog.stores],
   )
   const best = chooseBest(quotes)
   const low = allTimeLow(qualifyingSnapshots)
   const ever = cheapestEver(qualifyingSnapshots)
-  const deals = catalog.deals.filter((deal) => deal.item_id === itemId && deal.status === 'open')
+  const deals = clusterDeals(
+    catalog.deals.filter((deal) => deal.item_id === itemId && deal.status === 'open'),
+    snapshots,
+  )
   const filtered = snapshots.filter((snapshot) => storeFilter === 'all' || snapshot.store_id === storeFilter)
   const ordered = [...filtered].sort((left, right) => compareSnapshots(left, right, sort, catalog.stores))
   const changes = useMemo(
@@ -159,15 +163,15 @@ export function ItemPage() {
 
       <section className="mt-8">
         <h2 className="font-display text-2xl">Stores</h2>
-        <p className="mt-1 text-sm text-muted">Current qualifying price at each store. Ontario HST is 13% of the item price. Shipping is added when a scan saved it.</p>
-        {quotes.length === 0 ? <p className="mt-3 text-sm">No qualifying offer yet</p> : <StoreComparison offers={compareStores(quotes, deals, best?.snapshotId ?? null)} />}
+        <p className="mt-1 text-sm text-muted">Current qualifying price at each store. Ontario HST is 13% of the item price. Shipping is added when a scan saved it. The same model in another colour, finish, or size is listed once, at its lowest in-stock price.</p>
+        {quotes.length === 0 ? <p className="mt-3 text-sm">No qualifying offer yet</p> : <StoreComparison offers={compareStores(quotes, deals.map((cluster) => cluster.deal), best?.snapshotId ?? null)} />}
         {otherQuotes.length > 0 ? (
           <Accordion type="single" collapsible className="mt-6">
             <AccordionItem value="other">
               <AccordionTrigger>Other offers seen</AccordionTrigger>
               <AccordionContent>
                 <p className="text-sm text-muted">Unverified listings, and listings that do not meet the specs. They are left out of the best price.</p>
-                <StoreComparison offers={compareStores(otherQuotes, deals, null)} muted />
+                <StoreComparison offers={compareStores(otherQuotes, deals.map((cluster) => cluster.deal), null)} muted />
               </AccordionContent>
             </AccordionItem>
           </Accordion>
@@ -283,11 +287,21 @@ export function ItemPage() {
         <section className="mt-8">
           <h2 className="font-display text-2xl">Open deals</h2>
           <ul className="mt-3 grid gap-2">
-            {deals.map((deal) => (
-              <li key={deal.id} className="rounded-2xl border border-line bg-paper-2 px-4 py-3 text-sm">
-                <Badge className={verdictTone(deal.verdict ?? 'unrated')}>{verdictLabel(deal.verdict ?? 'unrated')}</Badge>
-                <span className="ml-2">{deal.title}</span>
-                <span className="ml-2 tabular-nums">{formatCad(deal.price)}</span>
+            {deals.map((cluster) => (
+              <li key={cluster.deal.id} className="rounded-2xl border border-line bg-paper-2 px-4 py-3 text-sm">
+                <Badge className={verdictTone(cluster.deal.verdict ?? 'unrated')}>{verdictLabel(cluster.deal.verdict ?? 'unrated')}</Badge>
+                <span className="ml-2">{cluster.deal.title}</span>
+                <span className="ml-2 tabular-nums">{formatCad(cluster.deal.price)}</span>
+                {cluster.options.length > 1 ? (
+                  <ul className="mt-2 grid gap-1 text-muted">
+                    {cluster.options.map((option) => (
+                      <li key={`${option.label ?? 'option'}-${option.price}`}>
+                        {option.label ? `${option.label} · ` : ''}{formatCad(option.price)}
+                        {safeHttpUrl(option.url) ? <a className="ml-2 text-pine underline" href={safeHttpUrl(option.url) ?? undefined} target="_blank" rel="noopener noreferrer">Open</a> : null}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
               </li>
             ))}
           </ul>

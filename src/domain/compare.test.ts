@@ -20,6 +20,9 @@ function quote(partial: Partial<Quote> & Pick<Quote, 'snapshotId' | 'storeName' 
     meetsRequirements: true,
     saleEndsAt: null,
     shipping: null,
+    productLabel: null,
+    variantHeading: null,
+    variants: [],
     ...partial,
   }
 }

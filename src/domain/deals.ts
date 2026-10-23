@@ -1,5 +1,6 @@
+import { assignProducts, listingKey, parseOfferName } from './identity'
 import { capturedTime } from './quotes'
-import type { Deal, Verdict, VerdictGroup } from './types'
+import type { Deal, PriceSnapshot, Verdict, VerdictGroup } from './types'
 
 export const verdictOrder: VerdictGroup[] = ['must_buy', 'good', 'ok', 'skip', 'unrated']
 
@@ -49,9 +50,70 @@ export function pickOpenDeal(deals: Deal[]): Deal | null {
   return open[0] ?? null
 }
 
+export interface DealOption {
+  label: string | null
+  price: number
+  url: string | null
+}
+
+export interface DealCluster {
+  deal: Deal
+  options: DealOption[]
+}
+
 export interface DealGroup {
   verdict: VerdictGroup
   deals: Deal[]
+}
+
+export function clusterDeals(deals: Deal[], snapshots: PriceSnapshot[]): DealCluster[] {
+  const assignments = assignProducts(snapshots)
+  const buckets = new Map<string, Deal[]>()
+  for (const deal of deals) {
+    const key = dealClusterKey(deal, snapshots, assignments)
+    const list = buckets.get(key) ?? []
+    list.push(deal)
+    buckets.set(key, list)
+  }
+  return [...buckets.values()].map((group) => {
+    const deal = group.reduce((best, candidate) => preferDeal(candidate, best) ? candidate : best)
+    return {
+      deal,
+      options: group
+        .map((entry) => ({ label: parseOfferName(entry.title).variantLabel, price: entry.price, url: entry.url }))
+        .sort((left, right) => left.price - right.price || (left.label ?? '').localeCompare(right.label ?? '')),
+    }
+  })
+}
+
+function dealClusterKey(deal: Deal, snapshots: PriceSnapshot[], assignments: ReturnType<typeof assignProducts>): string {
+  const store = deal.store_id ?? ''
+  if (deal.snapshot_id != null) {
+    const assigned = assignments.get(deal.snapshot_id)
+    if (assigned && !assigned.unnamed) return `${deal.item_id}\u0000${store}\u0000${assigned.productKey}`
+  }
+  const listing = listingKey(deal.url)
+  if (listing) {
+    for (const snapshot of snapshots) {
+      if (snapshot.item_id !== deal.item_id) continue
+      if (listingKey(snapshot.product_url) !== listing) continue
+      const assigned = assignments.get(snapshot.id)
+      if (assigned && !assigned.unnamed) return `${deal.item_id}\u0000${store}\u0000${assigned.productKey}`
+    }
+  }
+  const parsed = parseOfferName(deal.title)
+  if (parsed.identityKey && parsed.identityTokens >= 2) return `${deal.item_id}\u0000${store}\u0000${parsed.identityKey}`
+  if (parsed.exactKey) return `${deal.item_id}\u0000${store}\u0000exact:${parsed.exactKey}`
+  return `deal:${deal.id}`
+}
+
+function preferDeal(candidate: Deal, current: Deal): boolean {
+  const rank = verdictRank(candidate.verdict) - verdictRank(current.verdict)
+  if (rank !== 0) return rank < 0
+  if (candidate.price !== current.price) return candidate.price < current.price
+  const score = (candidate.score ?? -1) - (current.score ?? -1)
+  if (score !== 0) return score > 0
+  return capturedTime(candidate.found_at) > capturedTime(current.found_at)
 }
 
 export function groupDeals(deals: Deal[]): DealGroup[] {

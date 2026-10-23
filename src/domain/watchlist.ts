@@ -2,7 +2,7 @@ import { categoryKey, toCents } from './format'
 import { priorityRank } from './labels'
 import { pickOpenDeal } from './deals'
 import { isQualifying } from './offers'
-import { allTimeLow, chooseBest, latestOffers, quoteFromSnapshot, sparklineValues } from './quotes'
+import { allTimeLow, chooseBest, offerQuotes, sparklineValues } from './quotes'
 import type { Quote } from './quotes'
 import type { ActivityFilter, Dataset, Deal, Item, Priority, WatchSort } from './types'
 
@@ -66,8 +66,7 @@ export function buildWatchRows(data: Dataset, now = new Date()): WatchRow[] {
 
 function quotesFor(data: Dataset, include: (snapshot: Dataset['snapshots'][number]) => boolean): Map<string, Quote[]> {
   const quotesByItem = new Map<string, Quote[]>()
-  for (const snapshot of latestOffers(data.snapshots.filter(include))) {
-    const quote = quoteFromSnapshot(snapshot, data.stores)
+  for (const quote of offerQuotes(data.snapshots.filter(include), data.stores)) {
     const list = quotesByItem.get(quote.itemId) ?? []
     list.push(quote)
     quotesByItem.set(quote.itemId, list)
