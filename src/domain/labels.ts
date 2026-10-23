@@ -141,7 +141,7 @@ export function verdictTone(verdict: VerdictGroup): string {
 export function priorityTone(priority: Priority): string {
   switch (priority) {
     case 'high':
-      return 'bg-clay-soft text-clay'
+      return 'bg-clay-soft font-semibold text-clay'
     case 'normal':
       return 'bg-pine-soft text-pine'
     case 'low':

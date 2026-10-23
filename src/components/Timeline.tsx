@@ -20,7 +20,7 @@ export function TimelineList({ events, linkItems }: { events: TimelineEvent[]; l
             {event.price != null ? <span> · {formatCad(event.price)}</span> : null}
             {event.previousPrice != null ? <span className="text-muted"> from {formatCad(event.previousPrice)}</span> : null}
           </p>
-          <time className="text-muted" dateTime={event.at}>{formatRelative(event.at)}</time>
+          <time className="font-medium text-muted" dateTime={event.at}>{formatRelative(event.at)}</time>
         </li>
       ))}
     </ol>

@@ -91,6 +91,14 @@ export function chooseBest(quotes: Quote[]): Quote | null {
   return sorted[0] ?? null
 }
 
+export function cheapestEver(snapshots: PriceSnapshot[]): { snapshot: PriceSnapshot; outOfStock: boolean } | null {
+  const available = allTimeLow(snapshots.filter((snapshot) => snapshot.in_stock !== false))
+  if (available) return { snapshot: available, outOfStock: false }
+  const seen = allTimeLow(snapshots)
+  if (!seen) return null
+  return { snapshot: seen, outOfStock: seen.in_stock === false }
+}
+
 export function allTimeLow(snapshots: PriceSnapshot[]): PriceSnapshot | null {
   let best: PriceSnapshot | null = null
   for (const snapshot of snapshots) {

@@ -31,11 +31,11 @@ export function StoreComparison({ offers, muted = false, now = new Date() }: { o
             <p className="mt-3 font-mono text-2xl font-medium tracking-tight tabular-nums">{formatCad(offer.price)}</p>
             <dl className="mt-3 grid gap-1 text-sm">
               <div className="flex justify-between gap-3">
-                <dt className="text-muted">HST 13%</dt>
+                <dt className="font-medium text-muted">HST 13%</dt>
                 <dd className="tabular-nums">{formatCad(offer.tax)}</dd>
               </div>
               <div className="flex justify-between gap-3">
-                <dt className="text-muted">Shipping</dt>
+                <dt className="font-medium text-muted">Shipping</dt>
                 <dd>{offer.shippingKnown ? formatCad(offer.shipping) : 'Unknown'}</dd>
               </div>
               <div className="flex justify-between gap-3 font-semibold">

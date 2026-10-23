@@ -16,7 +16,7 @@ import { discountPercent, formatCad, formatDay, formatPct, formatRelative, safeH
 import { buildPriceHistory, historyChartState } from '../domain/history'
 import { priorityLabel, priorityTone, verdictLabel, verdictTone } from '../domain/labels'
 import { isQualifying } from '../domain/offers'
-import { allTimeLow, chooseBest, latestOffers, quoteFromSnapshot } from '../domain/quotes'
+import { allTimeLow, cheapestEver, chooseBest, latestOffers, quoteFromSnapshot } from '../domain/quotes'
 import { buildTimeline } from '../domain/timeline'
 import { priceCallForItem, priceCallLabel, priceCallTone } from '../domain/verdict'
 import { watchCategories } from '../domain/watchlist'
@@ -57,6 +57,7 @@ export function ItemPage() {
   )
   const best = chooseBest(quotes)
   const low = allTimeLow(qualifyingSnapshots)
+  const ever = cheapestEver(qualifyingSnapshots)
   const deals = catalog.deals.filter((deal) => deal.item_id === itemId && deal.status === 'open')
   const filtered = snapshots.filter((snapshot) => storeFilter === 'all' || snapshot.store_id === storeFilter)
   const ordered = [...filtered].sort((left, right) => compareSnapshots(left, right, sort, catalog.stores))
@@ -89,17 +90,17 @@ export function ItemPage() {
     <FadeIn>
     <div>
       <Link className="text-sm text-pine underline" to="/">Watchlist</Link>
-      <div className="mt-3 grid gap-4 lg:grid-cols-[minmax(0,1fr)_17rem] lg:items-start">
-        <div>
-          <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="mt-3 grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_15rem]">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="font-display text-4xl">{item.name}</h1>
+                <h1 className="font-display text-3xl leading-tight">{item.name}</h1>
                 <Badge className={priorityTone(item.priority)}>{priorityLabel(item.priority)}</Badge>
                 {!item.active ? <Badge className="bg-paper text-muted">Paused</Badge> : null}
                 {item.enrichment_status === 'pending_enrichment' ? <Badge className="bg-gold-soft text-gold">Waiting for the next scan</Badge> : null}
               </div>
-              <p className="mt-2 text-sm text-muted">
+              <p className="mt-1 text-sm font-medium text-muted">
                 {[item.category, item.condition].filter(Boolean).join(' · ') || 'No category'}
               </p>
             </div>
@@ -110,40 +111,40 @@ export function ItemPage() {
               </div>
             ) : null}
           </div>
-          <p className="mt-4 max-w-2xl text-sm leading-6">
+          <p className="mt-2 max-w-2xl text-sm leading-6">
             <Badge className={priceCallTone(call.call)}>{priceCallLabel(call.call)}</Badge>
             <span className="ml-2">{call.reason}</span>
-            <span className="text-muted"> Confidence {call.confidence}.</span>
+            <span className="font-medium text-muted"> Confidence {call.confidence}.</span>
           </p>
+          {item.public_summary ? <p className="mt-3 max-w-2xl text-sm leading-6">{item.public_summary}</p> : null}
+          <SpecChecklist specs={item.specs} />
+          {canEdit ? <RequirementChecklist specs={item.specs} requirements={item.requirements} /> : null}
+          {canEdit && item.description ? <p className="mt-3 max-w-2xl text-sm leading-6 text-muted">{item.description}</p> : null}
+          {item.keywords.length > 0 ? (
+            <ul className="mt-3 flex flex-wrap gap-2">
+              {item.keywords.map((keyword) => <li key={keyword}><Badge className="bg-paper text-muted">{keyword}</Badge></li>)}
+            </ul>
+          ) : null}
+          {canEdit && item.notes ? <p className="mt-3 max-w-2xl rounded-xl bg-paper px-4 py-3 text-sm leading-6">{item.notes}</p> : null}
         </div>
-        <aside className="grid grid-cols-[7.5rem_minmax(0,1fr)] items-center gap-3 rounded-xl border border-line bg-paper-2 shadow-sm p-3 lg:grid-cols-1">
-          <div className="overflow-hidden rounded-2xl">
-            <ProductPhoto name={item.name} imageUrl={item.image_url} />
+        <aside className="grid grid-cols-[5.5rem_minmax(0,1fr)] items-center gap-3 rounded-xl border border-line bg-paper-2 p-3 shadow-sm lg:grid-cols-1">
+          <div className="overflow-hidden rounded-lg lg:max-h-32">
+            <ProductPhoto name={item.name} imageUrl={item.image_url} category={item.category} />
           </div>
           <div>
-            <p className="text-xs uppercase tracking-[0.14em] text-muted">Current qualifying price</p>
+            <p className="text-xs font-medium tracking-wide text-muted uppercase">Current qualifying price</p>
             <p className="mt-1 font-mono text-3xl font-medium tracking-tight tabular-nums">{best ? formatCad(best.price) : '—'}</p>
-            <p className="mt-1 text-sm text-muted">
+            <p className="mt-1 text-sm font-medium text-muted">
               {best ? `${best.storeName} · ${formatRelative(best.capturedAt)}` : otherQuotes.length > 0 ? 'No qualifying offer yet' : 'No price yet'}
             </p>
             {best?.productName ? <p className="mt-1 text-sm">{best.productName}</p> : null}
           </div>
         </aside>
       </div>
-      {item.public_summary ? <p className="mt-4 max-w-2xl text-sm leading-6">{item.public_summary}</p> : null}
-      <SpecChecklist specs={item.specs} />
-      {canEdit ? <RequirementChecklist specs={item.specs} requirements={item.requirements} /> : null}
-      {canEdit && item.description ? <p className="mt-4 max-w-2xl text-sm leading-6 text-muted">{item.description}</p> : null}
-      {item.keywords.length > 0 ? (
-        <ul className="mt-3 flex flex-wrap gap-2">
-          {item.keywords.map((keyword) => <li key={keyword}><Badge className="bg-paper text-muted">{keyword}</Badge></li>)}
-        </ul>
-      ) : null}
-      {canEdit && item.notes ? <p className="mt-4 max-w-2xl rounded-2xl bg-paper px-4 py-3 text-sm leading-6">{item.notes}</p> : null}
 
-      <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Stat label="Current best" value={best ? formatCad(best.price) : '—'} detail={best ? `${best.storeName} · ${formatRelative(best.capturedAt)}` : otherQuotes.length > 0 ? 'No qualifying offer yet' : 'No in-stock CAD price yet'} />
-        <Stat label="Cheapest ever" value={low ? formatCad(low.price) : '—'} detail={low ? `${catalog.stores.find((store) => store.id === low.store_id)?.name ?? 'Unknown store'} · ${formatDay(low.captured_at)}` : qualifyingSnapshots.length > 0 ? 'No CAD snapshots yet' : 'No qualifying offer yet'} />
+        <Stat label={ever?.outOfStock ? 'Cheapest seen, out of stock' : 'Cheapest ever'} value={ever ? formatCad(ever.snapshot.price) : '—'} detail={ever ? `${catalog.stores.find((store) => store.id === ever.snapshot.store_id)?.name ?? 'Unknown store'} · ${formatDay(ever.snapshot.captured_at)}` : qualifyingSnapshots.length > 0 ? 'No in-stock CAD price yet' : 'No qualifying offer yet'} />
         {canEdit ? (
           <Stat label="Target" value={item.target_price != null ? formatCad(item.target_price) : '—'} detail={gap == null ? 'Set a target to compare' : gap <= 0 ? `${formatCad(Math.abs(gap))} under target` : `${formatCad(gap)} over target`} />
         ) : (
@@ -152,7 +153,7 @@ export function ItemPage() {
         {canEdit ? (
           <Stat label="Max price" value={item.max_price != null ? formatCad(item.max_price) : '—'} detail={`${snapshots.length} snapshots · ${deals.length} open deals`} />
         ) : (
-          <Stat label="From all-time low" value={best && low && low.price > 0 ? formatPct(((best.price - low.price) / low.price) * 100, 0) : '—'} detail={low ? 'Compared with the lowest qualifying CAD price' : 'No qualifying offer yet'} />
+          <Stat label="From all-time low" value={best && ever && ever.snapshot.price > 0 ? formatPct(((best.price - ever.snapshot.price) / ever.snapshot.price) * 100, 0) : '—'} detail={ever ? (ever.outOfStock ? 'Compared with an out-of-stock qualifying price' : 'Compared with the lowest in-stock qualifying CAD price') : 'No qualifying offer yet'} />
         )}
       </div>
 
@@ -333,9 +334,9 @@ export function ItemPage() {
 function Stat({ label, value, detail }: { label: string; value: string; detail: string }) {
   return (
     <article className="rounded-xl border border-line bg-paper-2 shadow-sm p-4">
-      <p className="text-sm text-muted">{label}</p>
+      <p className="text-xs font-medium tracking-wide text-muted uppercase">{label}</p>
       <p className="mt-1 font-mono text-2xl font-medium tracking-tight tabular-nums">{value}</p>
-      <p className="mt-1 text-sm text-muted">{detail}</p>
+      <p className="mt-1 text-sm font-medium text-muted">{detail}</p>
     </article>
   )
 }

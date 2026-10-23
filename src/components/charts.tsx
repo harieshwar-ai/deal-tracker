@@ -33,7 +33,7 @@ function useChartColors(): ChartColors {
       gold: '#e2b15a',
       sea: '#8eb4d8',
       ink: '#eef2f6',
-      muted: '#9aa6b2',
+      muted: '#d5dee8',
       grid: '#2a3340',
       paper: '#151a21',
     }
@@ -72,6 +72,43 @@ function zoomedDomain([min, max]: [number, number], include?: number | null | Ar
   const floor = Math.min(low, 0) < 0 ? low - span * 0.12 : Math.max(0, low - span * 0.12)
   return [Math.floor(floor), Math.ceil(high + span * 0.12)]
 }
+function ChartChip({
+  viewBox,
+  value,
+  fill,
+  background,
+}: {
+  viewBox?: { x?: number; y?: number; width?: number }
+  value?: string
+  fill: string
+  background: string
+}) {
+  const text = value ?? ''
+  const plotX = viewBox?.x ?? 0
+  const plotWidth = viewBox?.width ?? 0
+  const lineY = viewBox?.y ?? 0
+  const width = text.length * 6.5 + 16
+  const height = 18
+  const x = plotX + Math.max(0, plotWidth - width - 4)
+  const y = Math.max(2, lineY - height - 6)
+  return (
+    <g>
+      <rect x={x} y={y} width={width} height={height} rx={5} fill={background} />
+      <text
+        x={x + width / 2}
+        y={y + 13}
+        textAnchor="middle"
+        fill={fill}
+        fontSize={12}
+        fontWeight={600}
+        fontFamily="Geist Variable, ui-sans-serif, sans-serif"
+      >
+        {text}
+      </text>
+    </g>
+  )
+}
+
 function prefersMotion(): boolean {
   return !window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
@@ -114,8 +151,15 @@ export function PriceHistoryChart({
           <XAxis dataKey="date" tickFormatter={formatAxisDay} {...look.dateAxis} />
           <YAxis tickFormatter={axisMoney} width={72} tick={{ fill: look.colors.muted, fontSize: 12 }} domain={([min, max]) => zoomedDomain([min, max], [target, low])} />
           <Tooltip contentStyle={look.tooltip} formatter={(value) => formatTooltip('money', value)} labelFormatter={(label) => formatAxisDay(String(label))} />
-          <Legend />
-          {low != null ? <ReferenceLine y={low} stroke={look.colors.pine} strokeDasharray="2 4" label={{ value: 'All-time low', position: 'insideTopRight', fill: look.colors.pine }} /> : null}
+          <Legend wrapperStyle={{ color: look.colors.ink, fontSize: 12 }} />
+          {low != null ? (
+            <ReferenceLine
+              y={low}
+              stroke={look.colors.pine}
+              strokeDasharray="2 4"
+              label={<ChartChip value="All-time low" fill={look.colors.paper} background={look.colors.pine} />}
+            />
+          ) : null}
           {target != null ? <ReferenceLine y={target} stroke={look.colors.gold} strokeDasharray="4 4" label={{ value: 'Target', position: 'insideTopLeft', fill: look.colors.gold }} /> : null}
           {series.map((entry) => (
             <Line
@@ -170,7 +214,7 @@ export function StoreTrendChart({ series }: { series: StoreIndexSeries[] }) {
           <XAxis dataKey="date" tickFormatter={formatAxisDay} {...look.dateAxis} />
           <YAxis tick={{ fill: look.colors.muted, fontSize: 12 }} width={48} domain={([min, max]) => zoomedDomain([min, max], 100)} />
           <Tooltip contentStyle={look.tooltip} formatter={(value) => formatTooltip('index', value)} labelFormatter={(label) => formatAxisDay(String(label))} />
-          <Legend />
+          <Legend wrapperStyle={{ color: look.colors.ink, fontSize: 12 }} />
           <ReferenceLine y={100} stroke={look.colors.muted} strokeDasharray="4 4" />
           {series.map((entry, index) => (
             <Line
@@ -256,7 +300,7 @@ export function DealFlowChart({
           <XAxis dataKey="date" tickFormatter={formatAxisDay} {...look.dateAxis} />
           <YAxis allowDecimals={false} tick={{ fill: look.colors.muted, fontSize: 12 }} />
           <Tooltip contentStyle={look.tooltip} labelFormatter={(label) => formatAxisDay(String(label))} />
-          <Legend />
+          <Legend wrapperStyle={{ color: look.colors.ink, fontSize: 12 }} />
           <Bar dataKey="must_buy" name="Must buy" stackId="deals" fill={verdictChartColor('must_buy')} />
           <Bar dataKey="good" name="Good" stackId="deals" fill={verdictChartColor('good')} />
           <Bar dataKey="ok" name="OK" stackId="deals" fill={verdictChartColor('ok')} />
