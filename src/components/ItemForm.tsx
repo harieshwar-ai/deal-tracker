@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { fieldError, parseItemDraft } from '../domain/drafts'
 import type { FieldError, ItemDraft, ItemWrite } from '../domain/types'
-import { Button, controlClass, Field, Toggle } from './ui'
+import { Button, controlClass, Field, Select, Toggle } from './ui'
 
 export function ItemForm({
   initial,
@@ -69,13 +69,24 @@ export function ItemForm({
         </Field>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Priority">
-          <select className={controlClass} value={draft.priority} onChange={(event) => setDraft({ ...draft, priority: event.target.value as ItemDraft['priority'] })}>
-            <option value="low">Low</option>
-            <option value="normal">Normal</option>
-            <option value="high">High</option>
-          </select>
-        </Field>
+        <div>
+          <span className="text-sm font-medium">Priority</span>
+          <div className="mt-1.5">
+            <Select
+              label="Priority"
+              className="w-full"
+              value={draft.priority}
+              onValueChange={(priority) => {
+                if (priority === 'low' || priority === 'normal' || priority === 'high') setDraft({ ...draft, priority })
+              }}
+              options={[
+                { value: 'low', label: 'Low' },
+                { value: 'normal', label: 'Normal' },
+                { value: 'high', label: 'High' },
+              ]}
+            />
+          </div>
+        </div>
         <Toggle checked={draft.active} label={draft.active ? 'Active on the watchlist' : 'Paused'} onChange={(active) => setDraft({ ...draft, active })} />
       </div>
       <div className="grid gap-4 sm:grid-cols-2">

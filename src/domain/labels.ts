@@ -156,15 +156,15 @@ export function priorityTone(priority: Priority): string {
 export function verdictChartColor(verdict: VerdictGroup): string {
   switch (verdict) {
     case 'must_buy':
-      return '#b86114'
+      return '#8a5a12'
     case 'good':
-      return '#0e6b4f'
+      return '#0c6b52'
     case 'ok':
-      return '#1e4d7b'
+      return '#1d4e89'
     case 'skip':
-      return '#8a847b'
+      return '#5e6a78'
     case 'unrated':
-      return '#c4b8a8'
+      return '#c5ced8'
     default: {
       const neverVerdict: never = verdict
       return neverVerdict

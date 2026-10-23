@@ -1,24 +1,25 @@
 @import "tailwindcss";
 
 @theme {
-  --font-display: "Fraunces", ui-serif, Georgia, serif;
-  --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
-  --color-paper: #f3efe6;
-  --color-paper-2: #fffdf8;
-  --color-ink: #1c1915;
-  --color-muted: #6f685e;
-  --color-line: #e4dcd0;
-  --color-pine: #0e6b4f;
-  --color-pine-soft: #e6f4ee;
-  --color-bark: #221e1a;
-  --color-gold: #8d5a12;
-  --color-gold-soft: #f8efd8;
-  --color-clay: #8f2d2d;
-  --color-clay-soft: #f8e6e2;
-  --color-sea: #1e4d7b;
-  --color-sea-soft: #e7f0f8;
-  --color-foam: #fffdf8;
-  --color-on-accent: #fffdf8;
+  --font-display: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, "SFMono-Regular", monospace;
+  --color-paper: #f4f6f8;
+  --color-paper-2: #ffffff;
+  --color-ink: #12161c;
+  --color-muted: #5e6a78;
+  --color-line: #e4e8ee;
+  --color-pine: #0c6b52;
+  --color-pine-soft: #e7f6f1;
+  --color-bark: #101418;
+  --color-gold: #8a5a12;
+  --color-gold-soft: #f8f1e3;
+  --color-clay: #a33b3b;
+  --color-clay-soft: #f8ecec;
+  --color-sea: #1d4e89;
+  --color-sea-soft: #e8f0f8;
+  --color-foam: #f7f8fa;
+  --color-on-accent: #ffffff;
 }
 
 html[data-theme='light'] {
@@ -27,22 +28,22 @@ html[data-theme='light'] {
 
 html[data-theme='dark'] {
   color-scheme: dark;
-  --color-paper: #1a1814;
-  --color-paper-2: #24211c;
-  --color-ink: #f3efe6;
-  --color-muted: #b7b0a4;
-  --color-line: #3a342c;
-  --color-pine: #7dcea8;
-  --color-pine-soft: #1c3a2e;
-  --color-bark: #12100e;
+  --color-paper: #0d1014;
+  --color-paper-2: #151a21;
+  --color-ink: #eef2f6;
+  --color-muted: #9aa6b2;
+  --color-line: #2a3340;
+  --color-pine: #3dbe9a;
+  --color-pine-soft: #132920;
+  --color-bark: #0a0d11;
   --color-gold: #e2b15a;
-  --color-gold-soft: #3a2e18;
+  --color-gold-soft: #2c2416;
   --color-clay: #e08a80;
-  --color-clay-soft: #3a2422;
+  --color-clay-soft: #2c1c1c;
   --color-sea: #8eb4d8;
-  --color-sea-soft: #1c2c3d;
-  --color-foam: #f6f1e7;
-  --color-on-accent: #12100e;
+  --color-sea-soft: #162433;
+  --color-foam: #f4f7fa;
+  --color-on-accent: #0c1210;
 }
 
 @layer base {
@@ -50,13 +51,22 @@ html[data-theme='dark'] {
     font-family: var(--font-sans);
     color: var(--color-ink);
     background: var(--color-paper);
+    font-feature-settings: "ss01" on, "cv11" on;
   }
 
   body {
     min-height: 100vh;
     background:
-      radial-gradient(900px 420px at 100% -10%, color-mix(in srgb, var(--color-pine) 14%, transparent), transparent 55%),
+      radial-gradient(880px 380px at 100% -12%, color-mix(in srgb, var(--color-pine) 12%, transparent), transparent 58%),
       var(--color-paper);
+  }
+
+  h1,
+  h2,
+  h3,
+  .font-display {
+    letter-spacing: -0.03em;
+    font-weight: 600;
   }
 
   button,
@@ -66,8 +76,23 @@ html[data-theme='dark'] {
     font: inherit;
   }
 
+  a,
+  button,
+  input,
+  select,
+  textarea,
+  summary {
+    transition-property: background-color, color, border-color, box-shadow, opacity, transform;
+    transition-duration: 180ms;
+    transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+  }
+
+  [role='dialog'] {
+    pointer-events: auto !important;
+  }
+
   ::selection {
-    background: color-mix(in srgb, var(--color-pine) 35%, var(--color-paper));
+    background: color-mix(in srgb, var(--color-pine) 32%, var(--color-paper));
     color: var(--color-ink);
   }
 }
@@ -80,5 +105,10 @@ html[data-theme='dark'] {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+
+  button:active,
+  a:active {
+    transform: none !important;
   }
 }

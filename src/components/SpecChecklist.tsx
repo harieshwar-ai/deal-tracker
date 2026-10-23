@@ -1,5 +1,6 @@
 import { requirementMet } from '../domain/specs'
 import type { ItemRequirement, ItemSpec } from '../domain/types'
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui'
 
 export function SpecChecklist({ specs }: { specs: ItemSpec[] }) {
   if (specs.length === 0) return null
@@ -26,19 +27,23 @@ export function RequirementChecklist({
 }) {
   if (requirements.length === 0) return null
   return (
-    <section className="mt-4 max-w-2xl rounded-2xl bg-paper px-4 py-3">
-      <h2 className="text-sm font-semibold">Your requirements</h2>
-      <ul className="mt-2 grid gap-1">
-        {requirements.map((requirement, index) => {
-          const met = requirementMet(requirement, specs)
-          return (
-            <li key={`${requirement.label}-${index}`} className="flex gap-2 text-sm leading-6">
-              <span className={met ? 'text-pine' : 'text-clay'}>{met ? 'Pass' : 'Fail'}</span>
-              <span>{requirement.label}</span>
-            </li>
-          )
-        })}
-      </ul>
-    </section>
+    <Accordion type="single" collapsible defaultValue="requirements" className="mt-4 max-w-2xl">
+      <AccordionItem value="requirements">
+        <AccordionTrigger>Your requirements</AccordionTrigger>
+        <AccordionContent>
+          <ul className="grid gap-1">
+            {requirements.map((requirement, index) => {
+              const met = requirementMet(requirement, specs)
+              return (
+                <li key={`${requirement.label}-${index}`} className="flex gap-2 text-sm leading-6">
+                  <span className={met ? 'text-pine' : 'text-clay'}>{met ? 'Pass' : 'Fail'}</span>
+                  <span>{requirement.label}</span>
+                </li>
+              )
+            })}
+          </ul>
+        </AccordionContent>
+      </AccordionItem>
+    </Accordion>
   )
 }

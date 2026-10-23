@@ -59,6 +59,7 @@ interface ThemeValue {
   choice: ThemeChoice
   resolved: ResolvedTheme
   cycle: () => void
+  setChoice: (choice: ThemeChoice) => void
 }
 
 const ThemeContext = createContext<ThemeValue | null>(null)
@@ -94,6 +95,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     choice,
     resolved,
     cycle: () => setChoice((current) => nextTheme(current)),
+    setChoice,
   }), [choice, resolved])
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>

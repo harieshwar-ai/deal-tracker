@@ -10,7 +10,8 @@ import {
   StoreTrendChart,
   WinsChart,
 } from '../components/charts'
-import { controlClass, EmptyState, ErrorState, LoadingBlock, Segmented } from '../components/ui'
+import { FadeIn } from '../components/motion'
+import { EmptyState, ErrorState, LoadingBlock, Segmented, Select } from '../components/ui'
 import { computeAnalytics } from '../domain/analytics'
 import { parsePresetParam } from '../domain/filters'
 import { categoryKey, formatAxisDay, formatCad, formatDay, formatPct } from '../domain/format'
@@ -51,6 +52,7 @@ export function AnalyticsPage() {
   const discounts = model.storeStats.filter((store) => store.avgDiscountPct != null && store.observations > 0)
 
   return (
+    <FadeIn>
     <div>
       <h1 className="font-display text-4xl">Analytics</h1>
       <p className="mt-3 max-w-3xl text-base leading-7">{model.insight}</p>
@@ -61,16 +63,24 @@ export function AnalyticsPage() {
           onChange={(range) => update({ range: range === '90d' ? null : range })}
           options={presets.map((value) => ({ value, label: presetLabel(value) }))}
         />
-        <select className={`${controlClass} w-auto`} aria-label="Category" value={category ?? 'all'} onChange={(event) => update({ category: event.target.value === 'all' ? null : event.target.value })}>
-          <option value="all">All categories</option>
-          {categories.map((entry) => <option key={entry} value={entry}>{entry}</option>)}
-        </select>
-        <select className={`${controlClass} w-auto`} aria-label="Store" value={storeId ?? 'all'} onChange={(event) => update({ store: event.target.value === 'all' ? null : event.target.value })}>
-          <option value="all">All stores</option>
-          {[...catalog.stores].sort((left, right) => left.name.localeCompare(right.name)).map((store) => (
-            <option key={store.id} value={store.id}>{store.name}{store.enabled ? '' : ' (disabled)'}</option>
-          ))}
-        </select>
+        <Select
+          label="Category"
+          value={category ?? 'all'}
+          onValueChange={(value) => update({ category: value === 'all' ? null : value })}
+          options={[{ value: 'all', label: 'All categories' }, ...categories.map((entry) => ({ value: entry, label: entry }))]}
+        />
+        <Select
+          label="Store"
+          value={storeId ?? 'all'}
+          onValueChange={(value) => update({ store: value === 'all' ? null : value })}
+          options={[
+            { value: 'all', label: 'All stores' },
+            ...[...catalog.stores].sort((left, right) => left.name.localeCompare(right.name)).map((store) => ({
+              value: store.id,
+              label: store.enabled ? store.name : `${store.name} (disabled)`,
+            })),
+          ]}
+        />
       </div>
       {model.excludedCurrencyCount > 0 ? (
         <p className="mt-3 text-sm text-muted">
@@ -95,7 +105,7 @@ export function AnalyticsPage() {
             <Kpi label="All-time lows" value={String(model.atLowCount)} detail={`${model.openDealCount} deals open now · ${model.dealsInPeriod} found in this period`} />
           </div>
 
-          <section className="mt-8 rounded-3xl border border-line bg-paper-2 p-4 md:p-5">
+          <section className="mt-8 rounded-xl border border-line bg-paper-2 shadow-sm p-4 md:p-5">
             <h2 className="font-display text-2xl">Price index</h2>
             <p className="mt-1 max-w-3xl text-sm leading-6 text-muted">
               Each item starts at 100 on the first day it has a price in {model.periodLabel}. Later days use that item’s lowest price, carried forward when a store does not report. The line is the average of those indexes. 100 is the dashed line.
@@ -126,19 +136,19 @@ export function AnalyticsPage() {
           </section>
 
           <div className="mt-4 grid gap-4 xl:grid-cols-2">
-            <section className="rounded-3xl border border-line bg-paper-2 p-4 md:p-5">
+            <section className="rounded-xl border border-line bg-paper-2 shadow-sm p-4 md:p-5">
               <h2 className="font-display text-2xl">Index by store</h2>
               <p className="mt-1 text-sm leading-6 text-muted">The same 100-based index, averaged only across items seen at that store.</p>
               {model.storeIndex.length === 0 ? <ChartEmpty periodCount={model.periodSnapshotCount} historyCount={model.historySnapshotCount} /> : <div className="mt-4"><StoreTrendChart series={model.storeIndex} /></div>}
             </section>
-            <section className="rounded-3xl border border-line bg-paper-2 p-4 md:p-5">
+            <section className="rounded-xl border border-line bg-paper-2 shadow-sm p-4 md:p-5">
               <h2 className="font-display text-2xl">Savings vs regular</h2>
               <p className="mt-1 text-sm leading-6 text-muted">Each day, the gap between the cheapest observed price and its regular price, summed across items.</p>
               {model.savingsByDate.every((point) => point.savings === 0) ? <ChartEmpty periodCount={model.periodSnapshotCount} historyCount={model.historySnapshotCount} /> : <div className="mt-4"><SavingsChart points={model.savingsByDate} /></div>}
             </section>
           </div>
 
-          <section className="mt-4 rounded-3xl border border-line bg-paper-2 p-4 md:p-5">
+          <section className="mt-4 rounded-xl border border-line bg-paper-2 shadow-sm p-4 md:p-5">
             <h2 className="font-display text-2xl">Which store is cheapest</h2>
             <p className="mt-1 max-w-3xl text-sm leading-6 text-muted">
               For every item and every day in {model.periodLabel}, the store with the lowest CAD price wins. Ties go to the store name that comes first alphabetically. That is {model.itemDays} item-days.
@@ -169,14 +179,14 @@ export function AnalyticsPage() {
             </div>
           </section>
 
-          <section className="mt-4 rounded-3xl border border-line bg-paper-2 p-4 md:p-5">
+          <section className="mt-4 rounded-xl border border-line bg-paper-2 shadow-sm p-4 md:p-5">
             <h2 className="font-display text-2xl">Average discount by store</h2>
             <p className="mt-1 text-sm leading-6 text-muted">Mean of (regular − price) / regular for snapshots that include a regular price. A negative number means the price sat above regular.</p>
             {discounts.length === 0 ? <ChartEmpty periodCount={model.periodSnapshotCount} historyCount={model.historySnapshotCount} /> : <div className="mt-4"><DiscountChart rows={discounts.flatMap((store) => store.avgDiscountPct == null ? [] : [{ storeName: store.storeName, avgDiscountPct: store.avgDiscountPct }])} /></div>}
           </section>
 
           <div className="mt-4 grid gap-4 xl:grid-cols-2">
-            <section className="rounded-3xl border border-line bg-paper-2 p-4 md:p-5">
+            <section className="rounded-xl border border-line bg-paper-2 shadow-sm p-4 md:p-5">
               <h2 className="font-display text-2xl">Deals over time</h2>
               <p className="mt-1 text-sm text-muted">
                 Found in {model.periodLabel}, bucketed by {model.dealFlowGrain}. {statuses.map((status) => `${statusLabel(status)} ${model.statusTotals[status]}`).join(' · ')}
@@ -187,7 +197,7 @@ export function AnalyticsPage() {
                 <div className="mt-4"><DealFlowChart rows={model.dealFlow} /></div>
               )}
             </section>
-            <section className="rounded-3xl border border-line bg-paper-2 p-4 md:p-5">
+            <section className="rounded-xl border border-line bg-paper-2 shadow-sm p-4 md:p-5">
               <h2 className="font-display text-2xl">Score distribution</h2>
               <p className="mt-1 text-sm text-muted">
                 Scores run from 0 to 100. {model.unscoredDeals > 0 ? `${model.unscoredDeals} deals in this period have no score.` : 'Every deal in this period has a score.'}
@@ -196,7 +206,7 @@ export function AnalyticsPage() {
             </section>
           </div>
 
-          <section className="mt-4 rounded-3xl border border-line bg-paper-2 p-4 md:p-5">
+          <section className="mt-4 rounded-xl border border-line bg-paper-2 shadow-sm p-4 md:p-5">
             <h2 className="font-display text-2xl">Categories</h2>
             <p className="mt-1 text-sm text-muted">Current prices, ignoring the date range. Open deals are the ones still waiting.</p>
             <div className="mt-4 overflow-auto">
@@ -225,7 +235,7 @@ export function AnalyticsPage() {
             </div>
           </section>
 
-          <section className="mt-4 rounded-3xl border border-line bg-paper-2 p-4 md:p-5">
+          <section className="mt-4 rounded-xl border border-line bg-paper-2 shadow-sm p-4 md:p-5">
             <h2 className="font-display text-2xl">All-time lows</h2>
             <p className="mt-1 text-sm leading-6 text-muted">
               The lowest CAD price ever saved for each item in this category and store filter. The date range does not move the low. “Now” is the latest in-stock price.
@@ -266,14 +276,15 @@ export function AnalyticsPage() {
         </>
       )}
     </div>
+    </FadeIn>
   )
 }
 
 function Kpi({ label, value, detail }: { label: string; value: string; detail: string }) {
   return (
-    <article className="rounded-3xl border border-line bg-paper-2 p-4">
+    <article className="rounded-xl border border-line bg-paper-2 shadow-sm p-4">
       <p className="text-sm text-muted">{label}</p>
-      <p className="mt-2 font-display text-3xl tabular-nums">{value}</p>
+      <p className="mt-2 font-mono text-2xl font-medium tracking-tight tabular-nums">{value}</p>
       <p className="mt-1 text-sm leading-5 text-muted">{detail}</p>
     </article>
   )
