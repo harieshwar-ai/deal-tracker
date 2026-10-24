@@ -58,11 +58,9 @@ export function Shell() {
             <NavItem key={link.to} {...link} count={link.to === '/deals' ? openDeals : 0} />
           ))}
         </nav>
-        <div className="mt-auto px-3 pt-6 text-sm text-foam/70">
-          {catalog.source === 'preview' ? 'Sample data' : session ? 'Owner' : (
-            <Link to="/signin" className="underline" onClick={() => rememberReturnPath()}>Owner sign-in</Link>
-          )}
-        </div>
+        {catalog.source === 'preview' ? (
+          <p className="mt-auto px-3 pt-6 text-sm text-foam/70">Sample data</p>
+        ) : null}
       </aside>
       <div className="min-w-0">
         <header className="flex items-center justify-between gap-3 border-b border-line px-4 py-3 md:px-8">
@@ -101,7 +99,7 @@ export function Shell() {
                 </Tooltip>
               </>
             ) : (
-              <Link to="/signin" className="text-sm text-muted underline" onClick={() => rememberReturnPath()}>
+              <Link to="/signin" className="shrink-0 whitespace-nowrap text-sm text-muted underline" onClick={() => rememberReturnPath()}>
                 Owner sign-in
               </Link>
             )}

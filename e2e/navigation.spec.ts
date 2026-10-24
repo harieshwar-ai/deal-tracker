@@ -7,6 +7,33 @@ const sections = [
   { name: 'Analytics', proof: '90 days' },
 ] as const
 
+interface FocusStop {
+  name: string
+  inContent: boolean
+  inPrimary: boolean
+  inBanner: boolean
+}
+
+async function tabUntil(page: Page, done: (focus: FocusStop) => boolean) {
+  const seen: FocusStop[] = []
+  for (let step = 0; step < 16; step += 1) {
+    await page.keyboard.press('Tab')
+    const focus = await page.evaluate(() => {
+      const el = document.activeElement
+      const name = (el?.getAttribute('aria-label') || el?.textContent || '').replace(/\s+/g, ' ').trim()
+      return {
+        name,
+        inContent: Boolean(el?.closest('#content')),
+        inPrimary: Boolean(el?.closest('nav[aria-label="Primary"]')),
+        inBanner: Boolean(el?.closest('header')),
+      }
+    })
+    seen.push(focus)
+    if (done(focus)) return seen
+  }
+  return seen
+}
+
 async function openSection(page: Page, name: string) {
   const nav = page.getByRole('navigation', { name: 'Primary' })
   await nav.getByRole('link', { name, exact: name !== 'Deals' }).click()
@@ -74,6 +101,41 @@ test('direct links and reloads render', async ({ page }) => {
     await expect(page).toHaveURL(/\/items\//)
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
   }
+})
+
+test('owner sign-in is only the header control', async ({ page }) => {
+  await page.goto('/deal-tracker/')
+  await expect(page.getByRole('heading', { level: 1, name: 'Watchlist', exact: true })).toBeVisible()
+
+  const signIn = page.getByRole('link', { name: 'Owner sign-in', exact: true })
+  await expect(signIn).toHaveCount(1)
+  await expect(page.getByRole('banner').getByRole('link', { name: 'Owner sign-in', exact: true })).toBeVisible()
+  await expect(page.locator('aside').getByRole('link', { name: 'Owner sign-in' })).toHaveCount(0)
+
+  const desktopOrder = await tabUntil(page, (focus) => focus.name === 'Owner sign-in')
+  const signInStop = desktopOrder.at(-1)
+  expect(signInStop?.inBanner).toBe(true)
+  expect(desktopOrder.some((focus) => focus.inContent)).toBe(false)
+  expect(desktopOrder.filter((focus) => focus.name === 'Owner sign-in')).toHaveLength(1)
+
+  await signIn.click()
+  await expect(page.getByRole('heading', { level: 1, name: 'Owner sign-in' })).toBeVisible()
+  await expect(page).toHaveURL(/\/deal-tracker\/signin$/)
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/deal-tracker/')
+  await expect(page.getByRole('heading', { level: 1, name: 'Watchlist', exact: true })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Owner sign-in', exact: true })).toHaveCount(1)
+  const bar = page.getByRole('navigation', { name: 'Primary' })
+  await expect(bar.getByRole('link')).toHaveCount(4)
+  await expect(bar.getByRole('link', { name: 'Owner sign-in' })).toHaveCount(0)
+  await expect(bar.getByRole('link', { name: 'Watchlist', exact: true })).toBeVisible()
+  await expect(bar.getByRole('link', { name: 'Stores', exact: true })).toBeVisible()
+  await expect(bar.getByRole('link', { name: 'Analytics', exact: true })).toBeVisible()
+
+  const mobileOrder = await tabUntil(page, (focus) => focus.name === 'Owner sign-in')
+  expect(mobileOrder.at(-1)?.inBanner).toBe(true)
+  expect(mobileOrder.some((focus) => focus.inPrimary || focus.inContent)).toBe(false)
 })
 
 test('reduced motion and dark mode keep pages visible', async ({ page }) => {
