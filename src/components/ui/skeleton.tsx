@@ -18,13 +18,17 @@ export function EmptyState({ title, body, action }: { title: string; body: strin
 
 export function LoadingBlock({ label = 'Loading your prices…' }: { label?: string }) {
   return (
-    <div className="space-y-3" role="status" aria-busy="true" aria-live="polite">
+    <div className="space-y-4" role="status" aria-busy="true" aria-live="polite">
       <p className="text-sm text-muted">{label}</p>
-      <Skeleton className="h-36" />
-      <div className="grid gap-3 sm:grid-cols-2">
+      <Skeleton className="h-8 w-48" />
+      <Skeleton className="h-4 w-72" />
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Skeleton className="h-28" />
-        <Skeleton className="h-28 bg-line/50" />
+        <Skeleton className="h-28" />
+        <Skeleton className="h-28" />
+        <Skeleton className="h-28" />
       </div>
+      <Skeleton className="h-40" />
     </div>
   )
 }

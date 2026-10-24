@@ -21,7 +21,8 @@ describe('visitor selects', () => {
     expect(selectColumns('stores', true).split(',')).toEqual(expect.arrayContaining([...visitorHiddenColumns.stores]))
     expect(selectColumns('deals', false).split(',')).not.toContain('reason')
     expect(selectColumns('deals', true).split(',')).toContain('reason')
-    expect(selectColumns('price_snapshots', false)).toBe(selectColumns('price_snapshots', true))
+    expect(selectColumns('price_snapshots', false).split(',')).not.toContain('member_only')
+    expect(selectColumns('price_snapshots', true).split(',')).toContain('member_only')
     expect(selectColumns('price_snapshots', false).split(',')).toEqual(expect.arrayContaining(['sale_ends_at', 'shipping', 'product_name', 'meets_requirements']))
   })
 

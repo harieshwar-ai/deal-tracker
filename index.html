@@ -8,6 +8,8 @@
         var stored = localStorage.getItem('harbour-theme')
         var theme = stored === 'light' || stored === 'dark' ? stored : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
         document.documentElement.dataset.theme = theme
+        var accent = localStorage.getItem('harbour-accent')
+        if (accent === 'tide' || accent === 'copper' || accent === 'harbour') document.documentElement.dataset.accent = accent
       } catch (e) {}
     </script>
     <meta name="robots" content="noindex, nofollow" />

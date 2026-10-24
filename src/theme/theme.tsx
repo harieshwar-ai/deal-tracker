@@ -1,10 +1,14 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
+import { isAccentChoice } from './tokens'
+import type { AccentChoice } from './tokens'
 
 export type ThemeChoice = 'system' | 'light' | 'dark'
 export type ResolvedTheme = 'light' | 'dark'
+export type { AccentChoice }
 
 const storageKey = 'harbour-theme'
+const accentKey = 'harbour-accent'
 const cycle: ThemeChoice[] = ['system', 'light', 'dark']
 
 function readChoice(): ThemeChoice {
@@ -15,6 +19,16 @@ function readChoice(): ThemeChoice {
     // Private browsing can block storage. Fall through to the system setting.
   }
   return 'system'
+}
+
+function readAccent(): AccentChoice {
+  try {
+    const stored = localStorage.getItem(accentKey)
+    if (stored && isAccentChoice(stored)) return stored
+  } catch {
+    // Private browsing can block storage. Fall through to Harbour.
+  }
+  return 'harbour'
 }
 
 function prefersDark(): boolean {
@@ -58,26 +72,31 @@ export function themeToggleLabel(choice: ThemeChoice): string {
 interface ThemeValue {
   choice: ThemeChoice
   resolved: ResolvedTheme
+  accent: AccentChoice
   cycle: () => void
   setChoice: (choice: ThemeChoice) => void
+  setAccent: (accent: AccentChoice) => void
 }
 
 const ThemeContext = createContext<ThemeValue | null>(null)
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [choice, setChoice] = useState<ThemeChoice>(readChoice)
+  const [accent, setAccent] = useState<AccentChoice>(readAccent)
   const [resolved, setResolved] = useState<ResolvedTheme>(() => resolveTheme(readChoice(), prefersDark()))
 
   useEffect(() => {
     const next = resolveTheme(choice, prefersDark())
     setResolved(next)
     document.documentElement.dataset.theme = next
+    document.documentElement.dataset.accent = accent
     try {
       localStorage.setItem(storageKey, choice)
+      localStorage.setItem(accentKey, accent)
     } catch {
       // Ignore storage failures. The in-memory choice still applies.
     }
-  }, [choice])
+  }, [accent, choice])
 
   useEffect(() => {
     if (choice !== 'system') return
@@ -94,9 +113,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const value = useMemo<ThemeValue>(() => ({
     choice,
     resolved,
+    accent,
     cycle: () => setChoice((current) => nextTheme(current)),
     setChoice,
-  }), [choice, resolved])
+    setAccent,
+  }), [accent, choice, resolved])
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
 }

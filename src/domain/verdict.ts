@@ -1,6 +1,6 @@
 import { dayKey, formatCad, formatDay, formatPct } from './format'
 import { isQualifying } from './offers'
-import { allTimeLow, chooseBest, latestOffers, quoteFromSnapshot } from './quotes'
+import { cheapestEver, chooseBest, offerQuotes } from './quotes'
 import type { Quote } from './quotes'
 import type { Dataset, Deal, Item, PriceSnapshot, Store } from './types'
 
@@ -35,11 +35,11 @@ export function priceCallLabel(call: PriceCall): string {
 export function priceCallTone(call: PriceCall): string {
   switch (call) {
     case 'buy':
-      return 'bg-pine text-on-accent'
+      return 'bg-buy text-on-buy'
     case 'good':
-      return 'bg-gold text-on-accent'
+      return 'bg-buy-soft text-buy'
     case 'wait':
-      return 'bg-foam text-bark ring-1 ring-bark/25'
+      return 'bg-wait-soft text-wait'
     default: {
       const neverCall: never = call
       return neverCall
@@ -80,10 +80,11 @@ export function priceCallForItem({
   now?: Date
 }): PriceCallResult {
   const qualifying = snapshots.filter(isQualifying)
-  const quotes = latestOffers(qualifying).map((snapshot) => quoteFromSnapshot(snapshot, stores))
+  const quotes = offerQuotes(qualifying, stores)
   const current = chooseBest(quotes)
-  const low = allTimeLow(qualifying)
-  const days = dailyMins(qualifying)
+  const ever = cheapestEver(qualifying)
+  const low = ever && !ever.outOfStock ? ever.snapshot : null
+  const days = dailyMins(qualifying.filter((snapshot) => snapshot.in_stock !== false))
   if (!current && snapshots.some((snapshot) => !isQualifying(snapshot))) {
     return {
       itemId: item.id,

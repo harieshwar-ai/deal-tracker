@@ -4,7 +4,8 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useCanEdit } from '../auth/AuthProvider'
 import { useToast } from '../components/toast'
 import { Badge, Button, EmptyState, ErrorState, LoadingBlock, Segmented } from '../components/ui'
-import { groupDeals, verdictGroup } from '../domain/deals'
+import { clusterDeals, groupDeals, latestDealStock, verdictGroup } from '../domain/deals'
+import type { DealCluster } from '../domain/deals'
 import { parseStatusFilter } from '../domain/filters'
 import type { StatusFilter } from '../domain/filters'
 import { discountPercent, formatCad, formatDay, formatRelative, safeHttpUrl } from '../domain/format'
@@ -30,10 +31,21 @@ export function DealsPage() {
   const [params, setParams] = useSearchParams()
   const [pendingId, setPendingId] = useState<string | null>(null)
   const status = parseStatusFilter(params.get('status'))
-  const visible = useMemo(() => {
+  const clusters = useMemo(() => {
     const selected = catalog.deals.filter((deal) => status === 'all' || deal.status === status)
-    return groupDeals(selected)
-  }, [catalog.deals, status])
+    return clusterDeals(selected, catalog.snapshots)
+  }, [catalog.deals, catalog.snapshots, status])
+  const visible = useMemo(() => {
+    const byId = new Map(clusters.map((cluster) => [cluster.deal.id, cluster]))
+    return groupDeals(clusters.map((cluster) => cluster.deal)).map((group) => ({
+      verdict: group.verdict,
+      clusters: group.deals.map((deal) => byId.get(deal.id)).filter((cluster): cluster is DealCluster => cluster != null),
+    }))
+  }, [clusters])
+  const openCount = useMemo(
+    () => clusterDeals(catalog.deals.filter((deal) => deal.status === 'open'), catalog.snapshots).length,
+    [catalog.deals, catalog.snapshots],
+  )
 
   async function mark(deal: Deal, next: DealStatus) {
     setPendingId(deal.id)
@@ -56,8 +68,9 @@ export function DealsPage() {
     <FadeIn>
     <div>
       <h1 className="font-display text-4xl">Deals</h1>
-      <p className="mt-1 text-sm text-muted">
-        {catalog.deals.filter((deal) => deal.status === 'open').length} open. Grouped by the checker’s verdict.
+      <p className="mt-1 max-w-3xl text-sm leading-6 text-muted">
+        {openCount} open. Grouped by the checker’s verdict. Same model, different colour or finish, counts once.
+        Must buy and good are the stronger marks. Skip was scored and set aside. Prices here are the saved offer, before tax.
       </p>
       <div className="mt-5">
         <Segmented
@@ -69,7 +82,7 @@ export function DealsPage() {
       </div>
       {catalog.deals.length === 0 ? (
         <div className="mt-8">
-          <EmptyState title="No deals yet" body="When a watched price is worth a look, it will land here with a score, a verdict, and the reason." />
+          <EmptyState title="No deals yet" body="When a watched price is worth a look, it lands here with a verdict. Same model, different colour or finish, counts once." />
         </div>
       ) : visible.length === 0 ? (
         <div className="mt-8">
@@ -79,17 +92,19 @@ export function DealsPage() {
         <div className="mt-8 grid gap-8">
           {visible.map((group) => (
             <section key={group.verdict}>
-              <h2 className="font-display text-2xl">{verdictLabel(group.verdict)} <span className="text-muted">{group.deals.length}</span></h2>
+              <h2 className="font-display text-2xl">{verdictLabel(group.verdict)} <span className="text-muted">{group.clusters.length}</span></h2>
               <div className="mt-3 grid gap-3">
-                {group.deals.map((deal, index) => (
-                  <MotionCard key={deal.id} index={index}>
+                {group.clusters.map((cluster, index) => (
+                  <MotionCard key={cluster.deal.id} index={index}>
                   <DealCard
-                    deal={deal}
-                    itemName={catalog.items.find((item) => item.id === deal.item_id)?.name ?? 'Unknown item'}
-                    storeName={catalog.stores.find((store) => store.id === deal.store_id)?.name ?? 'Unknown store'}
-                    pending={pendingId === deal.id}
+                    deal={cluster.deal}
+                    options={cluster.options}
+                    outOfStock={latestDealStock(cluster.deal, catalog.snapshots) === false}
+                    itemName={catalog.items.find((item) => item.id === cluster.deal.item_id)?.name ?? 'Unknown item'}
+                    storeName={catalog.stores.find((store) => store.id === cluster.deal.store_id)?.name ?? 'Unknown store'}
+                    pending={pendingId === cluster.deal.id}
                     canEdit={canEdit}
-                    onMark={(next) => void mark(deal, next)}
+                    onMark={(next) => void mark(cluster.deal, next)}
                   />
                   </MotionCard>
                 ))}
@@ -105,6 +120,8 @@ export function DealsPage() {
 
 function DealCard({
   deal,
+  options,
+  outOfStock,
   itemName,
   storeName,
   pending,
@@ -112,6 +129,8 @@ function DealCard({
   onMark,
 }: {
   deal: Deal
+  options: DealCluster['options']
+  outOfStock: boolean
   itemName: string
   storeName: string
   pending: boolean
@@ -128,6 +147,7 @@ function DealCard({
           <div className="flex flex-wrap items-center gap-2">
             <Badge className={verdictTone(verdictGroup(deal.verdict))}>{verdictLabel(verdictGroup(deal.verdict))}</Badge>
             <Badge className="bg-paper text-muted">{statusLabel(deal.status)}</Badge>
+            {outOfStock ? <Badge className="bg-skip-soft text-skip">Out of stock</Badge> : null}
             {deal.score != null ? <span className="text-sm tabular-nums text-muted">Score {deal.score}</span> : null}
           </div>
           <h3 className="mt-2 font-display text-2xl">{deal.title}</h3>
@@ -138,7 +158,7 @@ function DealCard({
           </p>
         </div>
         <div>
-          <p className="font-mono text-3xl font-medium tracking-tight tabular-nums">{formatCad(deal.price)}</p>
+          <p className={`font-mono text-3xl font-medium tracking-tight tabular-nums${outOfStock ? ' text-muted' : ''}`}>{formatCad(deal.price)}</p>
           {deal.regular_price != null ? (
             <p className="text-sm text-muted">
               <s>{formatCad(deal.regular_price)}</s>
@@ -151,6 +171,20 @@ function DealCard({
         <div className="mt-3 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-line" aria-hidden="true">
           <div className="h-full bg-pine" style={{ width: `${deal.score}%` }} />
         </div>
+      ) : null}
+      {options.length > 1 ? (
+        <ul className="mt-3 grid gap-1 text-sm">
+          {options.map((option) => {
+            const href = safeHttpUrl(option.url)
+            return (
+              <li key={`${option.label ?? 'option'}-${option.price}`} className="flex flex-wrap items-baseline gap-x-2">
+                <span>{option.label ?? 'Option'}</span>
+                <span className="tabular-nums">{formatCad(option.price)}</span>
+                {href ? <a className="text-pine underline" href={href} target="_blank" rel="noopener noreferrer">Open listing</a> : null}
+              </li>
+            )
+          })}
+        </ul>
       ) : null}
       {canEdit && deal.reason ? <p className="mt-3 max-w-2xl text-sm leading-6">{deal.reason}</p> : null}
       <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-muted">

@@ -2,7 +2,8 @@ import { categoryKey, toCents } from './format'
 import { priorityRank } from './labels'
 import { pickOpenDeal } from './deals'
 import { isQualifying } from './offers'
-import { allTimeLow, chooseBest, latestOffers, quoteFromSnapshot, sparklineValues } from './quotes'
+import { offerSeriesKey } from './identity'
+import { cheapestEver, chooseBest, offerQuotes, sparklineValues } from './quotes'
 import type { Quote } from './quotes'
 import type { ActivityFilter, Dataset, Deal, Item, Priority, WatchSort } from './types'
 
@@ -47,8 +48,9 @@ export function buildWatchRows(data: Dataset, now = new Date()): WatchRow[] {
     const quotes = sortQuotes(quotesByItem.get(item.id) ?? [])
     const other = sortQuotes(otherByItem.get(item.id) ?? [])
     const best = chooseBest(quotes)
-    const low = allTimeLow(qualifyingByItem.get(item.id) ?? [])
-    const atLow = best != null && low != null && toCents(best.price) <= toCents(low.price)
+    const ever = cheapestEver(qualifyingByItem.get(item.id) ?? [])
+    const low = ever && !ever.outOfStock ? ever.snapshot : null
+    const atLow = best != null && best.inStock !== false && low != null && toCents(best.price) <= toCents(low.price)
     const targetGap = best && item.target_price != null ? best.price - item.target_price : null
     return {
       item,
@@ -57,17 +59,24 @@ export function buildWatchRows(data: Dataset, now = new Date()): WatchRow[] {
       best,
       allTimeLow: low?.price ?? null,
       atLow,
-      spark: sparklineValues(qualifyingByItem.get(item.id) ?? [], now),
+      spark: sparklineValues(seriesSnapshots(qualifyingByItem.get(item.id) ?? [], best?.snapshotId ?? null), now),
       openDeal: pickOpenDeal(dealsByItem.get(item.id) ?? []),
       targetGap,
     }
   })
 }
 
+function seriesSnapshots(snapshots: Dataset['snapshots'], snapshotId: number | null): Dataset['snapshots'] {
+  if (snapshotId == null) return []
+  const current = snapshots.find((snapshot) => snapshot.id === snapshotId)
+  if (!current) return []
+  const key = offerSeriesKey(current)
+  return snapshots.filter((snapshot) => offerSeriesKey(snapshot) === key)
+}
+
 function quotesFor(data: Dataset, include: (snapshot: Dataset['snapshots'][number]) => boolean): Map<string, Quote[]> {
   const quotesByItem = new Map<string, Quote[]>()
-  for (const snapshot of latestOffers(data.snapshots.filter(include))) {
-    const quote = quoteFromSnapshot(snapshot, data.stores)
+  for (const quote of offerQuotes(data.snapshots.filter(include), data.stores)) {
     const list = quotesByItem.get(quote.itemId) ?? []
     list.push(quote)
     quotesByItem.set(quote.itemId, list)

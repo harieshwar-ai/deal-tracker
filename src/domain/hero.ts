@@ -1,6 +1,6 @@
 import { isCadCurrency, roundMoney } from './format'
 import { isQualifying } from './offers'
-import { allTimeLow, chooseBest, latestOffers, quoteFromSnapshot } from './quotes'
+import { cheapestEver, chooseBest, offerQuotes } from './quotes'
 import type { Dataset } from './types'
 import { priceCallForItem, type PriceCall } from './verdict'
 
@@ -46,7 +46,7 @@ export function heroStats(data: Dataset, includeTarget: boolean, now = new Date(
   for (const item of active) {
     const snapshots = data.snapshots.filter((snapshot) => snapshot.item_id === item.id)
     const qualifying = snapshots.filter(isQualifying)
-    const current = chooseBest(latestOffers(qualifying).map((snapshot) => quoteFromSnapshot(snapshot, data.stores)))
+    const current = chooseBest(offerQuotes(qualifying, data.stores))
     if (!current && snapshots.some((snapshot) => isCadCurrency(snapshot.currency) && snapshot.in_stock !== false)) {
       sawUnqualified = true
     }
@@ -63,7 +63,8 @@ export function heroStats(data: Dataset, includeTarget: boolean, now = new Date(
       includeTarget,
       now,
     })
-    const low = allTimeLow(qualifying)
+    const ever = cheapestEver(qualifying)
+    const low = ever && !ever.outOfStock ? ever.snapshot : null
     const above = low && low.price > 0 ? (current.price - low.price) / low.price : 1
     const candidate = {
       itemId: item.id,

@@ -56,7 +56,7 @@ const publicDealColumns = [
 
 const ownerDealColumns = [...publicDealColumns, 'reason'] as const
 
-const snapshotColumns = [
+const publicSnapshotColumns = [
   'id',
   'item_id',
   'store_id',
@@ -66,13 +66,14 @@ const snapshotColumns = [
   'regular_price',
   'currency',
   'in_stock',
-  'member_only',
   'captured_at',
   'sale_ends_at',
   'shipping',
   'product_name',
   'meets_requirements',
 ] as const
+
+const ownerSnapshotColumns = [...publicSnapshotColumns, 'member_only'] as const
 
 export const visitorHiddenColumns = {
   items: ['description', 'notes', 'target_price', 'max_price', 'requirements'],
@@ -89,7 +90,7 @@ export function selectColumns(table: 'items' | 'stores' | 'deals' | 'price_snaps
     case 'deals':
       return list(owner ? ownerDealColumns : publicDealColumns)
     case 'price_snapshots':
-      return list(snapshotColumns)
+      return list(owner ? ownerSnapshotColumns : publicSnapshotColumns)
     default: {
       const neverTable: never = table
       return neverTable

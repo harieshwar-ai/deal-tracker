@@ -20,7 +20,7 @@ export function Select({
       <SelectPrimitive.Trigger
         aria-label={label}
         className={cn(
-          'inline-flex h-11 min-w-40 items-center justify-between gap-3 rounded-lg border border-line bg-paper-2 px-3 text-left text-sm text-ink shadow-sm transition-[border-color,box-shadow] duration-200 hover:border-pine/40 focus:border-pine focus:outline-none focus:ring-2 focus:ring-pine/20 md:h-10',
+          'inline-flex h-11 min-w-40 items-center justify-between gap-3 rounded-lg border border-line bg-paper-2 px-3 text-left text-sm text-ink shadow-sm transition-[border-color,box-shadow] duration-200 hover:border-pine/40 focus:border-pine md:h-10',
           className,
         )}
       >
@@ -40,7 +40,7 @@ export function Select({
               <SelectPrimitive.Item
                 key={option.value}
                 value={option.value}
-                className="relative flex cursor-pointer items-center rounded-md py-2 pr-8 pl-3 text-sm outline-none data-[highlighted]:bg-paper data-[state=checked]:font-medium"
+                className="relative flex cursor-pointer items-center rounded-md py-2 pr-8 pl-3 text-sm outline-none data-[highlighted]:bg-pine-soft data-[highlighted]:outline data-[highlighted]:outline-2 data-[highlighted]:-outline-offset-2 data-[highlighted]:outline-pine data-[state=checked]:font-medium"
               >
                 <SelectPrimitive.ItemText>{option.label}</SelectPrimitive.ItemText>
                 <SelectPrimitive.ItemIndicator className="absolute right-2">

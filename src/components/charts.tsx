@@ -14,36 +14,48 @@ import {
   YAxis,
 } from 'recharts'
 import { formatAxisDay, formatCad } from '../domain/format'
-import { verdictChartColor } from '../domain/labels'
-import { palette, storePalette } from '../domain/palette'
+import { palette } from '../domain/palette'
 import { useTheme } from '../theme/theme'
+import { accents, darkStorePalette, lightStorePalette, semantic } from '../theme/tokens'
 import type { StoreIndexSeries } from '../domain/analytics'
 import type { HistorySeries } from '../domain/history'
 
-type ChartColors = { [Key in keyof typeof palette]: string }
-
-const darkStoreStrokes = ['#3dbe9a', '#e2b15a', '#8eb4d8', '#e0a3bc', '#a8d48f', '#7dcec8', '#e2a15a', '#aeb6e8'] as const
+type ChartColors = { [Key in keyof typeof palette]: string } & {
+  buy: string
+  onBuy: string
+  wait: string
+  skip: string
+  good: string
+  rise: string
+  unrated: string
+}
 
 function useChartColors(): ChartColors {
-  const { resolved } = useTheme()
-  if (resolved === 'dark') {
-    return {
-      ...palette,
-      pine: '#3dbe9a',
-      gold: '#e2b15a',
-      sea: '#8eb4d8',
-      ink: '#eef2f6',
-      muted: '#d5dee8',
-      grid: '#2a3340',
-      paper: '#151a21',
-    }
+  const { resolved, accent } = useTheme()
+  const tone = semantic[resolved]
+  const brand = accents[accent][resolved]
+  return {
+    ...palette,
+    pine: brand.pine,
+    gold: tone.wait,
+    sea: tone.sea,
+    ink: tone.ink,
+    muted: tone.muted,
+    grid: tone.grid,
+    paper: tone.paper,
+    buy: tone.buy,
+    onBuy: tone.onBuy,
+    wait: tone.wait,
+    skip: tone.skip,
+    good: tone.good,
+    rise: tone.rise,
+    unrated: tone.unrated,
   }
-  return palette
 }
 
 function useStoreStrokes(): readonly string[] {
   const { resolved } = useTheme()
-  return resolved === 'dark' ? darkStoreStrokes : storePalette
+  return resolved === 'dark' ? darkStorePalette : lightStorePalette
 }
 
 function chartLook(colors: ChartColors) {
@@ -143,6 +155,7 @@ export function PriceHistoryChart({
   points?: boolean
 }) {
   const look = chartLook(useChartColors())
+  const strokes = useStoreStrokes()
   return (
     <div className="h-80 w-full">
       <ResponsiveContainer width="100%" height="100%">
@@ -155,19 +168,19 @@ export function PriceHistoryChart({
           {low != null ? (
             <ReferenceLine
               y={low}
-              stroke={look.colors.pine}
+              stroke={look.colors.buy}
               strokeDasharray="2 4"
-              label={<ChartChip value="All-time low" fill={look.colors.paper} background={look.colors.pine} />}
+              label={<ChartChip value="All-time low" fill={look.colors.onBuy} background={look.colors.buy} />}
             />
           ) : null}
           {target != null ? <ReferenceLine y={target} stroke={look.colors.gold} strokeDasharray="4 4" label={{ value: 'Target', position: 'insideTopLeft', fill: look.colors.gold }} /> : null}
-          {series.map((entry) => (
+          {series.map((entry, index) => (
             <Line
               key={entry.id}
               type={points ? 'linear' : 'monotone'}
               dataKey={entry.id}
               name={entry.name}
-              stroke={entry.color}
+              stroke={strokes[index % strokes.length] ?? entry.color}
               strokeWidth={2}
               dot={{ r: points ? 4 : 2 }}
               connectNulls={points}
@@ -301,11 +314,11 @@ export function DealFlowChart({
           <YAxis allowDecimals={false} tick={{ fill: look.colors.muted, fontSize: 12 }} />
           <Tooltip contentStyle={look.tooltip} labelFormatter={(label) => formatAxisDay(String(label))} />
           <Legend wrapperStyle={{ color: look.colors.ink, fontSize: 12 }} />
-          <Bar dataKey="must_buy" name="Must buy" stackId="deals" fill={verdictChartColor('must_buy')} />
-          <Bar dataKey="good" name="Good" stackId="deals" fill={verdictChartColor('good')} />
-          <Bar dataKey="ok" name="OK" stackId="deals" fill={verdictChartColor('ok')} />
-          <Bar dataKey="skip" name="Skip" stackId="deals" fill={verdictChartColor('skip')} />
-          <Bar dataKey="unrated" name="Unrated" stackId="deals" fill={verdictChartColor('unrated')} />
+          <Bar dataKey="must_buy" name="Must buy" stackId="deals" fill={look.colors.buy} />
+          <Bar dataKey="good" name="Good" stackId="deals" fill={look.colors.good} />
+          <Bar dataKey="ok" name="OK" stackId="deals" fill={look.colors.sea} />
+          <Bar dataKey="skip" name="Skip" stackId="deals" fill={look.colors.skip} />
+          <Bar dataKey="unrated" name="Unrated" stackId="deals" fill={look.colors.unrated} />
         </BarChart>
       </ResponsiveContainer>
     </div>
