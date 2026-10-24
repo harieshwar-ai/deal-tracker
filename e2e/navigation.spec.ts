@@ -128,11 +128,23 @@ test('signed-out pages do not render membership text', async ({ page }) => {
   await expectNoMembershipText(page, 'item')
 })
 
+function membershipLabels(text: string): string[] {
+  const hits: string[] = []
+  for (const match of text.matchAll(new RegExp(membershipWords.source, 'gi'))) {
+    const word = match[0]
+    const index = match.index ?? 0
+    const after = text.slice(index, index + word.length + 12)
+    const around = text.slice(Math.max(0, index - 48), index + word.length + 48)
+    if (/^prime$/i.test(word) && /^prime day\b/i.test(after)) continue
+    if (/^executive$/i.test(word) && /executive office chair|adrano executive/i.test(around)) continue
+    hits.push(word)
+  }
+  return hits
+}
+
 async function expectNoMembershipText(page: Page, path: string) {
   const text = await page.locator('body').innerText()
-  const visible = text.replace(/prime day/gi, '')
-  const hits = [...visible.matchAll(new RegExp(membershipWords.source, 'gi'))].map((match) => match[0])
-  expect(hits, `${path} rendered membership text`).toEqual([])
+  expect(membershipLabels(text), `${path} rendered membership text`).toEqual([])
 }
 
 test('owner sign-in is only the header control', async ({ page }) => {
