@@ -277,7 +277,7 @@ export function ItemPage() {
                   return (
                     <tr key={snapshot.id} className="border-t border-line">
                       <td className="px-4 py-3 whitespace-nowrap">{formatDay(snapshot.captured_at)}</td>
-                      <td className="px-4 py-3">{storeName}{snapshot.member_only ? ' · member' : ''}</td>
+                      <td className="px-4 py-3">{storeName}</td>
                       <td className="px-4 py-3">
                         {href ? <a className="underline" href={href} target="_blank" rel="noopener noreferrer">{snapshot.product_name || snapshot.product_title || 'Listing'}</a> : (snapshot.product_name || snapshot.product_title || '—')}
                         {snapshot.meets_requirements === false ? <span className="mt-1 block text-xs text-muted">Doesn't meet specs</span> : null}

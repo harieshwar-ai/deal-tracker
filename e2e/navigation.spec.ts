@@ -103,6 +103,38 @@ test('direct links and reloads render', async ({ page }) => {
   }
 })
 
+const membershipWords = /\b(member(?:ship)?|executive|prime)\b/gi
+
+test('signed-out pages do not render membership text', async ({ page }) => {
+  const paths: { path: string; proof: string | RegExp }[] = [
+    { path: '/deal-tracker/', proof: /active items|Nothing to watch yet/ },
+    { path: '/deal-tracker/deals', proof: /Grouped by the checker|No deals yet/ },
+    { path: '/deal-tracker/stores', proof: /enabled stores|No stores on the list/ },
+    { path: '/deal-tracker/analytics', proof: '90 days' },
+    { path: '/deal-tracker/signin', proof: 'Sign in' },
+  ]
+  for (const entry of paths) {
+    await page.goto(entry.path)
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    await expect(page.getByText(entry.proof).first()).toBeVisible()
+    await expectNoMembershipText(page, entry.path)
+  }
+  await page.goto('/deal-tracker/')
+  const item = page.locator('#content a[href*="/items/"]').first()
+  await expect(item).toBeVisible()
+  await item.click()
+  await expect(page).toHaveURL(/\/items\//)
+  await expect(page.getByRole('heading', { level: 2, name: 'Snapshots' })).toBeVisible()
+  await expectNoMembershipText(page, 'item')
+})
+
+async function expectNoMembershipText(page: Page, path: string) {
+  const text = await page.locator('body').innerText()
+  const visible = text.replace(/prime day/gi, '')
+  const hits = [...visible.matchAll(new RegExp(membershipWords.source, 'gi'))].map((match) => match[0])
+  expect(hits, `${path} rendered membership text`).toEqual([])
+}
+
 test('owner sign-in is only the header control', async ({ page }) => {
   await page.goto('/deal-tracker/')
   await expect(page.getByRole('heading', { level: 1, name: 'Watchlist', exact: true })).toBeVisible()
@@ -121,6 +153,10 @@ test('owner sign-in is only the header control', async ({ page }) => {
   await signIn.click()
   await expect(page.getByRole('heading', { level: 1, name: 'Owner sign-in' })).toBeVisible()
   await expect(page).toHaveURL(/\/deal-tracker\/signin$/)
+  await expect(page.getByLabel('Password')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: /code/i })).toHaveCount(0)
+  await expect(page.getByText('Email me a code instead')).toHaveCount(0)
 
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/deal-tracker/')

@@ -14,7 +14,7 @@ Browser (Vite + React)
   │  anon read; owner session for writes
   ▼
 Supabase project ieohjxtkoiphewcfttuw (ca-central-1)
-  Auth   owner email + password, with a 6-digit email code as backup
+  Auth   owner email + password
   Postgres  stores, items, price_snapshots, deals
             public SELECT; writes only for the owner user
 ```
@@ -100,29 +100,16 @@ Authentication → URL configuration:
 | Redirect URLs | `https://harieshwar-ai.github.io/deal-tracker/` |
 | Redirect URLs | `http://localhost:5173/deal-tracker/` |
 
-Owner sign-in is email and password (`signInWithPassword`). **Email me a code instead** calls `signInWithOtp` with `shouldCreateUser: false`, then `verifyOtp` with the 6-digit code. A magic link in that same email still returns to the site root (`emailRedirectTo`). On return, the page calls `exchangeCodeForSession` once for `?code`. That link only completes in the browser that requested it, because the PKCE verifier lives in that browser’s local storage. The code works in any browser.
+Owner sign-in is email and password (`signInWithPassword`). The page does not send a one-time code or a magic link.
 
 Public sign-ups stay off. A session whose user id is not `ce399408-8885-49fd-a960-ce4479603aaa` is signed out.
-
-Paste this into Authentication → Emails → Templates → Magic link:
-
-```html
-<h2>Sign in to Harbour</h2>
-<p>Your code is</p>
-<p style="font-size:28px;letter-spacing:6px;font-weight:600;">{{ .Token }}</p>
-<p>Enter that code on the sign-in page. It works in any browser.</p>
-<p>Or open this link in the same browser where you requested the email:</p>
-<p><a href="{{ .ConfirmationURL }}">Sign in to Harbour</a></p>
-<p>The link and the code both expire soon. If you did not ask to sign in, you can ignore this email.</p>
-```
 
 ### Manual settings
 
 1. **Pages source.** Settings → Pages → GitHub Actions, as above. The site is already live.
 2. **Owner password.** Set the password on the existing owner account in the Supabase dashboard (or the Auth admin API). The app does not create users.
-3. **Keep public sign-ups off.** Authentication → Sign In / Providers → Email → “Allow new users to sign up” stays disabled. Enable the email provider so the password form works, and leave the 6-digit code available as the backup.
+3. **Keep public sign-ups off.** Authentication → Sign In / Providers → Email → “Allow new users to sign up” stays disabled. Enable the email provider so the password form works.
 4. **Column privileges.** `public_column_privileges` is already applied. The matching file is `supabase/migrations/20261022235500_public_column_privileges.sql`, and re-running it is safe. Leave `20261022204401_init_deal_tracker.sql` and `20261022234500_public_read_owner_write.sql` alone. Apply `20261022223000_analytics_views.sql` only if it is missing from `schema_migrations`.
-5. Paste the Magic link template above if you still want the backup email to include both the code and the link. The built-in Supabase mailer allows about two emails an hour. The code button waits 60 seconds between sends and shows the server’s 429 message when the hourly cap is hit. Day-to-day sign-in uses the password and does not send mail.
 
 ## How the numbers work
 

@@ -19,7 +19,6 @@ export function OfferChip({ quote, best }: { quote: Quote; best: boolean }) {
   const href = safeHttpUrl(selected?.productUrl ?? quote.productUrl)
   const price = selected?.price ?? quote.price
   const stock = selected?.inStock ?? quote.inStock
-  const member = (selected?.memberOnly ?? quote.memberOnly) === true
   const summary = variantSummary(quote)
   const discount = discountPercent(price, selected?.regularPrice ?? quote.regularPrice)
 
@@ -29,11 +28,11 @@ export function OfferChip({ quote, best }: { quote: Quote; best: boolean }) {
       <li>
         {href ? (
           <a href={href} target="_blank" rel="noopener noreferrer" className={chipClass(best)}>
-            <ChipBody name={quote.storeName} price={quote.price} discount={singleDiscount} member={quote.memberOnly === true} stock={quote.inStock} />
+            <ChipBody name={quote.storeName} price={quote.price} discount={singleDiscount} stock={quote.inStock} />
           </a>
         ) : (
           <span className={chipClass(best)}>
-            <ChipBody name={quote.storeName} price={quote.price} discount={singleDiscount} member={quote.memberOnly === true} stock={quote.inStock} />
+            <ChipBody name={quote.storeName} price={quote.price} discount={singleDiscount} stock={quote.inStock} />
           </span>
         )}
       </li>
@@ -50,7 +49,7 @@ export function OfferChip({ quote, best }: { quote: Quote; best: boolean }) {
           aria-controls={panelId}
           onClick={() => setOpen((value) => !value)}
         >
-          <ChipBody name={quote.storeName} price={price} discount={discount} member={member} stock={stock} />
+          <ChipBody name={quote.storeName} price={price} discount={discount} stock={stock} />
           {summary ? <span className="text-muted">{summary}</span> : null}
           <ChevronDown className={cn('h-3.5 w-3.5 text-muted motion-reduce:transition-none transition-transform duration-200', open && 'rotate-180')} />
         </button>
@@ -168,13 +167,11 @@ function ChipBody({
   name,
   price,
   discount,
-  member,
   stock,
 }: {
   name: string
   price: number
   discount: number | null
-  member: boolean
   stock: boolean | null
 }) {
   return (
@@ -182,7 +179,6 @@ function ChipBody({
       <StoreMark name={name} />
       <span>{name}</span> {formatCad(price)}
       {discount != null && discount > 0 ? <span className="text-drop"> {Math.round(discount)}%</span> : null}
-      {member ? <span className="text-gold"> member</span> : null}
       {stock === false ? <span className="text-rise"> out</span> : null}
     </>
   )

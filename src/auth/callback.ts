@@ -14,9 +14,6 @@ export interface AuthFailure {
 
 const authParamNames = ['code', 'error', 'error_code', 'error_description', 'sb_flow_id'] as const
 
-const sendCooldownMs = 60_000
-const rateLimitCooldownMs = 30 * 60 * 1000
-
 export function readAuthCallback(search: string): AuthCallback {
   const params = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search)
   return {
@@ -51,39 +48,29 @@ export function friendlyCallbackMessage(callback: AuthCallback): string | null {
   const code = callback.errorCode ?? callback.error ?? ''
   const description = callback.errorDescription ?? ''
   if (code === 'otp_expired' || /expired/i.test(description)) {
-    return 'That sign-in link has expired. Request a new email, then open the link in this browser or enter the 6-digit code.'
+    return 'That sign-in link has expired. Sign in with the owner email and password.'
   }
   if (description) return description
-  return 'The sign-in link was rejected. Request a new email and try again.'
+  return 'The sign-in link was rejected. Sign in with the owner email and password.'
 }
 
 export function explainAuthFailure(error: AuthFailure): string {
   if (error.name === 'AuthPKCECodeVerifierMissingError' || error.code === 'pkce_code_verifier_not_found') {
-    return 'This browser did not request that magic link, so the link cannot finish here. Enter the 6-digit code from the same email.'
+    return 'This browser did not request that link, so it cannot finish here. Sign in with the owner email and password.'
   }
   if (/invalid login credentials|invalid email or password/i.test(error.message)) {
     return 'That email or password does not match the Harbour owner account.'
   }
   if (error.status === 429 || error.code === 'over_request_rate_limit' || /rate limit/i.test(error.message)) {
-    return `Supabase is limiting email right now. The free mailer allows about two emails an hour. ${error.message}`
+    return 'Sign-in is temporarily limited. Wait a moment, then try the email and password again.'
   }
   if (error.code === 'otp_expired' || /expired|invalid/i.test(error.message)) {
-    return 'That code or link is invalid or has expired. Request a new email, then use the new link or the new 6-digit code.'
+    return 'That sign-in link is invalid or has expired. Sign in with the owner email and password.'
   }
   if (/signups not allowed|user not found/i.test(error.message)) {
     return 'That email is not the Harbour account. Only the owner can sign in.'
   }
   return error.message
-}
-
-export function waitUntilAfterSend(error: AuthFailure | null, now: number): number {
-  if (!error) return now + sendCooldownMs
-  const seconds = error.message.match(/after (\d+) second/i)
-  if (seconds) return now + Number(seconds[1]) * 1000
-  if (error.status === 429 || error.code === 'over_request_rate_limit' || /rate limit/i.test(error.message)) {
-    return now + rateLimitCooldownMs
-  }
-  return now + sendCooldownMs
 }
 
 export function stripAuthSearch(search: string): string {
@@ -98,24 +85,6 @@ export function replaceAuthCallbackUrl(): void {
   const nextSearch = stripAuthSearch(url.search)
   if (nextSearch === (url.search === '?' ? '' : url.search)) return
   window.history.replaceState(window.history.state, '', `${url.pathname}${nextSearch}${url.hash}`)
-}
-
-const waitKey = 'harbour-magic-link-wait-until'
-
-export function readWaitUntil(storage: Pick<Storage, 'getItem'>): number | null {
-  const raw = storage.getItem(waitKey)
-  if (!raw) return null
-  const value = Number(raw)
-  return Number.isFinite(value) ? value : null
-}
-
-export function rememberWaitUntil(storage: Pick<Storage, 'setItem'>, until: number): void {
-  storage.setItem(waitKey, String(until))
-}
-
-export function remainingCooldown(until: number | null, now: number): number {
-  if (until == null) return 0
-  return Math.max(0, until - now)
 }
 
 function blankToNull(value: string | null): string | null {

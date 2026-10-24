@@ -5,11 +5,7 @@ import {
   friendlyCallbackMessage,
   readAuthCallback,
   resetCapturedCallbackForTests,
-  readWaitUntil,
-  remainingCooldown,
-  rememberWaitUntil,
   stripAuthSearch,
-  waitUntilAfterSend,
 } from './callback'
 import { exchangeCodeOnce, resetCodeExchangeForTests } from './exchange'
 
@@ -35,34 +31,22 @@ describe('auth callback', () => {
     expect(second.message).toMatch(/expired/)
   })
 
-  it('explains a missing verifier, an invalid code, and a 429', () => {
+  it('explains a missing verifier, a bad password, and a 429 without offering a code', () => {
     expect(explainAuthFailure({
       message: 'PKCE code verifier not found in storage.',
       name: 'AuthPKCECodeVerifierMissingError',
       code: 'pkce_code_verifier_not_found',
-    })).toMatch(/6-digit code/)
+    })).toMatch(/email and password/)
     expect(explainAuthFailure({ message: 'Invalid login credentials', status: 400 })).toMatch(/password/)
-    expect(explainAuthFailure({ message: 'Email link is invalid or has expired', code: 'otp_expired' })).toMatch(/expired/)
-    expect(explainAuthFailure({ message: 'Email rate limit exceeded', status: 429 })).toMatch(/two emails an hour/)
+    expect(explainAuthFailure({ message: 'Email link is invalid or has expired', code: 'otp_expired' })).toMatch(/email and password/)
+    expect(explainAuthFailure({ message: 'Email rate limit exceeded', status: 429 })).toMatch(/email and password/)
     expect(explainAuthFailure({ message: 'Signups not allowed for this instance', status: 422 })).toMatch(/owner/)
-  })
-
-  it('cools down the send button, and longer after a rate limit', () => {
-    const now = 1_000_000
-    expect(waitUntilAfterSend(null, now) - now).toBe(60_000)
-    expect(waitUntilAfterSend({ message: 'For security purposes, you can only request this after 42 seconds.', status: 429 }, now) - now).toBe(42_000)
-    expect(waitUntilAfterSend({ message: 'Email rate limit exceeded', status: 429 }, now) - now).toBe(30 * 60 * 1000)
-    const storage = new Map<string, string>()
-    const memory = {
-      getItem: (key: string) => storage.get(key) ?? null,
-      setItem: (key: string, value: string) => {
-        storage.set(key, value)
-      },
+    for (const message of [
+      explainAuthFailure({ message: 'PKCE code verifier not found in storage.', code: 'pkce_code_verifier_not_found' }),
+      explainAuthFailure({ message: 'Email link is invalid or has expired', code: 'otp_expired' }),
+    ]) {
+      expect(message.toLowerCase()).not.toMatch(/code|magic link/)
     }
-    rememberWaitUntil(memory, now + 5000)
-    expect(readWaitUntil(memory)).toBe(now + 5000)
-    expect(remainingCooldown(readWaitUntil(memory), now)).toBe(5000)
-    expect(remainingCooldown(readWaitUntil(memory), now + 5000)).toBe(0)
   })
 
   it('exchanges one code once, even when React runs the effect twice', async () => {
