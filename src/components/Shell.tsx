@@ -1,4 +1,4 @@
-import { BarChart3, List, LogOut, RefreshCw, Store, Tag } from 'lucide-react'
+import { BarChart3, List, LogOut, RefreshCw, Store, Tag, Users } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import { useEffect, useRef } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
@@ -59,10 +59,10 @@ export function Shell() {
           {links.map((link) => (
             <NavItem key={link.to} {...link} count={link.to === '/deals' ? openDeals : 0} />
           ))}
+          {session && catalog.source !== 'preview' ? (
+            <NavItem to="/alerts" label="Subscribers" icon={Users} end={false} count={0} />
+          ) : null}
         </nav>
-        {session && catalog.source !== 'preview' ? (
-          <Link to="/alerts" className="mt-4 rounded-lg px-3 py-2.5 text-sm text-foam/70 hover:bg-white/5">Subscribers</Link>
-        ) : null}
         {catalog.source === 'preview' ? (
           <p className="mt-auto px-3 pt-6 text-sm text-foam/70">Sample data</p>
         ) : null}

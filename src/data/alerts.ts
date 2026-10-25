@@ -31,7 +31,6 @@ export async function requestConfirmationEmail(subscriptionId: string, email: st
       headers: {
         'content-type': 'application/json',
         apikey: supabasePublishableKey,
-        authorization: `Bearer ${supabasePublishableKey}`,
       },
       body: JSON.stringify({ action: 'confirm', subscription_id: subscriptionId, email }),
     })
@@ -53,11 +52,10 @@ export async function unsubscribeAlert(token: string): Promise<TokenOutcome> {
 }
 
 export async function loadSubscribers(): Promise<{ ok: true; rows: SubscriberListItem[] } | { ok: false }> {
-  const { data, error } = await supabase
-    .from('alert_subscriptions')
-    .select('id,email,item_id,category,status,created_at')
-    .order('created_at', { ascending: false })
-    .limit(500)
+  // Owner list goes through a definer function so the session never selects
+  // confirm_token or unsubscribe_token. A table select under a session the
+  // API cannot verify is what surfaced "No suitable key or wrong key type".
+  const { data, error } = await supabase.rpc('list_alert_subscribers')
   if (error || !Array.isArray(data)) return { ok: false }
   const rows: SubscriberListItem[] = []
   for (const row of data) {
@@ -79,6 +77,7 @@ export async function loadSubscribers(): Promise<{ ok: true; rows: SubscriberLis
 export function subscribeErrorCopy(error: SubscribeError | 'unavailable'): string {
   if (error === 'invalid_email') return 'Enter a valid email address.'
   if (error === 'rate_limited') return 'Too many alert requests. Try again in an hour.'
+  if (error === 'invalid_category') return 'Choose a category from the watchlist.'
   if (error === 'unknown_item') return 'That product is not on the watchlist.'
   if (error === 'unavailable') return 'Deal alerts are not available yet.'
   return 'Choose a product or a category.'

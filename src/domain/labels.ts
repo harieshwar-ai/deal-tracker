@@ -1,5 +1,50 @@
 import type { DatePreset, DealStatus, Priority, Verdict, VerdictGroup, WatchSort } from './types'
 
+const categoryLabels: Record<string, string> = {
+  'prebuilt-pc': 'Prebuilt PCs',
+  prebuilt: 'Prebuilt PCs',
+  'gaming-pc': 'Prebuilt PCs',
+  gpu: 'Graphics cards',
+  'graphics-card': 'Graphics cards',
+  'graphics-cards': 'Graphics cards',
+  ram: 'Memory (RAM)',
+  memory: 'Memory (RAM)',
+  ssd: 'SSDs',
+  ssds: 'SSDs',
+  nvme: 'SSDs',
+  chairs: 'Chairs',
+  chair: 'Chairs',
+  'pc hardware': 'PC Hardware',
+  'pc-hardware': 'PC Hardware',
+}
+
+const categoryAcronyms: Record<string, string> = {
+  pc: 'PC',
+  pcs: 'PCs',
+  gpu: 'GPU',
+  ram: 'RAM',
+  ssd: 'SSD',
+  ssds: 'SSDs',
+  nvme: 'NVMe',
+  cpu: 'CPU',
+  hdd: 'HDD',
+}
+
+/** Display name for an items.category value. Slugs such as gpu never stay raw. */
+export function categoryLabel(category: string | null | undefined): string {
+  const raw = (category ?? '').trim().replace(/\s+/g, ' ')
+  if (!raw) return 'Uncategorized'
+  const known = categoryLabels[raw.toLowerCase()]
+  if (known) return known
+  if (/[A-Z]/.test(raw) || raw.includes(' ')) return raw
+  return raw
+    .toLowerCase()
+    .split(/[-_]/)
+    .filter(Boolean)
+    .map((word) => categoryAcronyms[word] ?? `${word.charAt(0).toUpperCase()}${word.slice(1)}`)
+    .join(' ')
+}
+
 export function priorityLabel(priority: Priority): string {
   switch (priority) {
     case 'low':

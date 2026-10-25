@@ -1,7 +1,7 @@
 import type { DealStatus, Dataset, ItemWrite, StoreWrite } from '../domain/types'
 import { supabase } from '../lib/supabase'
 import { selectColumns } from './columns'
-import { friendlyError, missingColumnName, parseDealRow, parseItemRow, parseSnapshotRow, parseStoreRow } from './parse'
+import { friendlyError, isPrivilegeError, isUnusableCredential, missingColumnName, parseDealRow, parseItemRow, parseSnapshotRow, parseStoreRow } from './parse'
 
 const pageSize = 1000
 
@@ -83,6 +83,7 @@ async function fetchAll(
   const rows: unknown[] = []
   let columns = selectColumns(table, owner)
   let dropped = 0
+  let relaxed = false
   for (let from = 0; ; from += pageSize) {
     const { data, error } = await supabase
       .from(table)
@@ -94,6 +95,15 @@ async function fetchAll(
     if (missing && dropped < 8 && columns.split(',').includes(missing)) {
       columns = columns.split(',').filter((column) => column !== missing).join(',')
       dropped += 1
+      from -= pageSize
+      continue
+    }
+    // A session token PostgREST cannot verify (PGRST301) or a column the
+    // anon role cannot read would otherwise paint the raw gateway message.
+    // Public columns still load, so the page does not show that banner.
+    if (error && owner && !relaxed && (isUnusableCredential(error) || isPrivilegeError(error))) {
+      relaxed = true
+      columns = selectColumns(table, false)
       from -= pageSize
       continue
     }

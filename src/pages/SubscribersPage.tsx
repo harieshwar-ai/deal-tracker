@@ -8,6 +8,7 @@ import { Badge } from '../components/ui/badge'
 import { EmptyState, LoadingBlock } from '../components/ui/skeleton'
 import { loadSubscribers } from '../data/alerts'
 import { subscriberCounts, type SubscriberListItem } from '../domain/alerts'
+import { categoryLabel } from '../domain/labels'
 import { useDocumentTitle } from '../lib/title'
 import { useCatalog } from '../state/catalog'
 
@@ -73,7 +74,7 @@ export function SubscribersPage() {
         ) : (
           <>
             <div className="mt-6 grid gap-4 md:grid-cols-2">
-              <CountCard title="By category" rows={counts.byCategory.map((row) => ({ id: row.category, label: row.category, count: row.count }))} empty="No category alerts yet." />
+              <CountCard title="By category" rows={counts.byCategory.map((row) => ({ id: row.category, label: categoryLabel(row.category), count: row.count }))} empty="No category alerts yet." />
               <CountCard title="By product" rows={counts.byItem.map((row) => ({ id: row.itemId, label: names.get(row.itemId) ?? 'Removed item', count: row.count }))} empty="No product alerts yet." />
             </div>
             <div className="mt-6 overflow-x-auto rounded-xl border border-line bg-paper-2 shadow-sm">
@@ -89,7 +90,7 @@ export function SubscribersPage() {
                   {rows.map((row) => (
                     <tr key={row.id} className="border-b border-line last:border-0">
                       <td className="px-4 py-3">{row.email}</td>
-                      <td className="px-4 py-3">{row.itemId ? (names.get(row.itemId) ?? 'Removed item') : row.category}</td>
+                      <td className="px-4 py-3">{row.itemId ? (names.get(row.itemId) ?? 'Removed item') : categoryLabel(row.category)}</td>
                       <td className="px-4 py-3">
                         <Badge className="bg-paper text-ink">{statusCopy[row.status]}</Badge>
                         <span className="sr-only"> </span>

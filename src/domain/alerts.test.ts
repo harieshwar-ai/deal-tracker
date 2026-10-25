@@ -1,6 +1,7 @@
 // @ts-expect-error TS2591 — node:fs is available when Vitest runs the test.
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
+import { categoryLabel } from './labels'
 import {
   AUTOMATED_FOOTER,
   DEFAULT_ALERTS_FROM,
@@ -10,6 +11,7 @@ import {
   TARGET_PER_HOUR,
   canonicalPrice,
   chooseMailAdapter,
+  parseTokenResult,
   composeConfirmation,
   composeDealAlert,
   decideSubscribe,
@@ -60,6 +62,7 @@ describe('subscribe decisions', () => {
       category: '  gpu  ',
       now,
       itemExists: false,
+      categoryActive: true,
       existing: [],
     })).toEqual({ ok: true, result: 'pending', action: 'insert' })
     expect(decideSubscribe({
@@ -68,6 +71,7 @@ describe('subscribe decisions', () => {
       category: 'gpu',
       now,
       itemExists: false,
+      categoryActive: true,
       existing: [],
     }).ok).toBe(false)
     expect(decideSubscribe({
@@ -76,6 +80,7 @@ describe('subscribe decisions', () => {
       category: 'gpu',
       now,
       itemExists: true,
+      categoryActive: true,
       existing: [],
     })).toMatchObject({ ok: false, error: 'choose_one' })
     expect(decideSubscribe({
@@ -84,6 +89,7 @@ describe('subscribe decisions', () => {
       category: null,
       now,
       itemExists: true,
+      categoryActive: true,
       existing: [],
     })).toMatchObject({ ok: false, error: 'invalid_item' })
     expect(decideSubscribe({
@@ -92,8 +98,18 @@ describe('subscribe decisions', () => {
       category: null,
       now,
       itemExists: false,
+      categoryActive: true,
       existing: [],
     })).toMatchObject({ ok: false, error: 'unknown_item' })
+    expect(decideSubscribe({
+      email: 'ada@example.com',
+      itemId: null,
+      category: 'gpu',
+      now,
+      itemExists: false,
+      categoryActive: false,
+      existing: [],
+    })).toMatchObject({ ok: false, error: 'invalid_category' })
   })
 
   it('reuses a pending row, reports a confirmed row, and reopens an unsubscribed row', () => {
@@ -103,6 +119,7 @@ describe('subscribe decisions', () => {
       category: 'gpu',
       now,
       itemExists: false,
+      categoryActive: true,
       existing: [row()],
     })).toEqual({ ok: true, result: 'pending', action: 'reuse' })
     expect(decideSubscribe({
@@ -111,6 +128,7 @@ describe('subscribe decisions', () => {
       category: 'gpu',
       now,
       itemExists: false,
+      categoryActive: true,
       existing: [row({ status: 'confirmed' })],
     })).toEqual({ ok: true, result: 'already_confirmed', action: 'none' })
     expect(decideSubscribe({
@@ -119,6 +137,7 @@ describe('subscribe decisions', () => {
       category: 'gpu',
       now,
       itemExists: false,
+      categoryActive: true,
       existing: [row({ status: 'unsubscribed', createdAt: '2026-10-20T15:00:00.000Z' })],
     })).toEqual({ ok: true, result: 'pending', action: 'resubscribe' })
   })
@@ -133,6 +152,7 @@ describe('subscribe decisions', () => {
       category: 'ssd',
       now,
       itemExists: false,
+      categoryActive: true,
       existing: pending,
     })).toMatchObject({ ok: false, error: 'rate_limited' })
 
@@ -147,6 +167,7 @@ describe('subscribe decisions', () => {
       category: null,
       now,
       itemExists: true,
+      categoryActive: true,
       existing: crowded,
     })).toMatchObject({ ok: false, error: 'rate_limited' })
 
@@ -157,6 +178,7 @@ describe('subscribe decisions', () => {
       category: 'ssd',
       now,
       itemExists: false,
+      categoryActive: true,
       existing: [expired],
     })).toEqual({ ok: true, result: 'pending', action: 'insert' })
   })
@@ -240,6 +262,20 @@ describe('mail', () => {
       confirm_token: 'secret',
       email: 'ada@example.com',
     })).toEqual({ ok: true, result: 'pending', subscriptionId })
+    expect(parseTokenResult({
+      ok: true,
+      result: 'confirmed',
+      category: 'gpu',
+      item_id: itemId,
+      confirm_token: 'secret',
+    }, 'confirm')).toEqual({ ok: true, result: 'confirmed', category: 'gpu', itemId })
+    expect(categoryLabel('gpu')).toBe('Graphics cards')
+    expect(categoryLabel('ram')).toBe('Memory (RAM)')
+    expect(categoryLabel('ssd')).toBe('SSDs')
+    expect(categoryLabel('prebuilt-pc')).toBe('Prebuilt PCs')
+    expect(categoryLabel('chairs')).toBe('Chairs')
+    expect(categoryLabel('PC Hardware')).toBe('PC Hardware')
+    expect(categoryLabel('cooling-fans')).toBe('Cooling Fans')
   })
 })
 
@@ -255,6 +291,14 @@ describe('alert sql', () => {
     expect(migration).toContain('subscribe_to_alerts')
     expect(migration).toContain('confirm_alert')
     expect(migration).toContain('unsubscribe_alert')
+    expect(migration).toContain('list_alert_subscribers')
+    expect(migration).toContain('where category = v_category')
+    expect(migration).toContain('and active')
+    const listFn = migration.slice(migration.indexOf('function public.list_alert_subscribers'), migration.indexOf('revoke all on function public.list_alert_subscribers'))
+    expect(listFn).not.toContain('confirm_token')
+    expect(listFn).not.toContain('unsubscribe_token')
+    expect(migration).toMatch(/grant execute on function public\.list_alert_subscribers\(\) to authenticated/)
+    expect(migration).not.toMatch(/grant execute on function public\.list_alert_subscribers\(\) to anon/)
     expect(migration).toContain('ce399408-8885-49fd-a960-ce4479603aaa')
     expect(migration).not.toMatch(/grant select[^;]*to anon/i)
     const ownerGrant = migration.match(/grant select \([\s\S]*?\) on table public\.alert_subscriptions to authenticated/)

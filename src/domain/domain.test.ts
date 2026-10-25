@@ -10,7 +10,7 @@ import type { Quote } from './quotes'
 import type { Dataset, Deal, Item, PriceSnapshot, Priority, Store } from './types'
 import { buildWatchRows, filterWatchRows, sortWatchRows } from './watchlist'
 import { parseItemRow } from '../data/parse'
-import { friendlyError } from '../data/parse'
+import { friendlyError, isSendableBearer } from '../data/parse'
 import { createPreviewDataset } from '../preview/fixtures'
 import { writeParams } from '../lib/search'
 
@@ -235,6 +235,10 @@ describe('drafts and rows', () => {
     expect(row.keywords).toEqual([])
     expect(() => parseItemRow({ ...row, priority: 'urgent' })).toThrow(/Invalid items row/)
     expect(friendlyError({ code: '23505', message: 'duplicate' })).toMatch(/already exists/)
+    expect(friendlyError({ code: 'PGRST301', message: 'No suitable key or wrong key type' })).toBe('Could not load your data.')
+    expect(isSendableBearer('sb_publishable_example')).toBe(false)
+    expect(isSendableBearer('header.payload.sig')).toBe(false)
+    expect(isSendableBearer(`header.payload.${'a'.repeat(32)}`)).toBe(true)
   })
 })
 

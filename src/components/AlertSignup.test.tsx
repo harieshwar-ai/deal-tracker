@@ -7,6 +7,9 @@ import { AlertSignupDialog } from './AlertSignup'
 const itemId = '11111111-1111-4111-8111-111111111111'
 
 beforeEach(() => {
+  Element.prototype.hasPointerCapture ??= () => false
+  Element.prototype.setPointerCapture ??= () => {}
+  Element.prototype.releasePointerCapture ??= () => {}
   Object.defineProperty(window, 'matchMedia', {
     writable: true,
     configurable: true,
@@ -48,19 +51,22 @@ describe('deal alert dialog', () => {
   it('requires a valid email, consent, and one target', async () => {
     const user = userEvent.setup()
     const onSubmit = renderDialog()
-    await user.click(screen.getByRole('button', { name: 'Email me a confirmation' }))
+    const submit = screen.getByRole('button', { name: 'Email me a confirmation' })
+    expect((submit as HTMLButtonElement).disabled).toBe(true)
+    expect((screen.getByRole('checkbox') as HTMLInputElement).required).toBe(true)
+    expect(onSubmit).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole('checkbox'))
+    expect((submit as HTMLButtonElement).disabled).toBe(false)
+    await user.click(submit)
     expect(screen.getByRole('alert').textContent).toContain('Enter a valid email address.')
     expect(onSubmit).not.toHaveBeenCalled()
 
     await user.type(screen.getByLabelText('Email'), 'ada@example.com')
-    await user.click(screen.getByRole('button', { name: 'Email me a confirmation' }))
-    expect(screen.getByRole('alert').textContent).toContain('Consent is required.')
-    expect(onSubmit).not.toHaveBeenCalled()
-
-    await user.click(screen.getByRole('checkbox'))
     await user.click(screen.getByRole('radio', { name: 'A category' }))
-    await user.type(screen.getByLabelText('Category'), 'gpu')
-    await user.click(screen.getByRole('button', { name: 'Email me a confirmation' }))
+    await user.click(screen.getByRole('combobox', { name: 'Category' }))
+    await user.click(screen.getByRole('option', { name: 'Graphics cards' }))
+    await user.click(submit)
     expect(onSubmit).toHaveBeenCalledWith({ email: 'ada@example.com', itemId: null, category: 'gpu' })
   })
 
@@ -82,7 +88,7 @@ describe('deal alert dialog', () => {
     })
     await user.type(screen.getByLabelText('Email'), 'ada@example.com')
     await user.click(screen.getByRole('checkbox'))
-    await user.click(screen.getByRole('radio', { name: 'The chairs category' }))
+    await user.click(screen.getByRole('radio', { name: 'The Chairs category' }))
     await user.click(screen.getByRole('button', { name: 'Email me a confirmation' }))
     expect(categorySubmit).toHaveBeenCalledWith({ email: 'ada@example.com', itemId: null, category: 'chairs' })
   })

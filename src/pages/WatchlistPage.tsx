@@ -21,7 +21,7 @@ import { formatCad, formatPct, formatRelative, safeHttpUrl } from '../domain/for
 import { heroStats } from '../domain/hero'
 import { priceBrief } from '../domain/context'
 import type { PriceBrief } from '../domain/context'
-import { dealScoreLabel, priorityLabel, priorityTone, sortLabel, verdictTone } from '../domain/labels'
+import { categoryLabel, dealScoreLabel, priorityLabel, priorityTone, sortLabel, verdictTone } from '../domain/labels'
 import type { Item, WatchSort } from '../domain/types'
 import { buildTimeline } from '../domain/timeline'
 import { priceCallLabel, priceCallsForDataset, priceCallTone } from '../domain/verdict'
@@ -136,7 +136,7 @@ export function WatchlistPage() {
           label="Category"
           value={criteria.category ?? 'all'}
           onValueChange={(value) => update({ category: value === 'all' ? null : value })}
-          options={[{ value: 'all', label: 'All categories' }, ...categories.map((category) => ({ value: category, label: category }))]}
+          options={[{ value: 'all', label: 'All categories' }, ...categories.map((category) => ({ value: category, label: categoryLabel(category) }))]}
         />
         <Select
           label="Priority"
@@ -158,9 +158,9 @@ export function WatchlistPage() {
       </div>
       {category ? (
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-paper-2 px-4 py-3">
-          <p className="text-sm">Public price alerts for <span className="font-medium">{category}</span>.</p>
+          <p className="text-sm">Public price alerts for <span className="font-medium">{categoryLabel(category)}</span>.</p>
           <button type="button" className={buttonClass('secondary', 'sm')} onClick={() => openAlerts({ category })}>
-            Get alerts for {category}
+            Get alerts for {categoryLabel(category)}
           </button>
         </div>
       ) : null}
@@ -346,7 +346,7 @@ function WatchCard({
             {deal ? <Badge className={verdictTone(deal.verdict ?? 'unrated')}>{dealScoreLabel(deal.verdict)}</Badge> : null}
           </div>
           <p className="mt-2 text-sm text-muted">
-            {[row.item.category, row.item.condition].filter(Boolean).join(' · ') || 'No category'}
+            {[row.item.category ? categoryLabel(row.item.category) : null, row.item.condition].filter(Boolean).join(' · ') || 'No category'}
             {canEdit && row.item.target_price != null ? ` · target ${formatCad(row.item.target_price)}` : ''}
           </p>
           {!canEdit && row.item.public_summary ? <p className="mt-2 text-sm leading-6 text-ink">{row.item.public_summary}</p> : null}

@@ -172,9 +172,17 @@ begin
   end if;
 
   if v_item_id is not null and not exists (
-    select 1 from public.items where id = v_item_id
+    select 1 from public.items where id = v_item_id and active
   ) then
     return pg_catalog.jsonb_build_object('ok', false, 'error', 'unknown_item');
+  end if;
+
+  if v_category is not null and not exists (
+    select 1 from public.items
+    where category = v_category
+      and active
+  ) then
+    return pg_catalog.jsonb_build_object('ok', false, 'error', 'invalid_category');
   end if;
 
   perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(v_email, 0));
@@ -277,7 +285,7 @@ begin
   end if;
 
   if v_row.status = 'confirmed' then
-    return pg_catalog.jsonb_build_object('ok', true, 'result', 'already_confirmed');
+    return pg_catalog.jsonb_build_object('ok', true, 'result', 'already_confirmed', 'category', v_row.category, 'item_id', v_row.item_id);
   end if;
 
   update public.alert_subscriptions
@@ -286,7 +294,7 @@ begin
   where id = v_row.id
     and status = 'pending';
 
-  return pg_catalog.jsonb_build_object('ok', true, 'result', 'confirmed');
+  return pg_catalog.jsonb_build_object('ok', true, 'result', 'confirmed', 'category', v_row.category, 'item_id', v_row.item_id);
 end;
 $$;
 
@@ -317,14 +325,47 @@ begin
     where id = v_row.id;
   end if;
 
-  return pg_catalog.jsonb_build_object('ok', true, 'result', 'unsubscribed');
+  return pg_catalog.jsonb_build_object('ok', true, 'result', 'unsubscribed', 'category', v_row.category, 'item_id', v_row.item_id);
 end;
+$$;
+
+create or replace function public.list_alert_subscribers()
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select case
+    when (select auth.uid()) is distinct from 'ce399408-8885-49fd-a960-ce4479603aaa'::uuid then '[]'::jsonb
+    else coalesce((
+      select pg_catalog.jsonb_agg(
+        pg_catalog.jsonb_build_object(
+          'id', sub.id,
+          'email', sub.email,
+          'item_id', sub.item_id,
+          'category', sub.category,
+          'status', sub.status,
+          'created_at', sub.created_at
+        )
+        order by sub.created_at desc
+      )
+      from (
+        select id, email, item_id, category, status, created_at
+        from public.alert_subscriptions
+        order by created_at desc
+        limit 500
+      ) as sub
+    ), '[]'::jsonb)
+  end;
 $$;
 
 revoke all on function public.subscribe_to_alerts(text, uuid, text) from public;
 revoke all on function public.confirm_alert(text) from public;
 revoke all on function public.unsubscribe_alert(text) from public;
+revoke all on function public.list_alert_subscribers() from public, anon;
 
 grant execute on function public.subscribe_to_alerts(text, uuid, text) to anon, authenticated;
 grant execute on function public.confirm_alert(text) to anon, authenticated;
 grant execute on function public.unsubscribe_alert(text) to anon, authenticated;
+grant execute on function public.list_alert_subscribers() to authenticated;

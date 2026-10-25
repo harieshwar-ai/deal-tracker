@@ -1,7 +1,8 @@
 import { createContext, useCallback, useContext, useMemo, useState } from 'react'
-import type { FormEvent, ReactNode } from 'react'
+import type { FormEvent, KeyboardEvent, ReactNode } from 'react'
 import { useCatalog } from '../state/catalog'
 import { watchCategories } from '../domain/watchlist'
+import { categoryLabel } from '../domain/labels'
 import { normalizeCategory, normalizeEmail, normalizeUuid } from '../domain/alerts'
 import { requestConfirmationEmail, subscribeErrorCopy, subscribeToAlerts } from '../data/alerts'
 import type { AlertChoice } from '../data/alerts'
@@ -9,6 +10,7 @@ import { useToast } from './toast'
 import { Button } from './ui/button'
 import { Modal } from './ui/dialog'
 import { Field, Input, controlClass } from './ui/input'
+import { Select } from './ui/select'
 
 export interface AlertPreset {
   itemId?: string | null
@@ -38,13 +40,14 @@ export function AlertSignupProvider({ children }: { children: ReactNode }) {
   const [pending, setPending] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [nonce, setNonce] = useState(0)
+  const activeItems = useMemo(() => catalog.items.filter((item) => item.active), [catalog.items])
   const items = useMemo(
-    () => catalog.items.map((item) => ({ id: item.id, name: item.name, category: item.category })),
-    [catalog.items],
+    () => activeItems.map((item) => ({ id: item.id, name: item.name, category: item.category })),
+    [activeItems],
   )
   const categories = useMemo(
-    () => watchCategories(catalog.items).filter((category) => category !== 'Uncategorized'),
-    [catalog.items],
+    () => watchCategories(activeItems).filter((category) => category !== 'Uncategorized'),
+    [activeItems],
   )
   const openAlerts = useCallback((next?: AlertPreset) => {
     setPreset(next ?? {})
@@ -64,7 +67,10 @@ export function AlertSignupProvider({ children }: { children: ReactNode }) {
       return
     }
     if (result.result === 'already_confirmed') {
-      push('ok', "You're already subscribed to these alerts.")
+      const label = choice.itemId
+        ? items.find((item) => item.id === choice.itemId)?.name
+        : choice.category ? categoryLabel(choice.category) : null
+      push('ok', label ? `You're already subscribed to ${label} alerts.` : "You're already subscribed to these alerts.")
       setOpen(false)
       return
     }
@@ -117,7 +123,7 @@ export function AlertSignupDialog({
   const [email, setEmail] = useState('')
   const [consent, setConsent] = useState(false)
   const [itemId, setItemId] = useState(product?.id ?? '')
-  const [category, setCategory] = useState(lockedCategory ?? '')
+  const [category, setCategory] = useState(lockedCategory ?? categories[0] ?? '')
   const [localError, setLocalError] = useState<string | null>(null)
   const showChoice = openEntry || Boolean(product && lockedCategory)
   const knownCategories = lockedCategory
@@ -163,7 +169,7 @@ export function AlertSignupDialog({
       description="Harbour emails you after you confirm. Messages only include the public product name, price, store, and link."
       onClose={onClose}
     >
-      <form className="grid gap-4" onSubmit={submit}>
+      <form className="grid gap-4" noValidate onSubmit={submit}>
         <Field label="Email">
           <Input
             type="email"
@@ -198,53 +204,41 @@ export function AlertSignupDialog({
                 disabled={pending}
                 onChange={() => setMode('category')}
               />
-              {lockedCategory ? `The ${lockedCategory} category` : 'A category'}
+              {lockedCategory ? `The ${categoryLabel(lockedCategory)} category` : 'A category'}
             </label>
           </fieldset>
         ) : (
-          <p className="text-sm leading-6">
-            {product ? `Alerts for ${product.name}.` : `Alerts for ${lockedCategory}.`}
+          <p className="text-sm leading-6 text-ink">
+            {product ? `Alerts for ${product.name}.` : `Alerts for ${categoryLabel(lockedCategory)}.`}
           </p>
         )}
         {mode === 'item' && openEntry ? (
-          <label className="block text-sm font-medium">
-            Product
-            <select
-              className={`${controlClass} mt-1.5`}
-              aria-label="Product"
-              value={itemId}
-              disabled={pending}
-              onChange={(event) => setItemId(event.target.value)}
-            >
-              <option value="">Choose a product</option>
-              {items.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-            </select>
-          </label>
+          <ItemCombobox items={items} value={itemId} disabled={pending} onChange={setItemId} />
         ) : null}
         {mode === 'category' && openEntry ? (
           <div>
-            <label className="block text-sm font-medium">
-              Category
-              <Input
-                className="mt-1.5"
-                list="alert-categories"
-                aria-label="Category"
+            <p className="text-sm font-medium text-ink">Category</p>
+            {knownCategories.length === 0 ? (
+              <p className="mt-1.5 text-sm text-muted">No categories on the watchlist yet.</p>
+            ) : (
+              <Select
+                label="Category"
+                className="mt-1.5 w-full min-w-0"
                 value={category}
-                disabled={pending}
-                onChange={(event) => setCategory(event.target.value)}
+                onValueChange={setCategory}
+                options={knownCategories.map((entry) => ({ value: entry, label: categoryLabel(entry) }))}
               />
-            </label>
-            <p className="mt-1 text-sm text-muted">Use the name Harbour shows, or a category you want watched.</p>
-            <datalist id="alert-categories">
-              {knownCategories.map((entry) => <option key={entry} value={entry} />)}
-            </datalist>
+            )}
           </div>
         ) : null}
-        <label className="flex items-start gap-3 text-sm leading-6">
+        <label className="flex items-start gap-3 text-sm leading-6 text-ink">
           <input
             type="checkbox"
-            className="mt-1 h-4 w-4 accent-pine"
+            className="mt-1 h-4 w-4 accent-pine focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine"
             checked={consent}
+            required
+            aria-required="true"
+            onInvalid={(event) => event.preventDefault()}
             disabled={pending}
             onChange={(event) => setConsent(event.target.checked)}
           />
@@ -252,9 +246,95 @@ export function AlertSignupDialog({
         </label>
         {error ? <p className="text-sm text-clay" role="alert">{error}</p> : null}
         <div className="flex justify-end">
-          <Button type="submit" disabled={pending}>{pending ? 'Sending…' : 'Email me a confirmation'}</Button>
+          <Button type="submit" disabled={pending || !consent}>{pending ? 'Sending…' : 'Email me a confirmation'}</Button>
         </div>
       </form>
     </Modal>
+  )
+}
+
+function ItemCombobox({
+  items,
+  value,
+  disabled,
+  onChange,
+}: {
+  items: AlertItem[]
+  value: string
+  disabled: boolean
+  onChange: (id: string) => void
+}) {
+  const selected = items.find((item) => item.id === value) ?? null
+  const [query, setQuery] = useState(selected?.name ?? '')
+  const [open, setOpen] = useState(false)
+  const needle = query.trim().toLowerCase()
+  const matches = items.filter((item) => item.name.toLowerCase().includes(needle))
+
+  function choose(id: string) {
+    const item = items.find((entry) => entry.id === id)
+    onChange(id)
+    setQuery(item?.name ?? '')
+    setOpen(false)
+  }
+
+  function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === 'Escape') {
+      setOpen(false)
+      return
+    }
+    if (event.key === 'Enter' && open && matches[0]) {
+      event.preventDefault()
+      choose(matches[0].id)
+    }
+  }
+
+  return (
+    <div className="relative">
+      <label className="block text-sm font-medium text-ink" htmlFor="alert-product">
+        Product
+      </label>
+      <input
+        id="alert-product"
+        className={`${controlClass} mt-1.5`}
+        role="combobox"
+        aria-label="Product"
+        aria-expanded={open}
+        aria-controls="alert-products"
+        aria-autocomplete="list"
+        value={query}
+        disabled={disabled}
+        placeholder="Search products"
+        onChange={(event) => {
+          setQuery(event.target.value)
+          onChange('')
+          setOpen(true)
+        }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
+        onKeyDown={onKeyDown}
+      />
+      {open ? (
+        <ul id="alert-products" role="listbox" aria-label="Products" className="absolute z-20 mt-1 max-h-52 w-full overflow-auto rounded-lg border border-line bg-paper-2 p-1 text-ink shadow-lg">
+          {matches.length === 0 ? (
+            <li className="px-3 py-2 text-sm text-muted">No matching products.</li>
+          ) : matches.map((item) => (
+            <li key={item.id}>
+              <button
+                type="button"
+                role="option"
+                aria-selected={item.id === value}
+                className="w-full rounded-md px-3 py-2 text-left text-sm text-ink hover:bg-pine-soft focus-visible:bg-pine-soft focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-pine"
+                onMouseDown={(event) => {
+                  event.preventDefault()
+                  choose(item.id)
+                }}
+              >
+                {item.name}
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
   )
 }

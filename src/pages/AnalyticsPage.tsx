@@ -14,8 +14,8 @@ import { FadeIn } from '../components/motion'
 import { EmptyState, ErrorState, LoadingBlock, Segmented, Select } from '../components/ui'
 import { computeAnalytics } from '../domain/analytics'
 import { parsePresetParam } from '../domain/filters'
-import { categoryKey, formatAxisDay, formatCad, formatDay, formatPct } from '../domain/format'
-import { presetLabel, statusLabel } from '../domain/labels'
+import { formatAxisDay, formatCad, formatDay, formatPct } from '../domain/format'
+import { categoryLabel, presetLabel, statusLabel } from '../domain/labels'
 import type { DatePreset, DealStatus } from '../domain/types'
 import { watchCategories } from '../domain/watchlist'
 import { writeParams } from '../lib/search'
@@ -73,7 +73,7 @@ export function AnalyticsPage() {
           label="Category"
           value={category ?? 'all'}
           onValueChange={(value) => update({ category: value === 'all' ? null : value })}
-          options={[{ value: 'all', label: 'All categories' }, ...categories.map((entry) => ({ value: entry, label: entry }))]}
+          options={[{ value: 'all', label: 'All categories' }, ...categories.map((entry) => ({ value: entry, label: categoryLabel(entry) }))]}
         />
         <Select
           label="Store"
@@ -229,7 +229,7 @@ export function AnalyticsPage() {
                 <tbody>
                   {model.categories.map((entry) => (
                     <tr key={entry.category} className="border-t border-line">
-                      <td className="py-2">{entry.category}</td>
+                      <td className="py-2">{categoryLabel(entry.category)}</td>
                       <td className="py-2 tabular-nums">{entry.items}</td>
                       {canEdit ? <td className="py-2 tabular-nums">{entry.underTarget}</td> : null}
                       <td className="py-2 tabular-nums">{entry.openDeals}</td>
@@ -266,7 +266,7 @@ export function AnalyticsPage() {
                       <tr key={row.itemId} className="border-t border-line">
                         <td className="py-2">
                           <Link className="underline" to={`/items/${row.itemId}`}>{row.itemName}</Link>
-                          <span className="block text-xs text-muted">{categoryKey(row.category)}</span>
+                          <span className="block text-xs text-muted">{categoryLabel(row.category)}</span>
                         </td>
                         <td className="py-2 tabular-nums">{formatCad(row.atlPrice)}<span className="block text-xs text-muted">{row.atlStoreName}</span></td>
                         <td className="py-2">{formatDay(row.atlAt)}</td>

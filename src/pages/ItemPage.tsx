@@ -20,7 +20,7 @@ import { clusterDeals } from '../domain/deals'
 import { itemToDraft } from '../domain/drafts'
 import { discountPercent, formatCad, formatDay, formatRelative, safeHttpUrl } from '../domain/format'
 import { buildPriceHistory, historyChartState } from '../domain/history'
-import { priorityLabel, priorityTone, verdictLabel, verdictTone } from '../domain/labels'
+import { categoryLabel, priorityLabel, priorityTone, verdictLabel, verdictTone } from '../domain/labels'
 import { isQualifying } from '../domain/offers'
 import { cheapestEver, chooseBest, offerQuotes } from '../domain/quotes'
 import { buildTimeline } from '../domain/timeline'
@@ -117,7 +117,7 @@ export function ItemPage() {
                 {item.enrichment_status === 'pending_enrichment' ? <Badge className="bg-gold-soft text-gold">Waiting for the next scan</Badge> : null}
               </div>
               <p className="mt-1 text-sm font-medium text-muted">
-                {[item.category, item.condition].filter(Boolean).join(' · ') || 'No category'}
+                {[item.category ? categoryLabel(item.category) : null, item.condition].filter(Boolean).join(' · ') || 'No category'}
               </p>
             </div>
             <div className="flex gap-2">

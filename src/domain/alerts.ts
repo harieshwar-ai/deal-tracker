@@ -94,6 +94,8 @@ export function decideSubscribe(input: {
   category: string | null
   now: Date
   itemExists: boolean
+  /** True only when the category is stored on an active item. */
+  categoryActive: boolean
   existing: AlertSubscriptionRow[]
 }): SubscribeDecision {
   const email = normalizeEmail(input.email)
@@ -111,7 +113,7 @@ export function decideSubscribe(input: {
     if (!input.itemExists) return { ok: false, error: 'unknown_item' }
   } else {
     category = normalizeCategory(rawCategory)
-    if (!category) return { ok: false, error: 'invalid_category' }
+    if (!category || input.categoryActive !== true) return { ok: false, error: 'invalid_category' }
   }
 
   const cutoff = input.now.getTime() - HOUR_MS
@@ -153,18 +155,20 @@ export function parseSubscribeResult(data: unknown): { ok: true; result: 'pendin
 }
 
 export type TokenOutcome =
-  | { ok: true; result: 'confirmed' | 'already_confirmed' | 'unsubscribed' }
+  | { ok: true; result: 'confirmed' | 'already_confirmed' | 'unsubscribed'; category: string | null; itemId: string | null }
   | { ok: false; error: 'invalid_token' | 'unavailable' }
 
 export function parseTokenResult(data: unknown, kind: 'confirm' | 'unsubscribe'): TokenOutcome {
   if (!data || typeof data !== 'object') return { ok: false, error: 'unavailable' }
-  const row = data as { ok?: unknown; result?: unknown; error?: unknown }
+  const row = data as { ok?: unknown; result?: unknown; error?: unknown; category?: unknown; item_id?: unknown }
   if (row.error === 'invalid_token') return { ok: false, error: 'invalid_token' }
+  const category = typeof row.category === 'string' ? row.category : null
+  const itemId = typeof row.item_id === 'string' && normalizeUuid(row.item_id) ? row.item_id.toLowerCase() : null
   if (kind === 'confirm' && row.ok === true && (row.result === 'confirmed' || row.result === 'already_confirmed')) {
-    return { ok: true, result: row.result }
+    return { ok: true, result: row.result, category, itemId }
   }
   if (kind === 'unsubscribe' && row.ok === true && row.result === 'unsubscribed') {
-    return { ok: true, result: 'unsubscribed' }
+    return { ok: true, result: 'unsubscribed', category, itemId }
   }
   return { ok: false, error: 'unavailable' }
 }

@@ -15,6 +15,7 @@ import {
   secretsMatch,
 } from '../../../src/domain/alerts.ts'
 import { safeHttpUrl } from '../../../src/domain/format.ts'
+import { categoryLabel } from '../../../src/domain/labels.ts'
 import { deliver } from './deliver.ts'
 
 interface SubscriptionRow {
@@ -224,7 +225,8 @@ async function targetLabel(row: SubscriptionRow): Promise<string> {
     const item = await findItem(row.item_id)
     return item?.name || 'this product'
   }
-  return normalizeCategory(row.category) || 'this category'
+  const label = categoryLabel(normalizeCategory(row.category))
+  return label === 'Uncategorized' ? 'this category' : label
 }
 
 async function findItem(id: string): Promise<ItemRow | null> {

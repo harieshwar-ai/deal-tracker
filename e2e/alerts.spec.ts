@@ -78,7 +78,8 @@ test('visitor can request, confirm, and unsubscribe with mocked tokens', async (
   await expect(dialog.getByRole('heading', { name: 'Get deal alerts' })).toBeVisible()
   await dialog.getByRole('textbox', { name: 'Email', exact: true }).fill('ada@example.com')
   await dialog.getByRole('radio', { name: 'A category' }).click()
-  await dialog.getByRole('combobox', { name: 'Category', exact: true }).fill('gpu')
+  await dialog.getByRole('combobox', { name: 'Category', exact: true }).click()
+  await page.getByRole('option', { name: 'PC Hardware' }).click()
   await dialog.getByRole('checkbox').check()
   await dialog.getByRole('button', { name: 'Email me a confirmation' }).click()
   await expect(page.getByText('Check your inbox to confirm')).toBeVisible()
@@ -101,6 +102,10 @@ test('visitors do not load the subscriber list', async ({ page }) => {
     sawSubscribers = true
     await fulfillJson(route, [])
   })
+  await page.route('**/rest/v1/rpc/list_alert_subscribers', async (route) => {
+    sawSubscribers = true
+    await fulfillJson(route, [])
+  })
   await page.goto('/deal-tracker/alerts')
   await expect(page.getByText('Sign in as the owner to view subscribers.')).toBeVisible()
   expect(sawSubscribers).toBe(false)
@@ -108,7 +113,12 @@ test('visitors do not load the subscriber list', async ({ page }) => {
 
 test('owner sees subscriber counts and addresses', async ({ page }) => {
   await ownerSession(page)
-  await page.route('**/rest/v1/alert_subscriptions*', (route) => fulfillJson(route, [
+  let sawTokenSelect = false
+  await page.route('**/rest/v1/alert_subscriptions*', async (route) => {
+    sawTokenSelect = true
+    await fulfillJson(route, [])
+  })
+  await page.route('**/rest/v1/rpc/list_alert_subscribers', (route) => fulfillJson(route, [
     {
       id: subscriptionId,
       email: 'harirmdeee@gmail.com',
@@ -131,5 +141,10 @@ test('owner sees subscriber counts and addresses', async ({ page }) => {
   await expect(page.getByText('1 confirmed · 1 pending · 0 unsubscribed')).toBeVisible()
   await expect(page.getByText('harirmdeee@gmail.com')).toBeVisible()
   await expect(page.getByText('ada@example.com')).toBeVisible()
+  await expect(page.getByText('Graphics cards')).toHaveCount(2)
+  await expect(page.getByText('Memory (RAM)')).toHaveCount(2)
+  await expect(page.getByText('gpu', { exact: true })).toHaveCount(0)
+  await expect(page.getByText('No suitable key or wrong key type')).toHaveCount(0)
   await expect(page.getByText('Sign in as the owner to view subscribers.')).toHaveCount(0)
+  expect(sawTokenSelect).toBe(false)
 })
