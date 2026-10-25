@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { FadeIn } from '../components/motion'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useCanEdit } from '../auth/AuthProvider'
+import { useAlertSignup } from '../components/AlertSignup'
 import { PriceHistoryChart } from '../components/charts'
 import { ProductCompare, StoreTable } from '../components/CompareTables'
 import { PriceBrief } from '../components/PriceBrief'
@@ -36,6 +37,7 @@ export function ItemPage() {
   const canEdit = useCanEdit()
   const navigate = useNavigate()
   const push = useToast()
+  const openAlerts = useAlertSignup()
   const item = catalog.items.find((entry) => entry.id === itemId)
   useDocumentTitle(item?.name ?? 'Item', item?.public_summary)
   const [editing, setEditing] = useState(false)
@@ -118,12 +120,11 @@ export function ItemPage() {
                 {[item.category, item.condition].filter(Boolean).join(' · ') || 'No category'}
               </p>
             </div>
-            {canEdit ? (
-              <div className="flex gap-2">
-                <Button variant="secondary" onClick={() => setEditing(true)}>Edit</Button>
-                <Button variant="danger" onClick={() => setRemoving(true)}>Delete</Button>
-              </div>
-            ) : null}
+            <div className="flex gap-2">
+              <Button variant="secondary" onClick={() => openAlerts({ itemId: item.id, itemName: item.name, category: item.category })}>Get deal alerts</Button>
+              {canEdit ? <Button variant="secondary" onClick={() => setEditing(true)}>Edit</Button> : null}
+              {canEdit ? <Button variant="danger" onClick={() => setRemoving(true)}>Delete</Button> : null}
+            </div>
           </div>
           <p className="mt-2 max-w-2xl text-sm leading-6">
             <Badge className={priceCallTone(call.call)}>{priceCallLabel(call.call)}</Badge>

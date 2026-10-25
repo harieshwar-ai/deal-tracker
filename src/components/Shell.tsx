@@ -8,6 +8,7 @@ import { cn } from '../lib/cn'
 import { leavePreview } from '../preview/mode'
 import { useCatalog } from '../state/catalog'
 import { RouteTransition } from './motion'
+import { useAlertSignup } from './AlertSignup'
 import { ThemeToggle } from './ThemeToggle'
 import { LoadingBlock } from './ui/skeleton'
 import { Tooltip } from './ui/tooltip'
@@ -27,6 +28,7 @@ export function Shell() {
   const navigate = useNavigate()
   const consumed = useRef(false)
   const openDeals = catalog.deals.filter((deal) => deal.status === 'open').length
+  const openAlerts = useAlertSignup()
 
   useEffect(() => {
     if (!session || consumed.current) return
@@ -58,13 +60,24 @@ export function Shell() {
             <NavItem key={link.to} {...link} count={link.to === '/deals' ? openDeals : 0} />
           ))}
         </nav>
+        {session && catalog.source !== 'preview' ? (
+          <Link to="/alerts" className="mt-4 rounded-lg px-3 py-2.5 text-sm text-foam/70 hover:bg-white/5">Subscribers</Link>
+        ) : null}
         {catalog.source === 'preview' ? (
           <p className="mt-auto px-3 pt-6 text-sm text-foam/70">Sample data</p>
         ) : null}
       </aside>
       <div className="min-w-0">
-        <header className="flex items-center justify-between gap-3 border-b border-line px-4 py-3 md:px-8">
-          <p className="font-display text-2xl md:hidden">Harbour</p>
+        <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-line px-4 py-3 md:px-8">
+          <div className="flex items-center gap-3">
+            <p className="font-display text-2xl md:hidden">Harbour</p>
+            {session && catalog.source !== 'preview' ? (
+              <Link to="/alerts" className="text-sm text-muted underline md:hidden">Subscribers</Link>
+            ) : null}
+            <button type="button" className="text-sm text-ink underline decoration-line underline-offset-4" onClick={() => openAlerts()}>
+              Deal alerts
+            </button>
+          </div>
           <p className="hidden text-sm text-muted md:block">
             {catalog.source === 'preview' ? 'Sample data on this browser. Refresh restores it.' : 'Prices from the daily Canadian store check.'}
           </p>

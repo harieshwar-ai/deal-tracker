@@ -8,6 +8,12 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
+    files: ['supabase/functions/**/*.ts'],
+    languageOptions: {
+      globals: { Deno: 'readonly' },
+    },
+  },
+  {
     files: ['scripts/**/*.mjs', 'vite.config.ts', 'playwright.config.ts'],
     languageOptions: {
       globals: globals.node,

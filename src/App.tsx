@@ -2,6 +2,7 @@ import { Component, lazy } from 'react'
 import type { ReactNode } from 'react'
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import { AuthProvider, useAuth } from './auth/AuthProvider'
+import { AlertSignupProvider } from './components/AlertSignup'
 import { Shell } from './components/Shell'
 import { ToastProvider } from './components/toast'
 import { Button } from './components/ui/button'
@@ -16,6 +17,9 @@ const DealsPage = lazy(() => import('./pages/DealsPage').then((module) => ({ def
 const StoresPage = lazy(() => import('./pages/StoresPage').then((module) => ({ default: module.StoresPage })))
 const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage').then((module) => ({ default: module.AnalyticsPage })))
 const ItemPage = lazy(() => import('./pages/ItemPage').then((module) => ({ default: module.ItemPage })))
+const ConfirmPage = lazy(() => import('./pages/ConfirmPage').then((module) => ({ default: module.ConfirmPage })))
+const UnsubscribePage = lazy(() => import('./pages/UnsubscribePage').then((module) => ({ default: module.UnsubscribePage })))
+const SubscribersPage = lazy(() => import('./pages/SubscribersPage').then((module) => ({ default: module.SubscribersPage })))
 
 interface BoundaryState {
   message: string | null
@@ -55,7 +59,9 @@ function PublicApp() {
   const Provider = preview ? PreviewCatalogProvider : RemoteCatalogProvider
   return (
     <Provider>
-      <Shell />
+      <AlertSignupProvider>
+        <Shell />
+      </AlertSignupProvider>
     </Provider>
   )
 }
@@ -72,6 +78,9 @@ const router = createBrowserRouter(
         { path: 'stores', element: <StoresPage /> },
         { path: 'analytics', element: <AnalyticsPage /> },
         { path: 'items/:itemId', element: <ItemPage /> },
+        { path: 'confirm', element: <ConfirmPage /> },
+        { path: 'unsubscribe', element: <UnsubscribePage /> },
+        { path: 'alerts', element: <SubscribersPage /> },
       ],
     },
   ],

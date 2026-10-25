@@ -3,6 +3,7 @@ import { motion, useIsPresent } from 'motion/react'
 import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useCanEdit } from '../auth/AuthProvider'
+import { useAlertSignup } from '../components/AlertSignup'
 import { HeroStrip } from '../components/HeroStrip'
 import { SeasonCards } from '../components/SeasonCards'
 import { OfferChip } from '../components/OfferVariants'
@@ -37,6 +38,7 @@ export function WatchlistPage() {
   const catalog = useCatalog()
   const canEdit = useCanEdit()
   const push = useToast()
+  const openAlerts = useAlertSignup()
   const [params, setParams] = useSearchParams()
   const [editing, setEditing] = useState<Item | null | 'new'>(null)
   const [linkOpen, setLinkOpen] = useState(false)
@@ -154,6 +156,14 @@ export function WatchlistPage() {
           options={(canEdit ? sorts : sorts.filter((entry) => entry !== 'target_gap')).map((sort) => ({ value: sort, label: sortLabel(sort) }))}
         />
       </div>
+      {category ? (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-paper-2 px-4 py-3">
+          <p className="text-sm">Public price alerts for <span className="font-medium">{category}</span>.</p>
+          <button type="button" className={buttonClass('secondary', 'sm')} onClick={() => openAlerts({ category })}>
+            Get alerts for {category}
+          </button>
+        </div>
+      ) : null}
       <div className="mt-3">
         <Segmented
           label="Activity"
@@ -190,6 +200,7 @@ export function WatchlistPage() {
               call={calls.get(row.item.id) ?? null}
               brief={briefs.get(row.item.id) ?? null}
               canEdit={canEdit}
+              onAlert={() => openAlerts({ itemId: row.item.id, itemName: row.item.name, category: row.item.category })}
               onEdit={() => setEditing(row.item)}
               onDelete={() => setRemoving(row.item)}
             />
@@ -292,6 +303,7 @@ function WatchCard({
   call,
   brief,
   canEdit,
+  onAlert,
   onEdit,
   onDelete,
 }: {
@@ -300,6 +312,7 @@ function WatchCard({
   call: { call: 'buy' | 'good' | 'wait'; confidence: number; reason: string } | null
   brief: PriceBrief | null
   canEdit: boolean
+  onAlert: () => void
   onEdit: () => void
   onDelete: () => void
 }) {
@@ -342,6 +355,7 @@ function WatchCard({
           {brief ? <PriceContextLine brief={brief} /> : null}
           <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
             <Link className="text-sm text-pine underline" to={`/items/${row.item.id}#compare`}>Compare</Link>
+            <button type="button" className="text-sm text-pine underline" onClick={onAlert}>Get deal alerts</button>
             {safeHttpUrl(row.item.product_url) ? <a className="text-sm text-pine underline" href={safeHttpUrl(row.item.product_url) ?? undefined} target="_blank" rel="noopener noreferrer">Product link</a> : null}
           </p>
         </div>

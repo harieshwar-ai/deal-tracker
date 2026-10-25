@@ -5,3 +5,4 @@ export const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || defaultUrl
 export const supabasePublishableKey = import.meta.env.VITE_SUPABASE_ANON_KEY || defaultKey
 
 export const routerBasename = import.meta.env.BASE_URL.replace(/\/$/, '')
+export const alertsFunctionUrl = `${supabaseUrl}/functions/v1/deal-alerts`

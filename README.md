@@ -4,7 +4,7 @@ A personal deal tracker for Harieshwar in Hamilton, Ontario. Prices are in CAD.
 
 A separate assistant checks whitelisted Canadian stores once a day and writes snapshots and deals into Supabase. Anyone can browse the watchlist, stores, deals, item history, and analytics. The owner signs in to edit them.
 
-The browser talks to Supabase directly. There is no other server.
+The browser talks to Supabase directly. Deal-alert mail is a Supabase Edge Function the owner deploys; the static site does not send email.
 
 ## Architecture
 
@@ -49,6 +49,37 @@ Both views use `security_invoker`, so the row policies on `price_snapshots` stil
 `supabase/migrations/20261022234500_public_read_owner_write.sql` is the repo record of the production migration `public_read_owner_write`. It is already applied. The file drops the old `owner full access` policies if they exist, then creates `public read`, `owner insert`, `owner update`, and `owner delete`, and grants `SELECT` to `anon` on the four tables and the two views. Re-running it is safe.
 
 `supabase/migrations/20261022235500_public_column_privileges.sql` is the repo record of production migration `public_column_privileges`. It is already applied. The file adds `items.public_summary` if it is missing and replaces the anon table-level `SELECT` on `items`, `stores`, and `deals` with column lists. Visitors cannot read item descriptions, notes, targets, or max prices; store membership or notes; or deal reasons. Re-running it is safe. Signed-out visitors select only those columns.
+
+## Deal alerts
+
+Visitors can ask for an email when Harbour records a public price for a product or a category. The address is confirmed before any alert is sent. Confirm and unsubscribe links open `/deal-tracker/confirm` and `/deal-tracker/unsubscribe`.
+
+`supabase/migrations/20261025120000_alert_subscriptions.sql` is not applied by the app. Review it and apply it yourself. `supabase/seed/alert_subscriptions.sql` is a separate owner opt-in for the categories `prebuilt-pc`, `gpu`, `ram`, and `ssd`. Tokens are generated when that seed runs. Do not commit API keys.
+
+`alert_subscriptions` stores the address, exactly one of `item_id` or `category`, the status (`pending`, `confirmed`, or `unsubscribed`), and the confirm and unsubscribe tokens. `alert_notifications` records each confirmation and deal send. A successful deal send is unique per subscription, item, store, and price, so the same offer is not mailed twice. A failed send can be retried.
+
+Row level security is on for both tables. There is no insert, update, or delete policy. Anonymous clients have no select grant, so addresses and tokens are not readable with the publishable key. The authenticated owner can select subscription rows except the token columns. `alert_notifications` has no client grant. Visitors subscribe, confirm, and unsubscribe only through `subscribe_to_alerts`, `confirm_alert`, and `unsubscribe_alert`. Those functions are `security definer`, validate the input, and never return an address or a token. New requests are limited to 5 pending subscriptions per address per hour and 10 new subscriptions per product or category per hour.
+
+The edge function `supabase/functions/deal-alerts` sends the confirmation and, when called with a deal by the owner or the service role, the alert. This repo does not deploy it. `supabase/config.toml` sets `verify_jwt = false` for that function because a visitor confirms without a user session. The function still rejects deal calls that are not the owner or the service role.
+
+Resend is the mail provider. Set these as function secrets, for example with `supabase secrets set`. They are not committed:
+
+| Secret | Value |
+| --- | --- |
+| `RESEND_API_KEY` | Resend API key |
+| `ALERTS_FROM` | `Harbour Deal Alerts <noreply@harieshwar.dev>` |
+
+Reply-To is `noreply@harieshwar.dev`. The root domain has no MX record, so replies bounce. Every confirmation and alert sets `Auto-Submitted: auto-generated`, `X-Auto-Response-Suppress: All`, `List-Unsubscribe` to the public unsubscribe URL, and `List-Unsubscribe-Post: List-Unsubscribe=One-Click`. The plain text and HTML both end with: “This is an automated message from a no-reply address. Replies are not received.”
+
+Sends use `POST https://api.resend.com/emails/batch` in chunks of at most 100, waiting 200ms between requests so the function stays under Resend’s default of 10 requests per second. A 429 waits for `retry-after` and retries. Each alert has an idempotency key `deal:{subscription}:{item}:{store}:{price}`. A one-message request uses that key as Resend’s `Idempotency-Key`. A larger chunk uses `batch:` plus the SHA-256 of those keys, so retrying the same chunk does not send twice. The same key is stored on `alert_notifications`.
+
+If `RESEND_API_KEY` is unset and `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, and `SMTP_PASS` are all set, the function uses SMTP instead. If neither Resend nor SMTP is configured, it logs and does not send.
+
+`ALERTS_PUBLIC_URL` is optional and defaults to `https://harieshwar-ai.github.io/deal-tracker`. It is only used to build confirm, unsubscribe, and item links.
+
+An alert contains the product name, the public price, the store name, the public summary, and public links. It does not include targets, budgets, notes, membership, or deal reasons.
+
+The signed-in owner can open Subscribers for counts by product and category and a list with status. Visitors who open that route see a sign-in message and no addresses. The public catalog select does not include subscriptions.
 
 ## Local development
 

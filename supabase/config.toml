@@ -1,0 +1,5 @@
+# Visitors confirm a deal alert without a user session, so the gateway must not
+# require a JWT. deal-alerts rejects deal sends that are not the owner or the service role.
+
+[functions.deal-alerts]
+verify_jwt = false
