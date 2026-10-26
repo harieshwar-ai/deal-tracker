@@ -27,6 +27,10 @@ describe('owner private catalog', () => {
     new URL('../../supabase/migrations/20261027000400_deal_alert_trigger.sql', import.meta.url),
     'utf8',
   )
+  const dropLatestStorePricesMigration = readFileSync(
+    new URL('../../supabase/migrations/20261027000500_drop_latest_store_prices.sql', import.meta.url),
+    'utf8',
+  )
 
   it('merges owner-only fields onto public rows for edit views', () => {
     const catalog = parseOwnerPrivate({
@@ -122,6 +126,14 @@ describe('owner private catalog', () => {
     for (const hidden of [...visitorHiddenColumns.stores, ...visitorHiddenColumns.items, ...visitorHiddenColumns.deals, 'member_only']) {
       expect(grantColumns).not.toContain(hidden)
     }
+  })
+
+  it('drops latest_store_prices and keeps owner_catalog_private off anon', () => {
+    expect(dropLatestStorePricesMigration).toContain('drop view if exists public.latest_store_prices')
+    expect(dropLatestStorePricesMigration).toContain('revoke execute on function public.owner_catalog_private() from public')
+    expect(dropLatestStorePricesMigration).toContain('revoke execute on function public.owner_catalog_private() from anon')
+    expect(dropLatestStorePricesMigration).toMatch(/grant execute on function public\.owner_catalog_private\(\) to authenticated/)
+    expect(dropLatestStorePricesMigration.toLowerCase()).not.toContain('cascade')
   })
 
   it('invokes deal-alerts from vault secrets with public payloads only', () => {

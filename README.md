@@ -41,8 +41,9 @@ Already applied (`supabase/migrations/20261022204401_init_deal_tracker.sql`). Do
 Apply `supabase/migrations/20261022223000_analytics_views.sql` when you can. It adds:
 
 - indexes for item/store/time scans and open deals
-- `latest_store_prices` — newest snapshot per item and store
 - `item_all_time_lows` — lowest CAD price per item
+
+`supabase/migrations/20261027000500_drop_latest_store_prices.sql` drops the unused `latest_store_prices` view (it selected `member_only`, which visitors cannot read) and reasserts that only `authenticated` roles may execute `owner_catalog_private()`.
 
 Both views use `security_invoker`, so the row policies on `price_snapshots` still apply.
 
