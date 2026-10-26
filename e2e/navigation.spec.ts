@@ -79,7 +79,14 @@ test('mobile navigation renders each page', async ({ page }) => {
 })
 
 test('direct links and reloads render', async ({ page }) => {
-  const paths = ['/deal-tracker/deals', '/deal-tracker/stores', '/deal-tracker/analytics', '/deal-tracker/']
+  const paths = [
+    '/deal-tracker/deals',
+    '/deal-tracker/stores',
+    '/deal-tracker/analytics',
+    '/deal-tracker/confirm',
+    '/deal-tracker/unsubscribe',
+    '/deal-tracker/',
+  ]
   for (const path of paths) {
     await page.goto(path)
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()

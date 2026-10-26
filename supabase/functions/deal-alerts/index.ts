@@ -7,14 +7,16 @@ import {
   idempotencyKeyForConfirm,
   idempotencyKeyForDeal,
   itemPublicUrl,
+  mergeAlertSubscribers,
   normalizeCategory,
   normalizeEmail,
   normalizeUuid,
+  postgrestEqFilter,
   publicPageUrl,
+  resolveDealStoreUrl,
   resolveFrom,
   secretsMatch,
 } from '../../../src/domain/alerts.ts'
-import { safeHttpUrl } from '../../../src/domain/format.ts'
 import { alertMatchCategories, categoryLabel } from '../../../src/domain/labels.ts'
 import { deliver } from './deliver.ts'
 
@@ -103,8 +105,16 @@ async function deal(request: Request, body: unknown): Promise<Response> {
   if ('error' in parsed) return json({ ok: false, error: parsed.error }, 400)
   const item = await findItem(parsed.itemId)
   if (!item) return json({ ok: false, error: 'unknown_item' }, 404)
-  const storeName = parsed.storeId ? await findStoreName(parsed.storeId) : null
-  if (parsed.storeId && !storeName) return json({ ok: false, error: 'unknown_store' }, 404)
+  const store = parsed.storeId ? await findStore(parsed.storeId) : null
+  if (parsed.storeId && !store) return json({ ok: false, error: 'unknown_store' }, 404)
+  const storeName = store?.name ?? null
+  const storeUrl = await resolveStoreUrl({
+    itemId: item.id,
+    storeId: parsed.storeId,
+    price: parsed.price,
+    itemProductUrl: item.product_url,
+    storeBaseUrl: store?.base_url ?? null,
+  })
   const subscribers = await confirmedSubscribers(item.id, item.category)
   const already = await sentDeals(item.id, parsed.price)
   const from = resolveFrom(runtimeEnv('ALERTS_FROM'))
@@ -132,7 +142,7 @@ async function deal(request: Request, body: unknown): Promise<Response> {
         storeName,
         summary: item.public_summary,
         itemUrl: itemPublicUrl(base, item.id),
-        storeUrl: safeHttpUrl(item.product_url),
+        storeUrl,
         unsubscribeUrl: publicPageUrl(base, 'unsubscribe', subscriber.unsubscribe_token),
         idempotencyKey: key,
       }),
@@ -236,9 +246,38 @@ async function findItem(id: string): Promise<ItemRow | null> {
   return rows[0] ?? null
 }
 
-async function findStoreName(id: string): Promise<string | null> {
-  const rows = await restGet<{ name: string }[]>(`stores?id=eq.${id}&select=name&limit=1`)
-  return rows[0]?.name ?? null
+async function findStore(id: string): Promise<{ name: string; base_url: string | null } | null> {
+  const rows = await restGet<{ name: string; base_url: string | null }[]>(
+    `stores?id=eq.${id}&select=name,base_url&limit=1`,
+  )
+  return rows[0] ?? null
+}
+
+async function resolveStoreUrl(input: {
+  itemId: string
+  storeId: string | null
+  price: string
+  itemProductUrl: string | null
+  storeBaseUrl: string | null
+}): Promise<string | null> {
+  let dealUrl: string | null = null
+  let snapshotProductUrl: string | null = null
+  if (input.storeId) {
+    const deals = await restGet<{ url: string | null }[]>(
+      `deals?item_id=eq.${input.itemId}&store_id=eq.${input.storeId}&price=eq.${input.price}&select=url&order=found_at.desc&limit=1`,
+    )
+    dealUrl = deals[0]?.url ?? null
+    const snapshots = await restGet<{ product_url: string | null }[]>(
+      `price_snapshots?item_id=eq.${input.itemId}&store_id=eq.${input.storeId}&price=eq.${input.price}&select=product_url&order=captured_at.desc&limit=1`,
+    )
+    snapshotProductUrl = snapshots[0]?.product_url ?? null
+  }
+  return resolveDealStoreUrl({
+    dealUrl,
+    snapshotProductUrl,
+    itemProductUrl: input.itemProductUrl,
+    storeBaseUrl: input.storeBaseUrl,
+  })
 }
 
 async function confirmedSubscribers(itemId: string, category: string | null): Promise<SubscriptionRow[]> {
@@ -248,18 +287,9 @@ async function confirmedSubscribers(itemId: string, category: string | null): Pr
   )
   const categories = alertMatchCategories(category)
   const batches = await Promise.all(categories.map((entry) => restGet<SubscriptionRow[]>(
-    `alert_subscriptions?status=eq.confirmed&${eqFilter('category', entry)}&select=${select}`,
+    `alert_subscriptions?status=eq.confirmed&${postgrestEqFilter('category', entry)}&select=${select}`,
   )))
-  const seen = new Set(byItem.map((row) => row.id))
-  const extra: SubscriptionRow[] = []
-  for (const rows of batches) {
-    for (const row of rows) {
-      if (seen.has(row.id)) continue
-      seen.add(row.id)
-      extra.push(row)
-    }
-  }
-  return [...byItem, ...extra]
+  return mergeAlertSubscribers(byItem, batches)
 }
 
 async function sentDeals(itemId: string, price: string): Promise<Set<string>> {
@@ -317,10 +347,6 @@ async function restFetch(path: string, init: { method: string; headers?: Record<
     },
     body: init.body,
   })
-}
-
-function eqFilter(column: string, value: string): string {
-  return `${column}=eq.${encodeURIComponent(`"${value.replaceAll('"', '""')}"`)}`
 }
 
 function sentKey(subscriptionId: string, storeId: string | null): string {

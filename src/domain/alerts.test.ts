@@ -15,6 +15,9 @@ import {
   composeConfirmation,
   composeDealAlert,
   decideSubscribe,
+  mergeAlertSubscribers,
+  postgrestEqFilter,
+  resolveDealStoreUrl,
   encodeRfc822,
   idempotencyKeyForDeal,
   parseSubscribeResult,
@@ -181,6 +184,65 @@ describe('subscribe decisions', () => {
       categoryActive: true,
       existing: [expired],
     })).toEqual({ ok: true, result: 'pending', action: 'insert' })
+  })
+})
+
+describe('alert subscriber matching', () => {
+  it('builds PostgREST category filters without JSON quotes', () => {
+    expect(postgrestEqFilter('category', 'Prebuilt PCs')).toBe('category=eq.Prebuilt%20PCs')
+    expect(postgrestEqFilter('category', 'group:pc-hardware')).toBe('category=eq.group%3Apc-hardware')
+    expect(postgrestEqFilter('category', 'Graphics cards')).toBe('category=eq.Graphics%20cards')
+    expect(postgrestEqFilter('category', 'Prebuilt PCs')).not.toContain('"')
+  })
+
+  it('merges item, category, and group subscribers without duplicates', () => {
+    const itemSubscriber = { id: 'sub-item', email: 'item@example.com' }
+    const categorySubscriber = { id: 'sub-cat', email: 'cat@example.com' }
+    const groupSubscriber = { id: 'sub-group', email: 'group@example.com' }
+    const duplicate = { id: 'sub-item', email: 'item@example.com' }
+    const categories = alertMatchCategories('Prebuilt PCs')
+    expect(categories).toEqual(['Prebuilt PCs', 'group:pc-hardware'])
+    const byCategory = categories.map((category) => {
+      if (category === 'Prebuilt PCs') return [categorySubscriber, duplicate]
+      return [groupSubscriber]
+    })
+    const merged = mergeAlertSubscribers([itemSubscriber], byCategory)
+    expect(merged.map((row) => row.id)).toEqual(['sub-item', 'sub-cat', 'sub-group'])
+    const categoryOnly = mergeAlertSubscribers([], [[categorySubscriber], [groupSubscriber]])
+    expect(categoryOnly.map((row) => row.id)).toEqual(['sub-cat', 'sub-group'])
+  })
+})
+
+describe('deal store links', () => {
+  it('prefers deal and snapshot URLs over the item product link', () => {
+    expect(resolveDealStoreUrl({
+      dealUrl: 'https://shop.example/deal',
+      snapshotProductUrl: 'https://shop.example/snap',
+      itemProductUrl: 'https://shop.example/item',
+      storeBaseUrl: 'https://shop.example/',
+    })).toBe('https://shop.example/deal')
+    expect(resolveDealStoreUrl({
+      dealUrl: null,
+      snapshotProductUrl: 'https://shop.example/snap',
+      itemProductUrl: 'https://shop.example/item',
+      storeBaseUrl: 'https://shop.example/',
+    })).toBe('https://shop.example/snap')
+    expect(resolveDealStoreUrl({
+      dealUrl: null,
+      snapshotProductUrl: null,
+      itemProductUrl: 'https://shop.example/item',
+      storeBaseUrl: 'https://shop.example/',
+    })).toBe('https://shop.example/item')
+    expect(resolveDealStoreUrl({
+      dealUrl: null,
+      snapshotProductUrl: null,
+      itemProductUrl: null,
+      storeBaseUrl: 'https://shop.example/',
+    })).toBe('https://shop.example/')
+    expect(resolveDealStoreUrl({
+      dealUrl: 'javascript:alert(1)',
+      itemProductUrl: 'https://shop.example/safe',
+    })).toBe('https://shop.example/safe')
   })
 })
 

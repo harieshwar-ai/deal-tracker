@@ -1,7 +1,8 @@
-import { copyFileSync } from 'node:fs'
+import { copyFileSync, mkdirSync } from 'node:fs'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { defineConfig } from 'vitest/config'
+import { SPA_ENTRY_ROUTES } from './src/build/spaEntries.ts'
 import { prerenderItems } from './scripts/prerender-items.mjs'
 
 export default defineConfig({
@@ -25,6 +26,10 @@ export default defineConfig({
         if (process.env.VITEST) return
         try {
           copyFileSync('dist/index.html', 'dist/404.html')
+          for (const route of SPA_ENTRY_ROUTES) {
+            mkdirSync(`dist/${route}`, { recursive: true })
+            copyFileSync('dist/index.html', `dist/${route}/index.html`)
+          }
         } catch {
           // The dev server does not emit dist/index.html.
           return
