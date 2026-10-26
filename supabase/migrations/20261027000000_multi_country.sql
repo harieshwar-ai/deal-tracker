@@ -378,7 +378,9 @@ grant execute on function public.confirm_country_waitlist(text) to anon, authent
 grant execute on function public.unsubscribe_country_waitlist(text) to anon, authenticated;
 grant execute on function public.list_country_waitlist_counts() to authenticated;
 
--- subscribe_to_alerts with country_code (replaces prior definition).
+-- subscribe_to_alerts with country_code (drop 3-arg overload to avoid PostgREST ambiguity).
+drop function if exists public.subscribe_to_alerts(text, uuid, text);
+
 create or replace function public.subscribe_to_alerts(
   p_email text,
   p_item_id uuid,

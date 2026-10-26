@@ -20,7 +20,8 @@ import { priceBrief } from '../domain/context'
 import { compareCandidateProducts, storeRowsFromQuotes } from '../domain/productCompare'
 import { clusterDeals } from '../domain/deals'
 import { itemToDraft } from '../domain/drafts'
-import { discountPercent, formatDay, roundMoney, safeHttpUrl } from '../domain/format'
+import { formatMoney } from '../domain/country'
+import { discountPercent, formatCad, formatDay, isCadCurrency, roundMoney, safeHttpUrl } from '../domain/format'
 import { useCatalog } from '../state/catalog'
 import { buildPriceHistory, historyChartState, parseChartRange, withinChartRange } from '../domain/history'
 import { versusTypical } from '../domain/overview'
@@ -115,7 +116,22 @@ export function ItemPage() {
     )
   }
 
-  const gap = best && item.target_price != null ? best.price - item.target_price : null
+  const gapCad =
+    best && item.target_price != null && isCadCurrency(best.currency)
+      ? best.price - item.target_price
+      : null
+  const gapLabel =
+    item.target_price == null
+      ? 'Set a target to compare'
+      : !best
+        ? 'No qualifying offer yet'
+        : !isCadCurrency(best.currency)
+          ? 'Best offer is not in CAD — target is in CAD'
+          : gapCad == null
+            ? 'Set a target to compare'
+            : gapCad <= 0
+              ? `${formatCad(Math.abs(gapCad))} under target`
+              : `${formatCad(gapCad)} over target`
   const call = priceCallForItem({
     item,
     snapshots,
@@ -231,9 +247,9 @@ export function ItemPage() {
       <PriceBrief
         brief={brief}
         owner={canEdit ? {
-          target: item.target_price != null ? formatPrice(item.target_price) : '—',
-          max: item.max_price != null ? formatPrice(item.max_price) : '—',
-          gap: gap == null ? 'Set a target to compare' : gap <= 0 ? `${formatPrice(Math.abs(gap))} under target` : `${formatPrice(gap)} over target`,
+          target: item.target_price != null ? formatCad(item.target_price) : '—',
+          max: item.max_price != null ? formatCad(item.max_price) : '—',
+          gap: gapLabel,
         } : null}
       />
 
@@ -379,11 +395,14 @@ export function ItemPage() {
                         {snapshot.meets_requirements == null ? <span className="mt-1 block text-xs text-muted">Unverified</span> : null}
                       </td>
                       <td className="px-4 py-3 tabular-nums">
-                        {formatPrice(snapshot.price)}
-                        {snapshot.currency !== 'CAD' ? ` ${snapshot.currency}` : ''}
+                        {formatMoney(snapshot.price, { currency: snapshot.currency, locale: profile.locale })}
                         {discount != null && discount > 0 ? <span className="text-drop"> {discount.toFixed(0)}%</span> : null}
                       </td>
-                      <td className="px-4 py-3 tabular-nums text-muted">{snapshot.regular_price != null ? formatPrice(snapshot.regular_price) : '—'}</td>
+                      <td className="px-4 py-3 tabular-nums text-muted">
+                        {snapshot.regular_price != null
+                          ? formatMoney(snapshot.regular_price, { currency: snapshot.currency, locale: profile.locale })
+                          : '—'}
+                      </td>
                       <td className="px-4 py-3">{snapshot.in_stock == null ? '—' : snapshot.in_stock ? 'In stock' : 'Out of stock'}</td>
                     </tr>
                   )
