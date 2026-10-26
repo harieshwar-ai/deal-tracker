@@ -18,11 +18,11 @@ export const DEFAULT_COUNTRY_CODE = 'CA'
 /** Fallback when countries table is not loaded yet (preview / offline). */
 export const PRESET_COUNTRIES: CountryProfile[] = [
   { code: 'CA', name: 'Canada', currency: 'CAD', locale: 'en-CA', taxLabel: 'HST', taxRate: 0.13, pricesIncludeTax: false, enabled: true, sortOrder: 10 },
-  { code: 'US', name: 'United States', currency: 'USD', locale: 'en-US', taxLabel: 'sales tax', taxRate: null, pricesIncludeTax: false, enabled: false, sortOrder: 20 },
-  { code: 'GB', name: 'United Kingdom', currency: 'GBP', locale: 'en-GB', taxLabel: 'VAT', taxRate: 0.2, pricesIncludeTax: true, enabled: false, sortOrder: 30 },
-  { code: 'IN', name: 'India', currency: 'INR', locale: 'en-IN', taxLabel: 'GST', taxRate: 0.18, pricesIncludeTax: true, enabled: false, sortOrder: 40 },
-  { code: 'AU', name: 'Australia', currency: 'AUD', locale: 'en-AU', taxLabel: 'GST', taxRate: 0.1, pricesIncludeTax: true, enabled: false, sortOrder: 50 },
-  { code: 'DE', name: 'Germany', currency: 'EUR', locale: 'de-DE', taxLabel: 'MwSt', taxRate: 0.19, pricesIncludeTax: true, enabled: false, sortOrder: 60 },
+  { code: 'US', name: 'United States', currency: 'USD', locale: 'en-US', taxLabel: 'sales tax', taxRate: null, pricesIncludeTax: false, enabled: true, sortOrder: 20 },
+  { code: 'GB', name: 'United Kingdom', currency: 'GBP', locale: 'en-GB', taxLabel: 'VAT', taxRate: 0.2, pricesIncludeTax: true, enabled: true, sortOrder: 30 },
+  { code: 'IN', name: 'India', currency: 'INR', locale: 'en-IN', taxLabel: 'GST', taxRate: 0.18, pricesIncludeTax: true, enabled: true, sortOrder: 40 },
+  { code: 'AU', name: 'Australia', currency: 'AUD', locale: 'en-AU', taxLabel: 'GST', taxRate: 0.1, pricesIncludeTax: true, enabled: true, sortOrder: 50 },
+  { code: 'DE', name: 'Germany', currency: 'EUR', locale: 'de-DE', taxLabel: 'MwSt', taxRate: 0.19, pricesIncludeTax: true, enabled: true, sortOrder: 60 },
 ]
 
 const TIMEZONE_COUNTRY: Record<string, string> = {
@@ -152,6 +152,13 @@ export function storesInCountry(stores: readonly Store[], code: string): Store[]
 
 export function storeIdsInCountry(stores: readonly Store[], code: string): Set<string> {
   return new Set(storesInCountry(stores, code).map((store) => store.id))
+}
+
+export function countryHasPrices(data: Dataset, code: string): boolean {
+  const storeIds = storeIdsInCountry(data.stores, code)
+  if (storeIds.size === 0) return false
+  return data.snapshots.some((snapshot) => snapshot.store_id != null && storeIds.has(snapshot.store_id))
+    || data.deals.some((deal) => deal.store_id != null && storeIds.has(deal.store_id))
 }
 
 export function filterDatasetByCountry(data: Dataset, code: string): Dataset {

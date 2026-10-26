@@ -58,8 +58,11 @@ Apply these migrations in order after the deal-alert migration (and after `20261
 
 1. `supabase/migrations/20261027000000_multi_country.sql` — `countries`, `country_code` on `stores`, `country_code` on `alert_subscriptions`, `country_waitlist`, updated `subscribe_to_alerts`, waitlist RPCs.
 2. `supabase/migrations/20261027000100_market_rollups_country.sql` — `market_latest` / `market_daily` expose `country_code` and match qualifying lows to each store’s currency.
+3. `supabase/migrations/20261027000200_international_stores.sql` — enables US/GB/IN/AU/DE and seeds trusted stores (`enabled = false` until the owner turns each store on for scans).
 
 Only enabled countries are readable from `countries`. Waitlist emails are never granted to `anon`. The owner sees waitlist counts (and confirmed emails) through `list_country_waitlist_counts`.
+
+After migration 3, open **Stores** as the owner and enable each new international store when the scanner is ready to visit it. Until a store is enabled and has snapshots, visitors see “Prices coming soon” for that country.
 
 Redeploy `supabase/functions/deal-alerts` after merge so `waitlist_confirm` and per-country deal matching are live.
 
@@ -94,7 +97,7 @@ Content-Type: application/json
 
 `store_id` may be omitted or null when the alert is not tied to one store. `price` must match the CAD price you want subscribers to see (the function canonicalizes it to two decimal places).
 
-The function loads confirmed subscribers for the item, for the item’s category, and for `group:pc-hardware` when the item is in a PC hardware category. It skips anyone who already has a **sent** row in `alert_notifications` for the same subscription, item, store, and price, so the same offer is not emailed twice. Failed sends are not deduped and may be retried. The JSON response includes `sent`, `failed`, and `skipped` counts.
+The function loads confirmed subscribers for the item, for the item’s category, and for `group:pc-hardware` when the item is in a PC hardware category, filtered to the deal store’s `country_code`. It skips anyone who already has a **sent** row in `alert_notifications` for the same subscription, item, store, and price, so the same offer is not emailed twice. Failed sends are not deduped and may be retried. The JSON response includes `sent`, `failed`, and `skipped` counts.
 
 Visitor confirm requests use `action: "confirm"` with `subscription_id` and `email` (no secret key).
 

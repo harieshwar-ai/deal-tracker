@@ -22,8 +22,8 @@ await page.screenshot({ path: `${out}/overview-light-picker-open.png`, fullPage:
 
 await page.goto(`${base}&country=US`)
 await page.getByRole('heading', { name: 'Watchlist' }).waitFor()
-await page.getByText('Coming soon').first().waitFor()
-await page.screenshot({ path: `${out}/coming-soon-united-states.png`, fullPage: true })
+await page.getByText(/Prices coming soon/i).first().waitFor()
+await page.screenshot({ path: `${out}/prices-coming-soon-united-states.png`, fullPage: true })
 
 await page.goto(`${base}&country=CA`)
 await page.getByRole('heading', { name: 'Watchlist' }).waitFor()

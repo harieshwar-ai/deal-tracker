@@ -5,6 +5,7 @@ import { loadCountries } from '../data/countries'
 import {
   countryByCode,
   countryFromSearchParams,
+  countryHasPrices,
   defaultCountryCode,
   filterDatasetByCountry,
   formatMoney,
@@ -23,6 +24,7 @@ export interface CountryValue {
   profile: CountryProfile
   countries: CountryProfile[]
   enabled: boolean
+  pricesAvailable: boolean
   setCountry: (code: string) => void
   catalog: CatalogValue
   formatPrice: (value: number | null | undefined) => string
@@ -90,11 +92,17 @@ export function CountryProvider({ children }: { children: ReactNode }) {
     return { ...rawCatalog, ...filtered }
   }, [rawCatalog, profile])
 
+  const pricesAvailable = useMemo(
+    () => profile.enabled && countryHasPrices(rawCatalog, profile.code),
+    [profile, rawCatalog],
+  )
+
   const value = useMemo<CountryValue>(() => ({
     code: profile.code,
     profile,
     countries,
     enabled: profile.enabled,
+    pricesAvailable,
     setCountry,
     catalog,
     formatPrice: (amount) => formatMoney(amount, profile),
@@ -103,7 +111,7 @@ export function CountryProvider({ children }: { children: ReactNode }) {
     openWaitlist: () => setWaitlistOpen(true),
     waitlistOpen,
     closeWaitlist: () => setWaitlistOpen(false),
-  }), [catalog, countries, profile, setCountry, waitlistOpen])
+  }), [catalog, countries, pricesAvailable, profile, setCountry, waitlistOpen])
 
   return (
     <CountryContext.Provider value={value}>

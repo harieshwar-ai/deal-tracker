@@ -26,7 +26,7 @@ const links = [
 
 export function Shell() {
   const { email, notice, signOut, session } = useAuth()
-  const { catalog, profile, enabled } = useCountry()
+  const { catalog, profile, pricesAvailable } = useCountry()
   const navigate = useNavigate()
   const consumed = useRef(false)
   const openDeals = openGoodDeals(catalog).length
@@ -84,9 +84,9 @@ export function Shell() {
           <p className="hidden text-sm text-muted md:block">
             {catalog.source === 'preview'
               ? 'Sample data on this browser. Refresh restores it.'
-              : enabled
+              : pricesAvailable
                 ? `Prices from trusted ${profile.name} stores.`
-                : `${profile.name} is coming soon. Join the waitlist to get notified.`}
+                : `Prices coming soon for trusted ${profile.name} stores.`}
           </p>
           <div className="ml-auto flex items-center gap-2">
             <ThemeToggle />

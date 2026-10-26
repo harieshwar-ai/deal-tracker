@@ -42,7 +42,7 @@ const pageSize = 20
 
 export function WatchlistPage() {
   useDocumentTitle('Watchlist')
-  const { catalog, formatPrice, profile, enabled: countryEnabled } = useCountry()
+  const { catalog, formatPrice, profile, pricesAvailable } = useCountry()
   const canEdit = useCanEdit()
   const push = useToast()
   const openAlerts = useAlertSignup()
@@ -117,9 +117,9 @@ export function WatchlistPage() {
   return (
     <FadeIn>
       <div>
-        {!countryEnabled ? (
+        {!pricesAvailable ? (
           <p className="mb-4 rounded-2xl border border-line bg-paper-2 px-4 py-3 text-sm text-muted" role="status">
-            {profile.name} is coming soon. Join the waitlist from the country menu to get notified.
+            Prices coming soon for {profile.name}. Trusted stores are listed; the daily check will fill in prices after they are enabled.
           </p>
         ) : null}
         <div className="flex flex-wrap items-end justify-between gap-4">

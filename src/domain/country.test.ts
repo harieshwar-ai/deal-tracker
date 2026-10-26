@@ -4,6 +4,7 @@ import {
   PRESET_COUNTRIES,
   countryByCode,
   defaultCountryCode,
+  countryHasPrices,
   filterDatasetByCountry,
   formatMoney,
   matchesCountryCurrency,
@@ -67,6 +68,18 @@ describe('country helpers', () => {
     expect(params.get('q')).toBe('1')
   })
 
+  it('detects when a country has no saved prices yet', () => {
+    const usStore = store({ id: '22222222-2222-4222-8222-222222222222', country_code: 'US', country: 'US' })
+    const data: Dataset = {
+      items: [],
+      stores: [store(), usStore],
+      snapshots: [],
+      deals: [],
+    }
+    expect(countryHasPrices(data, 'CA')).toBe(false)
+    expect(countryHasPrices(data, 'US')).toBe(false)
+  })
+
   it('filters dataset stores and dependent rows', () => {
     const usStore = store({ id: '22222222-2222-4222-8222-222222222222', country_code: 'US', country: 'US' })
     const data: Dataset = {
@@ -116,8 +129,9 @@ describe('country helpers', () => {
     expect(caOnly.snapshots[0]?.currency).toBe('CAD')
   })
 
-  it('defaults to Canada when browser country is not enabled', () => {
-    expect(defaultCountryCode(PRESET_COUNTRIES)).toBe(DEFAULT_COUNTRY_CODE)
+  it('defaults to Canada among enabled harbour countries', () => {
+    const canadaOnly = PRESET_COUNTRIES.map((entry) => ({ ...entry, enabled: entry.code === 'CA' }))
+    expect(defaultCountryCode(canadaOnly)).toBe(DEFAULT_COUNTRY_CODE)
     expect(normalizeCountryCode(' ca ')).toBe('CA')
     expect(storeCountryCode(store({ country_code: null, country: 'ca' }))).toBe('CA')
   })

@@ -5,7 +5,7 @@ test.describe('country picker', () => {
     await page.goto('/deal-tracker/?country=CA')
     await page.getByLabel('Country').click()
     await page.getByRole('option', { name: /United States/ }).click()
-    await expect(page.getByText('Coming soon')).toBeVisible()
+    await expect(page.getByText(/Prices coming soon/i).first()).toBeVisible()
     await page.getByRole('button', { name: "Don't see your country?" }).click()
     await expect(page.getByRole('heading', { name: 'Request your country' })).toBeVisible()
     await page.getByRole('button', { name: 'Cancel' }).click()
