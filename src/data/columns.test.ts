@@ -18,6 +18,7 @@ describe('visitor selects', () => {
     expect(selectColumns('items', true).split(',')).toContain('requirements')
     expect(selectColumns('items', true).split(',')).toContain('image_url')
     expect(selectColumns('items', true).split(',')).toEqual(expect.arrayContaining([...visitorHiddenColumns.items]))
+    expect(selectColumns('stores', false).split(',')).toContain('country_code')
     expect(selectColumns('stores', true).split(',')).toEqual(expect.arrayContaining([...visitorHiddenColumns.stores]))
     expect(selectColumns('deals', false).split(',')).not.toContain('reason')
     expect(selectColumns('deals', true).split(',')).toContain('reason')
