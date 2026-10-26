@@ -34,4 +34,13 @@ describe('market rollups', () => {
     expect(quotes[0]?.price).toBe(800)
     expect(cheapestEver(snapshots.filter((snapshot) => snapshot.meets_requirements === true))?.snapshot.price).toBe(700)
   })
+
+  it('uses store_currency from daily rollup rows when present', () => {
+    const snapshots = snapshotsFromRollup(
+      [],
+      [{ item_id: 'item', store_id: 'store', day: '2026-10-01', qualifying_low: 100, store_currency: 'usd' }],
+    )
+    const daily = snapshots.find((snapshot) => snapshot.id < 0)
+    expect(daily?.currency).toBe('USD')
+  })
 })

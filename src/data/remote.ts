@@ -48,7 +48,11 @@ export async function loadDataset(owner: boolean): Promise<LoadedCatalog> {
 async function loadRollupRows(): Promise<{ latest: unknown[]; daily: unknown[] } | null> {
   const latest = await fetchView('market_latest', rollupColumns, ['item_id', 'store_id', 'id'])
   if (!latest) return null
-  const daily = await fetchView('market_daily', 'item_id,store_id,day,qualifying_low', ['item_id', 'store_id', 'day'])
+  const daily = await fetchView(
+    'market_daily',
+    'item_id,store_id,day,qualifying_low,store_currency',
+    ['item_id', 'store_id', 'day'],
+  )
   if (!daily) return null
   return { latest, daily }
 }
