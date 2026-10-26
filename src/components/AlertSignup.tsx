@@ -229,7 +229,6 @@ export function AlertSignupDialog({
                 groups={alertCategoryGroups(knownCategories)}
                 side="top"
                 sideOffset={8}
-                avoidCollisions={false}
               />
             )}
           </div>
