@@ -208,6 +208,13 @@ function readCode(error: unknown): string {
   return ''
 }
 
+export function isMissingRelation(error: unknown): boolean {
+  const code = readCode(error)
+  if (code === 'PGRST205' || code === '42P01') return true
+  const message = readMessage(error).toLowerCase()
+  return message.includes('schema cache') || message.includes('could not find the table')
+}
+
 export function missingColumnName(error: unknown): string | null {
   const message = readMessage(error)
   const quoted = message.match(/could not find the '([a-z_][a-z0-9_]*)' column/i)

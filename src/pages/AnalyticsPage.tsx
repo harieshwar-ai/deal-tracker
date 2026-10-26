@@ -56,6 +56,11 @@ export function AnalyticsPage() {
     <div>
       <h1 className="font-display text-4xl">Analytics</h1>
       <p className="mt-3 max-w-3xl text-base leading-7">{model.insight}</p>
+      <ul className="mt-3 grid max-w-3xl gap-1 text-sm leading-6 text-muted">
+        <li>{model.atLowCount} priced {model.atLowCount === 1 ? 'item is' : 'items are'} at an all-time low.</li>
+        <li>{model.openDealCount > 0 ? `${model.openDealCount} deals are still open.` : 'No deals are open right now.'}</li>
+        <li>{model.pricedItemCount} of {model.itemCount} items in this filter have a saved price.</li>
+      </ul>
       <ul className="mt-3 flex flex-wrap gap-2 text-xs" aria-label="Colour meanings">
         <li className="rounded-md bg-buy px-2 py-1 text-on-buy">Buy and price drops</li>
         <li className="rounded-md bg-wait-soft px-2 py-1 text-wait">Wait</li>
@@ -160,6 +165,8 @@ export function AnalyticsPage() {
               For every item and every day in {model.periodLabel}, the store with the lowest CAD price wins. Ties go to the store name that comes first alphabetically. That is {model.itemDays} item-days.
             </p>
             {wins.length === 0 ? <ChartEmpty periodCount={model.periodSnapshotCount} historyCount={model.historySnapshotCount} /> : <div className="mt-4"><WinsChart rows={wins} /></div>}
+            <details className="mt-4">
+              <summary className="cursor-pointer text-sm text-muted">Store numbers</summary>
             <div className="mt-4 overflow-auto">
               <table className="w-full min-w-[36rem] text-left text-sm">
                 <caption className="sr-only">Store comparison</caption>
@@ -183,6 +190,7 @@ export function AnalyticsPage() {
                 </tbody>
               </table>
             </div>
+            </details>
           </section>
 
           <section className="mt-4 rounded-xl border border-line bg-paper-2 shadow-sm p-4 md:p-5">
@@ -212,7 +220,9 @@ export function AnalyticsPage() {
             </section>
           </div>
 
-          <section className="mt-4 rounded-xl border border-line bg-paper-2 shadow-sm p-4 md:p-5">
+          <details className="mt-4 rounded-xl border border-line bg-paper-2 p-4 shadow-sm md:p-5">
+            <summary className="cursor-pointer font-display text-2xl">Category and all-time-low tables</summary>
+            <section className="mt-4">
             <h2 className="font-display text-2xl">Categories</h2>
             <p className="mt-1 text-sm text-muted">Current prices, ignoring the date range. Open deals are the ones still waiting.</p>
             <div className="mt-4 overflow-auto">
@@ -279,6 +289,7 @@ export function AnalyticsPage() {
               </div>
             )}
           </section>
+          </details>
         </>
       )}
     </div>

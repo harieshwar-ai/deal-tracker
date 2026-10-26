@@ -177,7 +177,15 @@ begin
     return pg_catalog.jsonb_build_object('ok', false, 'error', 'unknown_item');
   end if;
 
-  if v_category is not null and not exists (
+  if v_category = 'group:pc-hardware' then
+    if not exists (
+      select 1 from public.items
+      where active
+        and category in ('Prebuilt PCs', 'Graphics cards', 'Memory (RAM)', 'SSDs')
+    ) then
+      return pg_catalog.jsonb_build_object('ok', false, 'error', 'invalid_category');
+    end if;
+  elsif v_category is not null and not exists (
     select 1 from public.items
     where category = v_category
       and active

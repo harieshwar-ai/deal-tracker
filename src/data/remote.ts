@@ -1,23 +1,73 @@
 import type { DealStatus, Dataset, ItemWrite, StoreWrite } from '../domain/types'
 import { supabase } from '../lib/supabase'
 import { selectColumns } from './columns'
-import { friendlyError, isPrivilegeError, isUnusableCredential, missingColumnName, parseDealRow, parseItemRow, parseSnapshotRow, parseStoreRow } from './parse'
+import { friendlyError, isMissingRelation, isPrivilegeError, isUnusableCredential, missingColumnName, parseDealRow, parseItemRow, parseSnapshotRow, parseStoreRow } from './parse'
+import { snapshotsFromRollup } from './rollups'
+
+export type PriceDetail = 'rollup' | 'full'
+
+export interface LoadedCatalog extends Dataset {
+  detail: PriceDetail
+}
 
 const pageSize = 1000
 
-export async function loadDataset(owner: boolean): Promise<Dataset> {
-  const [items, stores, snapshots, deals] = await Promise.all([
+const rollupColumns = 'id,item_id,store_id,product_title,product_url,price,regular_price,currency,in_stock,captured_at,sale_ends_at,shipping,product_name,meets_requirements'
+
+export async function loadDataset(owner: boolean): Promise<LoadedCatalog> {
+  const [items, stores, deals] = await Promise.all([
     fetchAll('items', 'created_at', owner),
     fetchAll('stores', 'name', owner),
-    fetchAll('price_snapshots', 'id', owner),
     fetchAll('deals', 'found_at', owner),
   ])
-  return {
+  const base = {
     items: items.map((row) => parseItemRow(row)),
     stores: stores.map((row) => parseStoreRow(row)),
-    snapshots: snapshots.map((row) => parseSnapshotRow(row)),
     deals: deals.map((row) => parseDealRow(row)),
   }
+  try {
+    const rolled = await loadRollupRows()
+    if (rolled) {
+      return {
+        ...base,
+        snapshots: snapshotsFromRollup(rolled.latest, rolled.daily),
+        detail: 'rollup',
+      }
+    }
+  } catch {
+    // A view that exists but cannot be read falls through to the snapshot scan.
+  }
+  const snapshots = await fetchAll('price_snapshots', 'id', owner)
+  return {
+    ...base,
+    snapshots: snapshots.map((row) => parseSnapshotRow(row)),
+    detail: 'full',
+  }
+}
+
+async function loadRollupRows(): Promise<{ latest: unknown[]; daily: unknown[] } | null> {
+  const latest = await fetchView('market_latest', rollupColumns, ['item_id', 'store_id', 'id'])
+  if (!latest) return null
+  const daily = await fetchView('market_daily', 'item_id,store_id,day,qualifying_low', ['item_id', 'store_id', 'day'])
+  if (!daily) return null
+  return { latest, daily }
+}
+
+async function fetchView(table: string, columns: string, order: string[]): Promise<unknown[] | null> {
+  const rows: unknown[] = []
+  for (let from = 0; ; from += pageSize) {
+    let query = supabase.from(table).select(columns)
+    for (const column of order) query = query.order(column, { ascending: true })
+    const { data, error } = await query.range(from, from + pageSize - 1)
+    if (error) {
+      if (isMissingRelation(error)) return null
+      throw new Error(friendlyError(error))
+    }
+    const batch = data ?? []
+    rows.push(...batch)
+    if (batch.length < pageSize) break
+  }
+  return rows
 }
 
 const optionalItemWrites: Record<string, string> = {

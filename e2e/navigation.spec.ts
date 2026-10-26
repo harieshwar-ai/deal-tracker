@@ -124,7 +124,7 @@ test('signed-out pages do not render membership text', async ({ page }) => {
   await expect(item).toBeVisible()
   await item.click()
   await expect(page).toHaveURL(/\/items\//)
-  await expect(page.getByRole('heading', { level: 2, name: 'Snapshots' })).toBeVisible()
+  await expect(page.getByRole('heading', { level: 2, name: 'Compare stores' })).toBeVisible()
   await expectNoMembershipText(page, 'item')
 })
 

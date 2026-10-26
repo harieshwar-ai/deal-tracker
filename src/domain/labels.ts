@@ -1,5 +1,10 @@
 import type { DatePreset, DealStatus, Priority, Verdict, VerdictGroup, WatchSort } from './types'
 
+/** Stored on alert_subscriptions.category. Not an items.category value. */
+export const PC_HARDWARE_GROUP = 'group:pc-hardware'
+
+export const PC_HARDWARE_MEMBERS = ['Prebuilt PCs', 'Graphics cards', 'Memory (RAM)', 'SSDs'] as const
+
 const categoryLabels: Record<string, string> = {
   'prebuilt-pc': 'Prebuilt PCs',
   prebuilt: 'Prebuilt PCs',
@@ -14,8 +19,6 @@ const categoryLabels: Record<string, string> = {
   nvme: 'SSDs',
   chairs: 'Chairs',
   chair: 'Chairs',
-  'pc hardware': 'PC Hardware',
-  'pc-hardware': 'PC Hardware',
 }
 
 const categoryAcronyms: Record<string, string> = {
@@ -30,19 +33,54 @@ const categoryAcronyms: Record<string, string> = {
   hdd: 'HDD',
 }
 
-/** Display name for an items.category value. Slugs such as gpu never stay raw. */
+/** Display name. Readable stored values pass through. Only legacy slugs are rewritten. */
 export function categoryLabel(category: string | null | undefined): string {
   const raw = (category ?? '').trim().replace(/\s+/g, ' ')
   if (!raw) return 'Uncategorized'
+  if (raw === PC_HARDWARE_GROUP) return 'All PC hardware'
+  if (/[A-Z]/.test(raw) || raw.includes(' ') || raw.includes('(')) return raw
   const known = categoryLabels[raw.toLowerCase()]
   if (known) return known
-  if (/[A-Z]/.test(raw) || raw.includes(' ')) return raw
   return raw
     .toLowerCase()
     .split(/[-_]/)
     .filter(Boolean)
     .map((word) => categoryAcronyms[word] ?? `${word.charAt(0).toUpperCase()}${word.slice(1)}`)
     .join(' ')
+}
+
+export function isPcHardwareMember(category: string | null | undefined): boolean {
+  const raw = (category ?? '').trim()
+  return (PC_HARDWARE_MEMBERS as readonly string[]).includes(raw)
+}
+
+/** Subscription categories that should receive an alert for this item category. */
+export function alertMatchCategories(itemCategory: string | null | undefined): string[] {
+  const category = (itemCategory ?? '').trim()
+  if (!category) return []
+  return isPcHardwareMember(category) ? [category, PC_HARDWARE_GROUP] : [category]
+}
+
+export function pcHardwareGroupAvailable(categories: readonly string[]): boolean {
+  return categories.some((category) => isPcHardwareMember(category))
+}
+
+export function alertCategoryGroups(categories: readonly string[]): { label: string; options: { value: string; label: string }[] }[] {
+  const known = categories.filter((category) => category && category !== 'Uncategorized' && category !== PC_HARDWARE_GROUP)
+  const groups: { label: string; options: { value: string; label: string }[] }[] = []
+  if (pcHardwareGroupAvailable(known)) {
+    groups.push({
+      label: 'Groups',
+      options: [{ value: PC_HARDWARE_GROUP, label: categoryLabel(PC_HARDWARE_GROUP) }],
+    })
+  }
+  if (known.length > 0) {
+    groups.push({
+      label: 'Categories',
+      options: known.map((entry) => ({ value: entry, label: categoryLabel(entry) })),
+    })
+  }
+  return groups
 }
 
 export function priorityLabel(priority: Priority): string {

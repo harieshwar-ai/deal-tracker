@@ -70,6 +70,22 @@ describe('deal alert dialog', () => {
     expect(onSubmit).toHaveBeenCalledWith({ email: 'ada@example.com', itemId: null, category: 'gpu' })
   })
 
+  it('offers All PC hardware above the live categories', async () => {
+    const user = userEvent.setup()
+    const onSubmit = renderDialog({
+      categories: ['Chairs', 'Prebuilt PCs', 'Graphics cards', 'Memory (RAM)', 'SSDs'],
+    })
+    await user.type(screen.getByLabelText('Email'), 'ada@example.com')
+    await user.click(screen.getByRole('checkbox'))
+    await user.click(screen.getByRole('radio', { name: 'A category' }))
+    await user.click(screen.getByRole('combobox', { name: 'Category' }))
+    expect(screen.getByText('Groups')).toBeTruthy()
+    expect(screen.getByText('Categories')).toBeTruthy()
+    await user.click(screen.getByRole('option', { name: 'All PC hardware' }))
+    await user.click(screen.getByRole('button', { name: 'Email me a confirmation' }))
+    expect(onSubmit).toHaveBeenCalledWith({ email: 'ada@example.com', itemId: null, category: 'group:pc-hardware' })
+  })
+
   it('submits a product or its category from a product page', async () => {
     const user = userEvent.setup()
     const onSubmit = renderDialog({

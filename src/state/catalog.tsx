@@ -5,6 +5,7 @@ import { isOwnerSession } from '../auth/owner'
 import { withDealStatus, withItem, withoutItem, withStore, withoutStore } from '../domain/mutate'
 import type { Dataset, DealStatus, Item, ItemWrite, Store, StoreWrite } from '../domain/types'
 import { deleteItem as removeItem, deleteStore as removeStore, loadDataset, saveItem as persistItem, saveStore as persistStore, setDealStatus as persistDealStatus } from '../data/remote'
+import type { PriceDetail } from '../data/remote'
 import { createPreviewDataset } from '../preview/fixtures'
 
 export interface CatalogValue {
@@ -16,6 +17,7 @@ export interface CatalogValue {
   refreshing: boolean
   error: string | null
   source: 'remote' | 'preview'
+  detail: PriceDetail
   refresh: () => Promise<void>
   saveItem: (write: ItemWrite, id?: string) => Promise<void>
   deleteItem: (id: string) => Promise<void>
@@ -40,12 +42,15 @@ export function RemoteCatalogProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [detail, setDetail] = useState<PriceDetail>('full')
 
   const refresh = useCallback(async () => {
     setRefreshing(true)
     setError(null)
     try {
-      setData(await loadDataset(owner))
+      const loaded = await loadDataset(owner)
+      setDetail(loaded.detail)
+      setData(loaded)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not load your data.')
     } finally {
@@ -74,6 +79,7 @@ export function RemoteCatalogProvider({ children }: { children: ReactNode }) {
     refreshing,
     error,
     source: 'remote',
+    detail,
     refresh,
     saveItem: async (write, id) => {
       await persistItem(write, id)
@@ -95,7 +101,7 @@ export function RemoteCatalogProvider({ children }: { children: ReactNode }) {
       await persistDealStatus(id, status)
       await refresh()
     },
-  }), [data, ready, refreshing, error, refresh])
+  }), [data, ready, refreshing, error, detail, refresh])
 
   return <CatalogContext.Provider value={api}>{children}</CatalogContext.Provider>
 }
@@ -113,6 +119,7 @@ export function PreviewCatalogProvider({ children }: { children: ReactNode }) {
     refreshing: false,
     error: null,
     source: 'preview',
+    detail: 'full',
     refresh,
     saveItem: async (write, id) => {
       const nowIso = new Date().toISOString()

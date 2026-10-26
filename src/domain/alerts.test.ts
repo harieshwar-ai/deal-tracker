@@ -1,7 +1,7 @@
 // @ts-expect-error TS2591 — node:fs is available when Vitest runs the test.
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { categoryLabel } from './labels'
+import { alertMatchCategories, categoryLabel } from './labels'
 import {
   AUTOMATED_FOOTER,
   DEFAULT_ALERTS_FROM,
@@ -274,7 +274,13 @@ describe('mail', () => {
     expect(categoryLabel('ssd')).toBe('SSDs')
     expect(categoryLabel('prebuilt-pc')).toBe('Prebuilt PCs')
     expect(categoryLabel('chairs')).toBe('Chairs')
+    expect(categoryLabel('Chairs')).toBe('Chairs')
+    expect(categoryLabel('Prebuilt PCs')).toBe('Prebuilt PCs')
+    expect(categoryLabel('Graphics cards')).toBe('Graphics cards')
+    expect(categoryLabel('Memory (RAM)')).toBe('Memory (RAM)')
+    expect(categoryLabel('SSDs')).toBe('SSDs')
     expect(categoryLabel('PC Hardware')).toBe('PC Hardware')
+    expect(categoryLabel('group:pc-hardware')).toBe('All PC hardware')
     expect(categoryLabel('cooling-fans')).toBe('Cooling Fans')
   })
 })
@@ -309,10 +315,16 @@ describe('alert sql', () => {
   })
 
   it('seeds the owner categories with generated tokens and does not document a mailbox provider by name', () => {
-    for (const category of ['prebuilt-pc', 'gpu', 'ram', 'ssd']) expect(seed).toContain(`'${category}'`)
+    expect(seed).toContain("'group:pc-hardware'")
+    expect(seed.toLowerCase()).toContain('on conflict (email, category) where category is not null do nothing')
+    expect(seed).not.toContain("'prebuilt-pc'")
     expect(seed).toContain('harirmdeee@gmail.com')
     expect(seed).toContain('gen_random_uuid')
     expect(seed).not.toMatch(/'[0-9a-f]{32,}'/i)
+    expect(alertMatchCategories('Graphics cards')).toEqual(['Graphics cards', 'group:pc-hardware'])
+    expect(alertMatchCategories('Chairs')).toEqual(['Chairs'])
+    expect(migration).toContain("'group:pc-hardware'")
+    expect(migration).toContain("'Memory (RAM)'")
     expect(readme.toLowerCase()).not.toContain('gmail')
     expect(migration.toLowerCase()).not.toContain('gmail')
   })

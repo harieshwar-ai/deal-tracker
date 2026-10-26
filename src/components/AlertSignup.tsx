@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useMemo, useState } from 'react
 import type { FormEvent, KeyboardEvent, ReactNode } from 'react'
 import { useCatalog } from '../state/catalog'
 import { watchCategories } from '../domain/watchlist'
-import { categoryLabel } from '../domain/labels'
+import { alertCategoryGroups, categoryLabel } from '../domain/labels'
 import { normalizeCategory, normalizeEmail, normalizeUuid } from '../domain/alerts'
 import { requestConfirmationEmail, subscribeErrorCopy, subscribeToAlerts } from '../data/alerts'
 import type { AlertChoice } from '../data/alerts'
@@ -226,7 +226,10 @@ export function AlertSignupDialog({
                 className="mt-1.5 w-full min-w-0"
                 value={category}
                 onValueChange={setCategory}
-                options={knownCategories.map((entry) => ({ value: entry, label: categoryLabel(entry) }))}
+                groups={alertCategoryGroups(knownCategories)}
+                side="top"
+                sideOffset={8}
+                avoidCollisions={false}
               />
             )}
           </div>

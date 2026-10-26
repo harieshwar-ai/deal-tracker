@@ -15,7 +15,7 @@ import {
   secretsMatch,
 } from '../../../src/domain/alerts.ts'
 import { safeHttpUrl } from '../../../src/domain/format.ts'
-import { categoryLabel } from '../../../src/domain/labels.ts'
+import { alertMatchCategories, categoryLabel } from '../../../src/domain/labels.ts'
 import { deliver } from './deliver.ts'
 
 interface SubscriptionRow {
@@ -246,12 +246,20 @@ async function confirmedSubscribers(itemId: string, category: string | null): Pr
   const byItem = await restGet<SubscriptionRow[]>(
     `alert_subscriptions?status=eq.confirmed&item_id=eq.${itemId}&select=${select}`,
   )
-  if (!category) return byItem
-  const byCategory = await restGet<SubscriptionRow[]>(
-    `alert_subscriptions?status=eq.confirmed&${eqFilter('category', category)}&select=${select}`,
-  )
+  const categories = alertMatchCategories(category)
+  const batches = await Promise.all(categories.map((entry) => restGet<SubscriptionRow[]>(
+    `alert_subscriptions?status=eq.confirmed&${eqFilter('category', entry)}&select=${select}`,
+  )))
   const seen = new Set(byItem.map((row) => row.id))
-  return [...byItem, ...byCategory.filter((row) => !seen.has(row.id))]
+  const extra: SubscriptionRow[] = []
+  for (const rows of batches) {
+    for (const row of rows) {
+      if (seen.has(row.id)) continue
+      seen.add(row.id)
+      extra.push(row)
+    }
+  }
+  return [...byItem, ...extra]
 }
 
 async function sentDeals(itemId: string, price: string): Promise<Set<string>> {
