@@ -92,6 +92,7 @@ function store(id: string, name: string, baseUrl: string, membership: string | n
     name,
     base_url: baseUrl,
     country: 'CA',
+    country_code: 'CA',
     membership,
     notes: null,
     enabled: true,

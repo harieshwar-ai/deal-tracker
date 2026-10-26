@@ -50,6 +50,19 @@ Both views use `security_invoker`, so the row policies on `price_snapshots` stil
 
 `supabase/migrations/20261022235500_public_column_privileges.sql` is the repo record of production migration `public_column_privileges`. It is already applied. The file adds `items.public_summary` if it is missing and replaces the anon table-level `SELECT` on `items`, `stores`, and `deals` with column lists. Visitors cannot read item descriptions, notes, targets, or max prices; store membership or notes; or deal reasons. Re-running it is safe. Signed-out visitors select only those columns.
 
+## Countries
+
+Harbour can show prices for whitelisted stores by country. Canada is enabled by default; other regions appear as “Coming soon” until their stores are approved. Visitors pick a country in the header (`?country=GB` is synced to the URL and `localStorage`). Prices stay in each store’s local currency; the UI formats them with `Intl.NumberFormat` and shows country-specific tax copy.
+
+Apply these migrations in order after the deal-alert migration (and after `20261026120000_market_rollups.sql` when that view exists):
+
+1. `supabase/migrations/20261027000000_multi_country.sql` — `countries`, `country_code` on `stores`, `country_code` on `alert_subscriptions`, `country_waitlist`, updated `subscribe_to_alerts`, waitlist RPCs.
+2. `supabase/migrations/20261027000100_market_rollups_country.sql` — `market_latest` / `market_daily` expose `country_code` and match qualifying lows to each store’s currency.
+
+Only enabled countries are readable from `countries`. Waitlist emails are never granted to `anon`. The owner sees waitlist counts (and confirmed emails) through `list_country_waitlist_counts`.
+
+Redeploy `supabase/functions/deal-alerts` after merge so `waitlist_confirm` and per-country deal matching are live.
+
 ## Deal alerts
 
 Visitors can ask for an email when Harbour records a public price for a product or a category. The address is confirmed before any alert is sent. Confirm and unsubscribe links open `/deal-tracker/confirm` and `/deal-tracker/unsubscribe`.

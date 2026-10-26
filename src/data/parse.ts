@@ -8,6 +8,7 @@ export function parseStoreRow(row: unknown): Store {
     name: requiredString(record, 'name', 'stores'),
     base_url: optionalString(record, 'base_url', 'stores'),
     country: optionalString(record, 'country', 'stores'),
+    country_code: optionalString(record, 'country_code', 'stores'),
     membership: optionalString(record, 'membership', 'stores'),
     notes: optionalString(record, 'notes', 'stores'),
     enabled: requiredBoolean(record, 'enabled', 'stores'),

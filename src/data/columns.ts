@@ -29,6 +29,7 @@ const publicStoreColumns = [
   'name',
   'base_url',
   'country',
+  'country_code',
   'enabled',
   'created_at',
   'updated_at',

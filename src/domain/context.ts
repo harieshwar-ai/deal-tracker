@@ -1,4 +1,4 @@
-import { dayKey, discountPercent, formatCad, isCadCurrency, roundMoney } from './format'
+import { dayKey, discountPercent, formatCad, isLocalCurrency, roundMoney } from './format'
 import { isQualifying } from './offers'
 import { cheapestEver, chooseBest, offerQuotes } from './quotes'
 import { seasonCards } from './seasons'
@@ -70,12 +70,17 @@ export function freshnessLabel(freshness: Freshness): string {
   }
 }
 
-export function priceBrief(snapshots: PriceSnapshot[], stores: Store[], now = new Date()): PriceBrief {
+export function priceBrief(
+  snapshots: PriceSnapshot[],
+  stores: Store[],
+  now = new Date(),
+  localCurrency = 'CAD',
+): PriceBrief {
   const qualifying = snapshots.filter(isQualifying)
   const current = chooseBest(offerQuotes(qualifying, stores))
   const ever = cheapestEver(qualifying)
-  const low30 = windowLow(qualifying, stores, now, 30)
-  const low90 = windowLow(qualifying, stores, now, 90)
+  const low30 = windowLow(qualifying, stores, now, 30, localCurrency)
+  const low90 = windowLow(qualifying, stores, now, 90, localCurrency)
   const lastChecked = latestCapture(snapshots)
   const percent = current ? discountPercent(current.price, current.regularPrice) : null
   return {
@@ -97,35 +102,35 @@ export function priceBrief(snapshots: PriceSnapshot[], stores: Store[], now = ne
     low90,
     lastChecked,
     freshness: freshnessOf(lastChecked, now),
-    timing: buyTiming(qualifying, now),
-    typical30: typicalPrice(snapshots, now),
-    historyDays: qualifyingDayCount(snapshots),
+    timing: buyTiming(qualifying, now, localCurrency),
+    typical30: typicalPrice(snapshots, now, 30, localCurrency),
+    historyDays: qualifyingDayCount(snapshots, localCurrency),
   }
 }
 
 /** Median in-stock qualifying daily low over the last `days` days. Needs two days. */
-export function typicalPrice(snapshots: PriceSnapshot[], now = new Date(), days = 30): number | null {
-  const lows = dailyQualifyingLows(snapshots, now, days)
+export function typicalPrice(snapshots: PriceSnapshot[], now = new Date(), days = 30, localCurrency = 'CAD'): number | null {
+  const lows = dailyQualifyingLows(snapshots, now, days, localCurrency)
   if (lows.length < 2) return null
   return roundMoney(median(lows))
 }
 
-export function qualifyingDayCount(snapshots: PriceSnapshot[]): number {
+export function qualifyingDayCount(snapshots: PriceSnapshot[], localCurrency = 'CAD'): number {
   const days = new Set<string>()
   for (const snapshot of snapshots) {
-    if (!isQualifying(snapshot) || snapshot.in_stock === false || !isCadCurrency(snapshot.currency)) continue
+    if (!isQualifying(snapshot) || snapshot.in_stock === false || !isLocalCurrency(snapshot.currency, localCurrency)) continue
     const day = dayKey(snapshot.captured_at)
     if (day) days.add(day)
   }
   return days.size
 }
 
-function dailyQualifyingLows(snapshots: PriceSnapshot[], now: Date, days: number): number[] {
+function dailyQualifyingLows(snapshots: PriceSnapshot[], now: Date, days: number, localCurrency: string): number[] {
   const start = now.getTime() - days * 86400000
   const end = now.getTime()
   const byDay = new Map<string, number>()
   for (const snapshot of snapshots) {
-    if (!isQualifying(snapshot) || snapshot.in_stock === false || !isCadCurrency(snapshot.currency)) continue
+    if (!isQualifying(snapshot) || snapshot.in_stock === false || !isLocalCurrency(snapshot.currency, localCurrency)) continue
     const time = Date.parse(snapshot.captured_at)
     if (Number.isNaN(time) || time < start || time > end) continue
     const day = dayKey(snapshot.captured_at)
@@ -136,10 +141,10 @@ function dailyQualifyingLows(snapshots: PriceSnapshot[], now: Date, days: number
   return [...byDay.values()]
 }
 
-export function buyTiming(snapshots: PriceSnapshot[], now = new Date()): BuyTiming {
+export function buyTiming(snapshots: PriceSnapshot[], now = new Date(), localCurrency = 'CAD'): BuyTiming {
   const byMonth = new Map<string, { label: string; days: Map<string, number> }>()
   for (const snapshot of snapshots) {
-    if (!isQualifying(snapshot) || snapshot.in_stock === false || !isCadCurrency(snapshot.currency)) continue
+    if (!isQualifying(snapshot) || snapshot.in_stock === false || !isLocalCurrency(snapshot.currency, localCurrency)) continue
     const month = torontoMonth(snapshot.captured_at)
     const day = dayKey(snapshot.captured_at)
     if (!month || !day) continue
@@ -191,10 +196,16 @@ export function buyTiming(snapshots: PriceSnapshot[], now = new Date()): BuyTimi
   }
 }
 
-function windowLow(snapshots: PriceSnapshot[], stores: Store[], now: Date, days: number): MoneyMark | null {
+function windowLow(
+  snapshots: PriceSnapshot[],
+  stores: Store[],
+  now: Date,
+  days: number,
+  localCurrency: string,
+): MoneyMark | null {
   const start = now.getTime() - days * 86400000
   const windowed = snapshots.filter((snapshot) => {
-    if (!isQualifying(snapshot) || snapshot.in_stock === false || !isCadCurrency(snapshot.currency)) return false
+    if (!isQualifying(snapshot) || snapshot.in_stock === false || !isLocalCurrency(snapshot.currency, localCurrency)) return false
     const time = Date.parse(snapshot.captured_at)
     return !Number.isNaN(time) && time >= start && time <= now.getTime()
   })

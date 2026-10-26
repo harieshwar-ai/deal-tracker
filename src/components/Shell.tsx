@@ -7,7 +7,8 @@ import { consumeReturnPath, rememberReturnPath } from '../auth/returnPath'
 import { cn } from '../lib/cn'
 import { leavePreview } from '../preview/mode'
 import { openGoodDeals } from '../domain/overview'
-import { useCatalog } from '../state/catalog'
+import { CountryPicker, CountryPickerCompact } from './CountryPicker'
+import { useCountry } from '../state/country'
 import { RouteTransition } from './motion'
 import { useAlertSignup } from './AlertSignup'
 import { ThemeToggle } from './ThemeToggle'
@@ -25,7 +26,7 @@ const links = [
 
 export function Shell() {
   const { email, notice, signOut, session } = useAuth()
-  const catalog = useCatalog()
+  const { catalog, profile, enabled } = useCountry()
   const navigate = useNavigate()
   const consumed = useRef(false)
   const openDeals = openGoodDeals(catalog).length
@@ -54,7 +55,7 @@ export function Shell() {
       <aside className="hidden bg-bark text-foam md:flex md:flex-col md:px-4 md:py-6">
         <div className="px-3">
           <p className="font-display text-3xl">Harbour</p>
-          <p className="mt-1 text-sm text-foam/60">Hamilton · CAD</p>
+          <CountryPickerCompact />
         </div>
         <nav className="mt-8 grid gap-1" aria-label="Primary">
           {links.map((link) => (
@@ -70,8 +71,9 @@ export function Shell() {
       </aside>
       <div className="min-w-0">
         <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-line px-4 py-3 md:px-8">
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <p className="font-display text-2xl md:hidden">Harbour</p>
+            <CountryPicker />
             {session && catalog.source !== 'preview' ? (
               <Link to="/alerts" className="text-sm text-muted underline md:hidden">Subscribers</Link>
             ) : null}
@@ -80,7 +82,11 @@ export function Shell() {
             </button>
           </div>
           <p className="hidden text-sm text-muted md:block">
-            {catalog.source === 'preview' ? 'Sample data on this browser. Refresh restores it.' : 'Prices from the daily Canadian store check.'}
+            {catalog.source === 'preview'
+              ? 'Sample data on this browser. Refresh restores it.'
+              : enabled
+                ? `Prices from trusted ${profile.name} stores.`
+                : `${profile.name} is coming soon. Join the waitlist to get notified.`}
           </p>
           <div className="ml-auto flex items-center gap-2">
             <ThemeToggle />

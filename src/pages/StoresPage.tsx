@@ -11,11 +11,11 @@ import { blankStoreDraft, storeToDraft } from '../domain/drafts'
 import { safeHttpUrl } from '../domain/format'
 import type { Store, StoreWrite } from '../domain/types'
 import { useDocumentTitle } from '../lib/title'
-import { useCatalog } from '../state/catalog'
+import { useCountry } from '../state/country'
 
 export function StoresPage() {
   useDocumentTitle('Stores')
-  const catalog = useCatalog()
+  const { catalog } = useCountry()
   const canEdit = useCanEdit()
   const push = useToast()
   const [editing, setEditing] = useState<Store | 'new' | null>(null)

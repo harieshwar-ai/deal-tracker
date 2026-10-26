@@ -165,6 +165,7 @@ export function PreviewCatalogProvider({ children }: { children: ReactNode }) {
           name: write.name,
           base_url: write.base_url,
           country: write.country,
+          country_code: write.country,
           membership: write.membership,
           notes: write.notes,
           enabled: write.enabled,

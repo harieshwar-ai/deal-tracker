@@ -55,7 +55,9 @@ function dailySnapshot(row: unknown, id: number, names: Map<string, string>): Pr
     product_url: null,
     price,
     regular_price: null,
-    currency: 'CAD',
+    currency: typeof record.store_currency === 'string' && record.store_currency.length === 3
+      ? record.store_currency.toUpperCase()
+      : 'CAD',
     in_stock: true,
     member_only: null,
     captured_at: `${day}T04:00:00.000Z`,

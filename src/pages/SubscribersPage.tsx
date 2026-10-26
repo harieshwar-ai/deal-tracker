@@ -7,6 +7,7 @@ import { FadeIn } from '../components/motion'
 import { Badge } from '../components/ui/badge'
 import { EmptyState, LoadingBlock } from '../components/ui/skeleton'
 import { loadSubscribers } from '../data/alerts'
+import { loadWaitlistCounts } from '../data/waitlist'
 import { subscriberCounts, type SubscriberListItem } from '../domain/alerts'
 import { categoryLabel } from '../domain/labels'
 import { useDocumentTitle } from '../lib/title'
@@ -24,19 +25,27 @@ export function SubscribersPage() {
   const catalog = useCatalog()
   const owner = isOwnerSession(session?.user.id)
   const [rows, setRows] = useState<SubscriberListItem[] | null>(null)
+  const [waitlist, setWaitlist] = useState<{ countryCode: string; countryName: string; pending: number; confirmed: number }[] | null>(null)
   const [failed, setFailed] = useState(false)
 
   useEffect(() => {
     if (!owner) return
     let active = true
-    void loadSubscribers().then((result) => {
+    void Promise.all([loadSubscribers(), loadWaitlistCounts()]).then(([subscribers, waitlistCounts]) => {
       if (!active) return
-      if (!result.ok) {
+      if (!subscribers.ok) {
         setFailed(true)
         setRows([])
+        setWaitlist([])
         return
       }
-      setRows(result.rows)
+      setRows(subscribers.rows)
+      setWaitlist(waitlistCounts.ok ? waitlistCounts.rows.map((row) => ({
+        countryCode: row.countryCode,
+        countryName: row.countryName,
+        pending: row.pending,
+        confirmed: row.confirmed,
+      })) : [])
     })
     return () => {
       active = false
@@ -76,6 +85,15 @@ export function SubscribersPage() {
             <div className="mt-6 grid gap-4 md:grid-cols-2">
               <CountCard title="By category" rows={counts.byCategory.map((row) => ({ id: row.category, label: categoryLabel(row.category), count: row.count }))} empty="No category alerts yet." />
               <CountCard title="By product" rows={counts.byItem.map((row) => ({ id: row.itemId, label: names.get(row.itemId) ?? 'Removed item', count: row.count }))} empty="No product alerts yet." />
+              <CountCard
+                title="Country waitlist"
+                rows={(waitlist ?? []).map((row) => ({
+                  id: row.countryCode,
+                  label: `${row.countryName} · ${row.confirmed} confirmed, ${row.pending} pending`,
+                  count: row.confirmed + row.pending,
+                }))}
+                empty="No country waitlist signups yet."
+              />
             </div>
             <div className="mt-6 overflow-x-auto rounded-xl border border-line bg-paper-2 shadow-sm">
               <table className="w-full min-w-[36rem] text-left text-sm">

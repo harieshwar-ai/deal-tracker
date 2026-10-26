@@ -18,7 +18,7 @@ import { discountPercent, formatCad, formatDay, safeHttpUrl } from '../domain/fo
 import type { Deal, DealStatus } from '../domain/types'
 import { writeParams } from '../lib/search'
 import { useDocumentTitle } from '../lib/title'
-import { useCatalog } from '../state/catalog'
+import { useCountry } from '../state/country'
 
 interface DealLine {
   cluster: DealCluster
@@ -41,7 +41,7 @@ const filters: { value: StatusFilter; label: string }[] = [
 
 export function DealsPage() {
   useDocumentTitle('Deals')
-  const catalog = useCatalog()
+  const { catalog } = useCountry()
   const canEdit = useCanEdit()
   const push = useToast()
   const [params, setParams] = useSearchParams()

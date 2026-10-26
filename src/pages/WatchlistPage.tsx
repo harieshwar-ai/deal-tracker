@@ -17,7 +17,7 @@ import { Tooltip } from '../components/ui/tooltip'
 import { Badge, buttonClass, ConfirmDialog, controlClass, EmptyState, ErrorState, LoadingBlock, Modal, Segmented, Select } from '../components/ui'
 import { blankItemDraft, itemToDraft, pendingItemFromUrl } from '../domain/drafts'
 import { parseActivity, parsePriorityFilter } from '../domain/filters'
-import { formatCad, formatPct, safeHttpUrl } from '../domain/format'
+import { formatPct, safeHttpUrl } from '../domain/format'
 import { categoryLabel, priorityLabel, priorityTone, shortItemName } from '../domain/labels'
 import { marketOverview, versusTypical } from '../domain/overview'
 import type { Item } from '../domain/types'
@@ -29,7 +29,7 @@ import { buildWatchRows, filterWatchRows, watchCategories } from '../domain/watc
 import type { WatchRow } from '../domain/watchlist'
 import { writeParams } from '../lib/search'
 import { useDocumentTitle } from '../lib/title'
-import { useCatalog } from '../state/catalog'
+import { useCountry } from '../state/country'
 
 interface Listed {
   row: WatchRow
@@ -42,7 +42,7 @@ const pageSize = 20
 
 export function WatchlistPage() {
   useDocumentTitle('Watchlist')
-  const catalog = useCatalog()
+  const { catalog, formatPrice, profile, enabled: countryEnabled } = useCountry()
   const canEdit = useCanEdit()
   const push = useToast()
   const openAlerts = useAlertSignup()
@@ -98,9 +98,10 @@ export function WatchlistPage() {
   const columns = useMemo(() => watchColumns({
     canEdit,
     showTypical,
+    formatPrice,
     onEdit: setEditing,
     onDelete: setRemoving,
-  }), [canEdit, showTypical])
+  }), [canEdit, formatPrice, showTypical])
 
   function update(updates: Record<string, string | null>, keepPage = false) {
     setParams(writeParams(params, keepPage ? updates : { ...updates, page: null }), { replace: true })
@@ -116,6 +117,11 @@ export function WatchlistPage() {
   return (
     <FadeIn>
       <div>
+        {!countryEnabled ? (
+          <p className="mb-4 rounded-2xl border border-line bg-paper-2 px-4 py-3 text-sm text-muted" role="status">
+            {profile.name} is coming soon. Join the waitlist from the country menu to get notified.
+          </p>
+        ) : null}
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="text-sm font-medium tracking-wide text-muted uppercase">Market</p>
@@ -142,7 +148,7 @@ export function WatchlistPage() {
           <Kpi label="Open good deals" value={String(overview.openGoodDeals)} detail="Must buy and good, still open" />
           <Kpi
             label="Biggest drop this week"
-            value={overview.biggestDrop ? `${formatPct(overview.biggestDrop.percent, 0)} · ${formatCad(overview.biggestDrop.amount)}` : '—'}
+            value={overview.biggestDrop ? `${formatPct(overview.biggestDrop.percent, 0)} · ${formatPrice(overview.biggestDrop.amount)}` : '—'}
             detail={overview.biggestDrop ? `${overview.biggestDrop.itemName} · ${overview.biggestDrop.storeName}` : 'No drop saved in the last 7 days'}
           />
           <Kpi label="Last scan" value={overview.lastScan ? '' : '—'} detail={overview.lastScan ? '' : 'No check saved yet'}>
@@ -167,7 +173,7 @@ export function WatchlistPage() {
                     </p>
                     <p className="flex items-center gap-2">
                       <Badge className={priceCallTone(deal.call)}>{priceCallLabel(deal.call)}</Badge>
-                      <span className="font-mono tabular-nums">{formatCad(deal.price)}</span>
+                      <span className="font-mono tabular-nums">{formatPrice(deal.price)}</span>
                     </p>
                   </li>
                 ))}
@@ -320,6 +326,7 @@ export function WatchlistPage() {
                   <WatchCard
                     entry={entry}
                     canEdit={canEdit}
+                    formatPrice={formatPrice}
                     onAlert={() => openAlerts({ itemId: entry.row.item.id, itemName: entry.row.item.name, category: entry.row.item.category })}
                     onEdit={() => setEditing(entry.row.item)}
                     onDelete={() => setRemoving(entry.row.item)}
@@ -408,11 +415,13 @@ export function WatchlistPage() {
 function watchColumns({
   canEdit,
   showTypical,
+  formatPrice,
   onEdit,
   onDelete,
 }: {
   canEdit: boolean
   showTypical: boolean
+  formatPrice: (value: number | null | undefined) => string
   onEdit: (item: Item) => void
   onDelete: (item: Item) => void
 }) {
@@ -441,7 +450,7 @@ function watchColumns({
     columnHelper.accessor((entry) => entry.row.best?.price ?? Number.POSITIVE_INFINITY, {
       id: 'price',
       header: 'Best price',
-      cell: ({ row }) => <span className="font-mono tabular-nums">{row.original.row.best ? formatCad(row.original.row.best.price) : '—'}</span>,
+      cell: ({ row }) => <span className="font-mono tabular-nums">{row.original.row.best ? formatPrice(row.original.row.best.price) : '—'}</span>,
     }),
     columnHelper.accessor((entry) => entry.row.best?.storeName ?? '', {
       id: 'store',
@@ -463,7 +472,7 @@ function watchColumns({
       header: 'All-time low',
       cell: ({ row }) => (
         <span className="tabular-nums">
-          {row.original.row.allTimeLow != null ? formatCad(row.original.row.allTimeLow) : '—'}
+          {row.original.row.allTimeLow != null ? formatPrice(row.original.row.allTimeLow) : '—'}
           {row.original.row.atLow && (row.original.brief?.historyDays ?? 0) >= 14 ? <span className="ml-2 text-xs text-buy">At the low</span> : null}
         </span>
       ),
@@ -502,12 +511,14 @@ function watchColumns({
 function WatchCard({
   entry,
   canEdit,
+  formatPrice,
   onAlert,
   onEdit,
   onDelete,
 }: {
   entry: Listed
   canEdit: boolean
+  formatPrice: (value: number | null | undefined) => string
   onAlert: () => void
   onEdit: () => void
   onDelete: () => void
@@ -523,7 +534,7 @@ function WatchCard({
           </h3>
           <p className="mt-1 text-sm text-muted">{item.category ? categoryLabel(item.category) : 'No category'}</p>
         </div>
-        <p className="font-mono text-2xl tabular-nums">{best ? formatCad(best.price) : '—'}</p>
+        <p className="font-mono text-2xl tabular-nums">{best ? formatPrice(best.price) : '—'}</p>
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
         {entry.call ? <Badge className={priceCallTone(entry.call.call)}>{priceCallLabel(entry.call.call)}</Badge> : null}
@@ -534,7 +545,7 @@ function WatchCard({
         {best ? best.storeName : 'No qualifying offer yet'}
         {' · '}
         {versusTypical(entry.brief?.currentPrice ?? null, entry.brief?.typical30 ?? null)}
-        {entry.row.allTimeLow != null ? ` · low ${formatCad(entry.row.allTimeLow)}` : ''}
+        {entry.row.allTimeLow != null ? ` · low ${formatPrice(entry.row.allTimeLow)}` : ''}
       </p>
       <div className="mt-3 flex flex-wrap gap-3 text-sm">
         <button type="button" className="text-pine underline" onClick={onAlert}>Get deal alerts</button>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { FadeIn } from '../components/motion'
 import { unsubscribeAlert } from '../data/alerts'
+import { unsubscribeCountryWaitlist } from '../data/waitlist'
 import { categoryLabel } from '../domain/labels'
 import { useDocumentTitle } from '../lib/title'
 import { useCatalog } from '../state/catalog'
@@ -20,6 +21,7 @@ export function UnsubscribePage() {
   const [params] = useSearchParams()
   const catalog = useCatalog()
   const token = params.get('token')
+  const waitlist = params.get('waitlist') === '1'
   const [state, setState] = useState<State>(token ? 'loading' : 'missing')
   const [target, setTarget] = useState<{ category: string | null; itemId: string | null } | null>(null)
   useDocumentTitle('Unsubscribe')
@@ -27,10 +29,11 @@ export function UnsubscribePage() {
   useEffect(() => {
     if (!token) return
     let active = true
-    void unsubscribeAlert(token).then((result) => {
+    const run = waitlist ? unsubscribeCountryWaitlist(token) : unsubscribeAlert(token)
+    void run.then((result) => {
       if (!active) return
       if (result.ok) {
-        setTarget({ category: result.category, itemId: result.itemId })
+        if (!waitlist && 'category' in result) setTarget({ category: result.category, itemId: result.itemId })
         setState('done')
       } else if (result.error === 'invalid_token') setState('invalid')
       else setState('error')
@@ -38,7 +41,7 @@ export function UnsubscribePage() {
     return () => {
       active = false
     }
-  }, [token])
+  }, [token, waitlist])
 
   const message = copy[state]
   const targetLabel = target?.itemId

@@ -14,12 +14,14 @@ import { ItemForm } from '../components/ItemForm'
 import { useToast } from '../components/toast'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger, Badge, Button, ConfirmDialog, EmptyState, LoadingBlock, Modal, Segmented, Select } from '../components/ui'
 import { StoreComparison } from '../components/StoreComparison'
-import { compareStores, ontarioHstRate } from '../domain/compare'
+import { compareStores } from '../domain/compare'
+import { mergeCountrySearchParams, otherTrackedCountries } from '../domain/country'
 import { priceBrief } from '../domain/context'
 import { compareCandidateProducts, storeRowsFromQuotes } from '../domain/productCompare'
 import { clusterDeals } from '../domain/deals'
 import { itemToDraft } from '../domain/drafts'
-import { discountPercent, formatCad, formatDay, roundMoney, safeHttpUrl } from '../domain/format'
+import { discountPercent, formatDay, roundMoney, safeHttpUrl } from '../domain/format'
+import { useCatalog } from '../state/catalog'
 import { buildPriceHistory, historyChartState, parseChartRange, withinChartRange } from '../domain/history'
 import { versusTypical } from '../domain/overview'
 import { categoryLabel, priorityLabel, priorityTone, verdictLabel, verdictTone } from '../domain/labels'
@@ -30,18 +32,23 @@ import { atlHistoryDays, priceCallForItem, priceCallLabel, priceCallTone } from 
 import { watchCategories } from '../domain/watchlist'
 import { writeParams } from '../lib/search'
 import { useDocumentTitle } from '../lib/title'
-import { useCatalog } from '../state/catalog'
+import { useCountry } from '../state/country'
 
 type SnapshotSort = 'newest' | 'price' | 'store'
 
 export function ItemPage() {
   const { itemId } = useParams()
-  const catalog = useCatalog()
+  const rawCatalog = useCatalog()
+  const { catalog, formatPrice, taxNote, profile, code: countryCode } = useCountry()
   const canEdit = useCanEdit()
   const navigate = useNavigate()
   const push = useToast()
   const openAlerts = useAlertSignup()
   const item = catalog.items.find((entry) => entry.id === itemId)
+  const trackedElsewhere = useMemo(
+    () => otherTrackedCountries(rawCatalog, item?.id ?? '', countryCode),
+    [countryCode, item?.id, rawCatalog],
+  )
   useDocumentTitle(item?.name ?? 'Item', item?.public_summary)
   const [editing, setEditing] = useState(false)
   const [removing, setRemoving] = useState(false)
@@ -74,7 +81,7 @@ export function ItemPage() {
     [catalog.stores, liveSnapshots],
   )
   const best = chooseBest(quotes)
-  const brief = useMemo(() => priceBrief(snapshots, catalog.stores), [catalog.stores, snapshots])
+  const brief = useMemo(() => priceBrief(snapshots, catalog.stores, undefined, profile.currency), [catalog.stores, profile.currency, snapshots])
   const products = useMemo(() => compareCandidateProducts(liveSnapshots, catalog.stores), [catalog.stores, liveSnapshots])
   const storeRows = useMemo(
     () => storeRowsFromQuotes(quotes, catalog.deals.filter((deal) => deal.item_id === itemId), qualifyingSnapshots, best?.snapshotId ?? null),
@@ -155,6 +162,22 @@ export function ItemPage() {
             </ul>
           ) : null}
           {canEdit && item.notes ? <p className="mt-3 max-w-2xl rounded-xl bg-paper px-4 py-3 text-sm leading-6">{item.notes}</p> : null}
+          {trackedElsewhere.length > 0 ? (
+            <p className="mt-3 text-sm text-muted">
+              Also tracked in{' '}
+              {trackedElsewhere.map((entry, index) => (
+                <span key={entry.code}>
+                  {index > 0 ? ', ' : ''}
+                  <Link
+                    className="text-pine underline"
+                    to={{ pathname: `/items/${item.id}`, search: mergeCountrySearchParams(new URLSearchParams(), entry.code).toString() }}
+                  >
+                    {entry.name}
+                  </Link>
+                </span>
+              ))}
+            </p>
+          ) : null}
         </div>
           <aside className="rounded-xl border border-line bg-paper-2 p-4 shadow-sm">
           <div className="grid grid-cols-[5.5rem_minmax(0,1fr)] items-center gap-3">
@@ -163,7 +186,7 @@ export function ItemPage() {
             </div>
             <div>
               <p className="text-xs font-medium tracking-wide text-muted uppercase">Best offer</p>
-              <p className="mt-1 font-mono text-3xl font-medium tracking-tight tabular-nums">{best ? formatCad(best.price) : '—'}</p>
+              <p className="mt-1 font-mono text-3xl font-medium tracking-tight tabular-nums">{best ? formatPrice(best.price) : '—'}</p>
               <p className="mt-1 text-sm font-medium text-muted">
                 {best ? (
                   <>
@@ -187,12 +210,20 @@ export function ItemPage() {
             </div>
             <div>
               <dt className="text-muted">{brief.historyDays >= atlHistoryDays ? 'All-time low' : 'Lowest saved'}</dt>
-              <dd className="mt-1 font-mono tabular-nums">{brief.allTime && !brief.allTime.outOfStock ? formatCad(brief.allTime.price) : '—'}</dd>
+              <dd className="mt-1 font-mono tabular-nums">{brief.allTime && !brief.allTime.outOfStock ? formatPrice(brief.allTime.price) : '—'}</dd>
             </div>
-            <div>
-              <dt className="text-muted">With 13% HST</dt>
-              <dd className="mt-1 font-mono tabular-nums">{best ? formatCad(roundMoney(best.price * (1 + ontarioHstRate))) : '—'}</dd>
-            </div>
+            {taxNote ? (
+              <div>
+                <dt className="text-muted">{taxNote}</dt>
+                <dd className="mt-1 font-mono tabular-nums">
+                  {best && !profile.pricesIncludeTax && profile.taxRate != null
+                    ? formatPrice(roundMoney(best.price * (1 + profile.taxRate)))
+                    : best && profile.pricesIncludeTax
+                      ? formatPrice(best.price)
+                      : '—'}
+                </dd>
+              </div>
+            ) : null}
           </dl>
         </aside>
       </div>
@@ -200,9 +231,9 @@ export function ItemPage() {
       <PriceBrief
         brief={brief}
         owner={canEdit ? {
-          target: item.target_price != null ? formatCad(item.target_price) : '—',
-          max: item.max_price != null ? formatCad(item.max_price) : '—',
-          gap: gap == null ? 'Set a target to compare' : gap <= 0 ? `${formatCad(Math.abs(gap))} under target` : `${formatCad(gap)} over target`,
+          target: item.target_price != null ? formatPrice(item.target_price) : '—',
+          max: item.max_price != null ? formatPrice(item.max_price) : '—',
+          gap: gap == null ? 'Set a target to compare' : gap <= 0 ? `${formatPrice(Math.abs(gap))} under target` : `${formatPrice(gap)} over target`,
         } : null}
       />
 
@@ -348,11 +379,11 @@ export function ItemPage() {
                         {snapshot.meets_requirements == null ? <span className="mt-1 block text-xs text-muted">Unverified</span> : null}
                       </td>
                       <td className="px-4 py-3 tabular-nums">
-                        {formatCad(snapshot.price)}
+                        {formatPrice(snapshot.price)}
                         {snapshot.currency !== 'CAD' ? ` ${snapshot.currency}` : ''}
                         {discount != null && discount > 0 ? <span className="text-drop"> {discount.toFixed(0)}%</span> : null}
                       </td>
-                      <td className="px-4 py-3 tabular-nums text-muted">{snapshot.regular_price != null ? formatCad(snapshot.regular_price) : '—'}</td>
+                      <td className="px-4 py-3 tabular-nums text-muted">{snapshot.regular_price != null ? formatPrice(snapshot.regular_price) : '—'}</td>
                       <td className="px-4 py-3">{snapshot.in_stock == null ? '—' : snapshot.in_stock ? 'In stock' : 'Out of stock'}</td>
                     </tr>
                   )
@@ -381,12 +412,12 @@ export function ItemPage() {
               <li key={cluster.deal.id} className="rounded-2xl border border-line bg-paper-2 px-4 py-3 text-sm">
                 <Badge className={verdictTone(cluster.deal.verdict ?? 'unrated')}>{verdictLabel(cluster.deal.verdict ?? 'unrated')}</Badge>
                 <span className="ml-2">{cluster.deal.title}</span>
-                <span className="ml-2 tabular-nums">{formatCad(cluster.deal.price)}</span>
+                <span className="ml-2 tabular-nums">{formatPrice(cluster.deal.price)}</span>
                 {cluster.options.length > 1 ? (
                   <ul className="mt-2 grid gap-1 text-muted">
                     {cluster.options.map((option) => (
                       <li key={`${option.label ?? 'option'}-${option.price}`}>
-                        {option.label ? `${option.label} · ` : ''}{formatCad(option.price)}
+                        {option.label ? `${option.label} · ` : ''}{formatPrice(option.price)}
                         {safeHttpUrl(option.url) ? <a className="ml-2 text-pine underline" href={safeHttpUrl(option.url) ?? undefined} target="_blank" rel="noopener noreferrer">Open</a> : null}
                       </li>
                     ))}
