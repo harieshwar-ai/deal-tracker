@@ -44,6 +44,100 @@ describe('market overview helpers', () => {
     expect(overview.biggestDrop?.percent).toBeCloseTo(20, 5)
     expect(biggestDropThisWeek(data, now)?.itemName).not.toBe('RTX 5090')
   })
+
+  it('keeps a second item on the best-deal list when one item has many open deals', () => {
+    const now = new Date('2026-10-22T16:00:00.000Z')
+    const data = sampleMarket(now)
+    const ramDeals = Array.from({ length: 9 }, (_, index) => {
+      const storeId = `ram-store-${index}`
+      data.stores.push({
+        id: storeId,
+        name: `RAM shop ${index}`,
+        base_url: null,
+        country: 'CA',
+        membership: null,
+        notes: null,
+        enabled: true,
+        created_at: now.toISOString(),
+        updated_at: now.toISOString(),
+      })
+      data.snapshots.push({
+        id: 100 + index,
+        item_id: 'ram',
+        store_id: storeId,
+        product_title: 'RAM',
+        product_url: `https://example.test/ram/${index}`,
+        price: 150 + index,
+        regular_price: null,
+        currency: 'CAD',
+        in_stock: true,
+        member_only: null,
+        captured_at: '2026-10-21T16:00:00.000Z',
+        sale_ends_at: null,
+        shipping: null,
+        product_name: 'RAM kit',
+        meets_requirements: true,
+      })
+      return {
+        id: `ram-extra-${index}`,
+        item_id: 'ram',
+        store_id: storeId,
+        snapshot_id: 100 + index,
+        title: 'RAM kit',
+        url: `https://example.test/ram/${index}`,
+        price: 150 + index,
+        regular_price: null,
+        discount_pct: null,
+        score: 70,
+        verdict: 'good' as const,
+        reason: null,
+        notified_at: null,
+        expires_at: null,
+        status: 'open' as const,
+        found_at: now.toISOString(),
+      }
+    })
+    data.deals.push(...ramDeals)
+    data.snapshots.push({
+      id: 80,
+      item_id: 'gpu',
+      store_id: 'bestbuy',
+      product_title: 'RTX 5080',
+      product_url: 'https://example.test/5080',
+      price: 3799,
+      regular_price: null,
+      currency: 'CAD',
+      in_stock: true,
+      member_only: null,
+      captured_at: '2026-10-21T16:00:00.000Z',
+      sale_ends_at: null,
+      shipping: null,
+      product_name: 'RTX 5080 prebuilt',
+      meets_requirements: true,
+    })
+    data.deals.push({
+      id: 'prebuilt',
+      item_id: 'gpu',
+      store_id: 'bestbuy',
+      snapshot_id: 80,
+      title: 'RTX 5080 prebuilt',
+      url: 'https://example.test/5080',
+      price: 3799,
+      regular_price: null,
+      discount_pct: null,
+      score: 60,
+      verdict: 'good',
+      reason: null,
+      notified_at: null,
+      expires_at: null,
+      status: 'open',
+      found_at: now.toISOString(),
+    })
+    const overview = marketOverview(data, false, now)
+    expect(overview.bestDeals.some((deal) => deal.itemId === 'gpu')).toBe(true)
+    expect(overview.bestDeals.length).toBeLessThanOrEqual(8)
+    expect(overview.bestDeals[0]?.itemId).toBe('ram')
+  })
 })
 
 function sampleMarket(now: Date): Dataset {

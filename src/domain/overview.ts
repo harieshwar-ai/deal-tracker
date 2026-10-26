@@ -26,6 +26,7 @@ export interface BestDealRow {
   id: string
   itemId: string
   name: string
+  productName: string
   price: number
   storeName: string
   call: PriceCall
@@ -133,22 +134,42 @@ export function biggestDropThisWeek(data: Dataset, now = new Date()): DropHighli
 
 function bestDealsNow(data: Dataset, good: DealCluster[], now: Date): BestDealRow[] {
   const rows: BestDealRow[] = []
-  const typicalByItem = new Map<string, number | null>()
+  const snapshotsByItem = new Map<string, PriceSnapshot[]>()
+  for (const snapshot of data.snapshots) {
+    const list = snapshotsByItem.get(snapshot.item_id) ?? []
+    list.push(snapshot)
+    snapshotsByItem.set(snapshot.item_id, list)
+  }
+  const assignmentsByItem = new Map<string, ReturnType<typeof assignProducts>>()
+  const typicalByProduct = new Map<string, number | null>()
   for (const cluster of good) {
     const deal = cluster.deal
     const item = data.items.find((entry) => entry.id === deal.item_id)
     if (!item?.active) continue
-    const offer = latestStockedOffer(deal, data.snapshots)
+    const snapshots = snapshotsByItem.get(item.id) ?? []
+    let assignments = assignmentsByItem.get(item.id)
+    if (!assignments) {
+      assignments = assignProducts(snapshots)
+      assignmentsByItem.set(item.id, assignments)
+    }
+    const offer = latestStockedOffer(deal, snapshots, assignments)
     if (!offer) continue
-    let typical = typicalByItem.get(item.id)
+    const assigned = assignments.get(offer.id)
+    const productKey = assigned?.productKey ?? `listing:${offer.id}`
+    const typicalKey = `${item.id}\u0000${productKey}`
+    let typical = typicalByProduct.get(typicalKey)
     if (typical === undefined) {
-      typical = typicalPrice(data.snapshots.filter((snapshot) => snapshot.item_id === item.id), now)
-      typicalByItem.set(item.id, typical)
+      const series = assigned
+        ? snapshots.filter((snapshot) => assignments?.get(snapshot.id)?.productKey === productKey)
+        : snapshots
+      typical = typicalPrice(series, now)
+      typicalByProduct.set(typicalKey, typical)
     }
     rows.push({
       id: deal.id,
       itemId: item.id,
       name: item.name,
+      productName: assigned?.displayName || offer.product_name || item.name,
       price: offer.price,
       storeName: storeName(data.stores, offer.store_id),
       call: deal.verdict === 'must_buy' ? 'buy' : 'good',
@@ -159,16 +180,37 @@ function bestDealsNow(data: Dataset, good: DealCluster[], now: Date): BestDealRo
     callRank[left.call] - callRank[right.call]
     || belowRank(right.versus) - belowRank(left.versus)
     || left.price - right.price
-    || left.name.localeCompare(right.name)
+    || left.productName.localeCompare(right.productName)
   ))
-  return rows.slice(0, bestDealLimit)
+  return spreadBestDeals(rows, bestDealLimit)
 }
 
-function latestStockedOffer(deal: Deal, snapshots: PriceSnapshot[]): PriceSnapshot | null {
+/** One row per watched item first, so one product family cannot fill the list. */
+function spreadBestDeals(rows: BestDealRow[], limit: number): BestDealRow[] {
+  const picked: BestDealRow[] = []
+  const seen = new Set<string>()
+  for (const row of rows) {
+    if (seen.has(row.itemId)) continue
+    seen.add(row.itemId)
+    picked.push(row)
+    if (picked.length >= limit) return picked
+  }
+  for (const row of rows) {
+    if (picked.some((entry) => entry.id === row.id)) continue
+    picked.push(row)
+    if (picked.length >= limit) break
+  }
+  return picked
+}
+
+function latestStockedOffer(
+  deal: Deal,
+  snapshots: PriceSnapshot[],
+  assignments: ReturnType<typeof assignProducts>,
+): PriceSnapshot | null {
   const atStore = snapshots.filter((snapshot) => (
     snapshot.item_id === deal.item_id && (snapshot.store_id ?? null) === (deal.store_id ?? null)
   ))
-  const assignments = assignProducts(atStore)
   const linked = deal.snapshot_id != null ? atStore.find((snapshot) => snapshot.id === deal.snapshot_id) : undefined
   const productKey = linked ? assignments.get(linked.id)?.productKey : null
   const pool = productKey
@@ -210,8 +252,11 @@ function dailyLows(series: PriceSnapshot[]): { price: number; at: string }[] {
 
 function belowRank(versus: string | null): number {
   if (!versus) return Number.NEGATIVE_INFINITY
-  const match = versus.match(/^(\d+)% below typical$/)
-  return match ? Number(match[1]) : 0
+  const below = versus.match(/^(\d+)% below typical$/)
+  if (below) return Number(below[1])
+  const above = versus.match(/^(\d+)% above typical$/)
+  if (above) return -Number(above[1])
+  return 0
 }
 
 /** Latest change per item, store, and variant. */

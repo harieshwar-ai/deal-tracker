@@ -1,4 +1,5 @@
 import { formatCad, formatPct, formatRelative } from '../domain/format'
+import { atlHistoryDays } from '../domain/verdict'
 import { freshnessLabel } from '../domain/context'
 import type { PriceBrief as Brief } from '../domain/context'
 import { cn } from '../lib/cn'
@@ -29,10 +30,10 @@ export function PriceBrief({
             : 'No qualifying offer yet'}
         />
         <Stat
-          label={brief.allTime?.outOfStock ? 'Cheapest seen, out of stock' : 'All-time low'}
+          label={brief.allTime?.outOfStock ? 'Cheapest seen, out of stock' : brief.historyDays >= atlHistoryDays ? 'All-time low' : 'Lowest saved'}
           value={brief.allTime ? formatCad(brief.allTime.price) : '—'}
           detail={brief.allTime ? `${brief.allTime.storeName} · ${formatRelative(brief.allTime.at)}` : 'No qualifying CAD price yet'}
-          tone={brief.allTime && !brief.allTime.outOfStock && brief.currentPrice != null && brief.currentPrice <= brief.allTime.price + 0.001 ? 'drop' : undefined}
+          tone={brief.historyDays >= atlHistoryDays && brief.allTime && !brief.allTime.outOfStock && brief.currentPrice != null && brief.currentPrice <= brief.allTime.price + 0.001 ? 'drop' : undefined}
         />
         <Stat
           label="30-day low"

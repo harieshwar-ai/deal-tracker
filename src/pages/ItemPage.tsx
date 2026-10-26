@@ -26,7 +26,7 @@ import { categoryLabel, priorityLabel, priorityTone, verdictLabel, verdictTone }
 import { isQualifying } from '../domain/offers'
 import { cheapestEver, chooseBest, offerQuotes } from '../domain/quotes'
 import { buildTimeline } from '../domain/timeline'
-import { priceCallForItem, priceCallLabel, priceCallTone } from '../domain/verdict'
+import { atlHistoryDays, priceCallForItem, priceCallLabel, priceCallTone } from '../domain/verdict'
 import { watchCategories } from '../domain/watchlist'
 import { writeParams } from '../lib/search'
 import { useDocumentTitle } from '../lib/title'
@@ -186,7 +186,7 @@ export function ItemPage() {
               <dd className="mt-1 font-medium">{versusTypical(brief.currentPrice, brief.typical30)}</dd>
             </div>
             <div>
-              <dt className="text-muted">All-time low</dt>
+              <dt className="text-muted">{brief.historyDays >= atlHistoryDays ? 'All-time low' : 'Lowest saved'}</dt>
               <dd className="mt-1 font-mono tabular-nums">{brief.allTime && !brief.allTime.outOfStock ? formatCad(brief.allTime.price) : '—'}</dd>
             </div>
             <div>
@@ -280,7 +280,7 @@ export function ItemPage() {
             {historyChartState(history.rows.length) === 'points' ? (
               <p className="mb-3 text-sm leading-6 text-muted">Fewer than five days are saved. Each dot is a price, and each line follows one product at one store.</p>
             ) : null}
-            <PriceHistoryChart rows={history.rows} series={history.series} target={canEdit ? item.target_price : null} low={chartLow} points={historyChartState(history.rows.length) === 'points'} />
+            <PriceHistoryChart rows={history.rows} series={history.series} target={canEdit ? item.target_price : null} low={chartLow} lowLabel={brief.historyDays >= atlHistoryDays ? 'All-time low' : 'Lowest saved'} points={historyChartState(history.rows.length) === 'points'} />
           </div>
         )}
       </section>

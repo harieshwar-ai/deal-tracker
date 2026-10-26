@@ -161,7 +161,7 @@ export function WatchlistPage() {
                   <li key={deal.id} className="flex flex-wrap items-baseline justify-between gap-2 rounded-lg bg-paper px-3 py-2">
                     <p className="min-w-0 text-sm">
                       <span className="mr-2 font-mono text-muted">{index + 1}</span>
-                      <Link className="font-medium hover:text-pine" to={`/items/${deal.itemId}`} title={deal.name}>{shortItemName(deal.name)}</Link>
+                      <Link className="font-medium hover:text-pine" to={`/items/${deal.itemId}`} title={`${deal.productName} · ${deal.name}`}>{shortItemName(deal.productName)}</Link>
                       <span className="text-muted"> · {deal.storeName}</span>
                       {deal.versus && deal.versus !== '—' ? <span className="text-muted"> · {deal.versus}</span> : null}
                     </p>

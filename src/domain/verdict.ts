@@ -16,7 +16,7 @@ export interface PriceCallResult {
 }
 
 const minHistoryDays = 3
-const atlHistoryDays = 14
+export const atlHistoryDays = 14
 
 export function priceCallLabel(call: PriceCall): string {
   switch (call) {

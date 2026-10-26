@@ -146,12 +146,14 @@ export function PriceHistoryChart({
   series,
   target,
   low,
+  lowLabel = 'Lowest saved',
   points = false,
 }: {
   rows: Record<string, string | number | null>[]
   series: HistorySeries[]
   target: number | null
   low: number | null
+  lowLabel?: string
   points?: boolean
 }) {
   const look = chartLook(useChartColors())
@@ -170,7 +172,7 @@ export function PriceHistoryChart({
               y={low}
               stroke={look.colors.buy}
               strokeDasharray="2 4"
-              label={<ChartChip value="All-time low" fill={look.colors.onBuy} background={look.colors.buy} />}
+              label={<ChartChip value={lowLabel ?? 'Lowest saved'} fill={look.colors.onBuy} background={look.colors.buy} />}
             />
           ) : null}
           {target != null ? <ReferenceLine y={target} stroke={look.colors.gold} strokeDasharray="4 4" label={{ value: 'Target', position: 'insideTopLeft', fill: look.colors.gold }} /> : null}
