@@ -63,7 +63,7 @@ export function MarketTable<T>({
         ))}
       </div>
       <div className="hidden max-h-[70vh] overflow-auto rounded-xl border border-line md:block">
-        <Table className="min-w-[56rem]">
+        <Table className="w-max min-w-[72rem]">
           <TableCaption>{caption}</TableCaption>
           <TableHeader>
             {table.getHeaderGroups().map((group) => (
@@ -101,7 +101,7 @@ export function MarketTable<T>({
             {rows.map((row) => (
               <TableRow key={row.id}>
                 {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id} className={cn(pad, density === 'compact' ? 'text-[13px]' : undefined)}>
+                  <TableCell key={cell.id} className={cn(pad, 'whitespace-nowrap', density === 'compact' ? 'text-[13px]' : undefined)}>
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </TableCell>
                 ))}

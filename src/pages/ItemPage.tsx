@@ -144,13 +144,12 @@ export function ItemPage() {
           <p className="mt-2 max-w-2xl text-sm leading-6">
             <Badge className={priceCallTone(call.call)}>{priceCallLabel(call.call)}</Badge>
             <span className="ml-2">{call.reason}</span>
-            <span className="font-medium text-muted"> Confidence {call.confidence}.</span>
           </p>
           {item.public_summary ? <p className="mt-3 max-w-2xl text-sm leading-6">{item.public_summary}</p> : null}
           <SpecChecklist specs={item.specs} />
           {canEdit ? <RequirementChecklist specs={item.specs} requirements={item.requirements} /> : null}
           {canEdit && item.description ? <p className="mt-3 max-w-2xl text-sm leading-6 text-muted">{item.description}</p> : null}
-          {item.keywords.length > 0 ? (
+          {canEdit && item.keywords.length > 0 ? (
             <ul className="mt-3 flex flex-wrap gap-2">
               {item.keywords.map((keyword) => <li key={keyword}><Badge className="bg-paper text-muted">{keyword}</Badge></li>)}
             </ul>
@@ -184,7 +183,7 @@ export function ItemPage() {
             </div>
             <div>
               <dt className="text-muted">Vs typical</dt>
-              <dd className="mt-1 font-medium">{versusTypical(brief.currentPrice, brief.timing.median)}</dd>
+              <dd className="mt-1 font-medium">{versusTypical(brief.currentPrice, brief.typical30)}</dd>
             </div>
             <div>
               <dt className="text-muted">All-time low</dt>

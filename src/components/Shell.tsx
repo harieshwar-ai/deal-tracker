@@ -6,6 +6,7 @@ import { useAuth } from '../auth/AuthProvider'
 import { consumeReturnPath, rememberReturnPath } from '../auth/returnPath'
 import { cn } from '../lib/cn'
 import { leavePreview } from '../preview/mode'
+import { openGoodDeals } from '../domain/overview'
 import { useCatalog } from '../state/catalog'
 import { RouteTransition } from './motion'
 import { useAlertSignup } from './AlertSignup'
@@ -27,7 +28,7 @@ export function Shell() {
   const catalog = useCatalog()
   const navigate = useNavigate()
   const consumed = useRef(false)
-  const openDeals = catalog.deals.filter((deal) => deal.status === 'open').length
+  const openDeals = openGoodDeals(catalog).length
   const openAlerts = useAlertSignup()
 
   useEffect(() => {

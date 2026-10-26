@@ -13,11 +13,12 @@ import { RelativeTime } from '../components/RelativeTime'
 import { TimelineList } from '../components/Timeline'
 import { useToast } from '../components/toast'
 import { FadeIn } from '../components/motion'
+import { Tooltip } from '../components/ui/tooltip'
 import { Badge, buttonClass, ConfirmDialog, controlClass, EmptyState, ErrorState, LoadingBlock, Modal, Segmented, Select } from '../components/ui'
 import { blankItemDraft, itemToDraft, pendingItemFromUrl } from '../domain/drafts'
 import { parseActivity, parsePriorityFilter } from '../domain/filters'
-import { formatCad, safeHttpUrl } from '../domain/format'
-import { categoryLabel, priorityLabel, priorityTone } from '../domain/labels'
+import { formatCad, formatPct, safeHttpUrl } from '../domain/format'
+import { categoryLabel, priorityLabel, priorityTone, shortItemName } from '../domain/labels'
 import { marketOverview, versusTypical } from '../domain/overview'
 import type { Item } from '../domain/types'
 import type { PriceBrief } from '../domain/context'
@@ -93,11 +94,13 @@ export function WatchlistPage() {
     return listed.filter((entry) => facetMatch(entry, { storeId, stock, fit, verdict }))
   }, [activity, briefs, calls, canEdit, catalog, category, fit, priority, query, stock, storeId, verdict])
 
+  const showTypical = rows.some((entry) => entry.brief?.typical30 != null)
   const columns = useMemo(() => watchColumns({
     canEdit,
+    showTypical,
     onEdit: setEditing,
     onDelete: setRemoving,
-  }), [canEdit])
+  }), [canEdit, showTypical])
 
   function update(updates: Record<string, string | null>, keepPage = false) {
     setParams(writeParams(params, keepPage ? updates : { ...updates, page: null }), { replace: true })
@@ -139,7 +142,7 @@ export function WatchlistPage() {
           <Kpi label="Open good deals" value={String(overview.openGoodDeals)} detail="Must buy and good, still open" />
           <Kpi
             label="Biggest drop this week"
-            value={overview.biggestDrop ? formatCad(overview.biggestDrop.amount) : '—'}
+            value={overview.biggestDrop ? `${formatPct(overview.biggestDrop.percent, 0)} · ${formatCad(overview.biggestDrop.amount)}` : '—'}
             detail={overview.biggestDrop ? `${overview.biggestDrop.itemName} · ${overview.biggestDrop.storeName}` : 'No drop saved in the last 7 days'}
           />
           <Kpi label="Last scan" value={overview.lastScan ? '' : '—'} detail={overview.lastScan ? '' : 'No check saved yet'}>
@@ -151,15 +154,16 @@ export function WatchlistPage() {
           <section className="rounded-xl border border-line bg-paper-2 p-4 shadow-sm md:p-5">
             <h2 className="font-display text-2xl">Best deals right now</h2>
             {overview.bestDeals.length === 0 ? (
-              <p className="mt-3 text-sm text-muted">Nothing is a buy or a good price right now.</p>
+              <p className="mt-3 text-sm text-muted">No open must-buy or good deal has an in-stock price right now.</p>
             ) : (
               <ol className="mt-3 grid gap-2">
                 {overview.bestDeals.map((deal, index) => (
-                  <li key={deal.itemId} className="flex flex-wrap items-baseline justify-between gap-2 rounded-lg bg-paper px-3 py-2">
+                  <li key={deal.id} className="flex flex-wrap items-baseline justify-between gap-2 rounded-lg bg-paper px-3 py-2">
                     <p className="min-w-0 text-sm">
                       <span className="mr-2 font-mono text-muted">{index + 1}</span>
-                      <Link className="font-medium hover:text-pine" to={`/items/${deal.itemId}`}>{deal.name}</Link>
+                      <Link className="font-medium hover:text-pine" to={`/items/${deal.itemId}`} title={deal.name}>{shortItemName(deal.name)}</Link>
                       <span className="text-muted"> · {deal.storeName}</span>
+                      {deal.versus && deal.versus !== '—' ? <span className="text-muted"> · {deal.versus}</span> : null}
                     </p>
                     <p className="flex items-center gap-2">
                       <Badge className={priceCallTone(deal.call)}>{priceCallLabel(deal.call)}</Badge>
@@ -403,10 +407,12 @@ export function WatchlistPage() {
 
 function watchColumns({
   canEdit,
+  showTypical,
   onEdit,
   onDelete,
 }: {
   canEdit: boolean
+  showTypical: boolean
   onEdit: (item: Item) => void
   onDelete: (item: Item) => void
 }) {
@@ -415,12 +421,17 @@ function watchColumns({
     columnHelper.accessor((entry) => entry.row.item.name, {
       id: 'item',
       header: 'Item',
-      cell: ({ row }) => (
-        <div>
-          <Link className="font-medium hover:text-pine" to={`/items/${row.original.row.item.id}`}>{row.original.row.item.name}</Link>
-          {!row.original.row.item.active ? <span className="ml-2 text-xs text-muted">Paused</span> : null}
-        </div>
-      ),
+      cell: ({ row }) => {
+        const name = row.original.row.item.name
+        return (
+          <div className="flex min-w-56 items-center gap-2">
+            <Tooltip label={name}>
+              <Link className="inline-block max-w-72 truncate font-medium whitespace-nowrap hover:text-pine" to={`/items/${row.original.row.item.id}`}>{shortItemName(name)}</Link>
+            </Tooltip>
+            {!row.original.row.item.active ? <span className="shrink-0 text-xs text-muted">Paused</span> : null}
+          </div>
+        )
+      },
     }),
     columnHelper.accessor((entry) => categoryLabel(entry.row.item.category), {
       id: 'category',
@@ -442,18 +453,18 @@ function watchColumns({
       header: 'Verdict',
       cell: ({ row }) => row.original.call ? <Badge className={priceCallTone(row.original.call.call)}>{priceCallLabel(row.original.call.call)}</Badge> : '—',
     }),
-    columnHelper.accessor((entry) => typicalDelta(entry.brief), {
+    ...(showTypical ? [columnHelper.accessor((entry) => typicalDelta(entry.brief), {
       id: 'typical',
       header: 'Vs typical',
-      cell: ({ row }) => versusTypical(row.original.brief?.currentPrice ?? null, row.original.brief?.timing.median ?? null),
-    }),
+      cell: ({ row }) => versusTypical(row.original.brief?.currentPrice ?? null, row.original.brief?.typical30 ?? null),
+    })] : []),
     columnHelper.accessor((entry) => entry.row.allTimeLow ?? Number.POSITIVE_INFINITY, {
       id: 'low',
       header: 'All-time low',
       cell: ({ row }) => (
         <span className="tabular-nums">
           {row.original.row.allTimeLow != null ? formatCad(row.original.row.allTimeLow) : '—'}
-          {row.original.row.atLow ? <span className="ml-2 text-xs text-buy">At the low</span> : null}
+          {row.original.row.atLow && (row.original.brief?.historyDays ?? 0) >= 14 ? <span className="ml-2 text-xs text-buy">At the low</span> : null}
         </span>
       ),
     }),
@@ -517,12 +528,12 @@ function WatchCard({
       <div className="mt-3 flex flex-wrap gap-2">
         {entry.call ? <Badge className={priceCallTone(entry.call.call)}>{priceCallLabel(entry.call.call)}</Badge> : null}
         <StockBadge inStock={best?.inStock ?? null} />
-        {entry.row.atLow ? <Badge className="bg-buy-soft text-buy">All-time low</Badge> : null}
+        {entry.row.atLow && (entry.brief?.historyDays ?? 0) >= 14 ? <Badge className="bg-buy-soft text-buy">All-time low</Badge> : null}
       </div>
       <p className="mt-2 text-sm text-muted">
         {best ? best.storeName : 'No qualifying offer yet'}
         {' · '}
-        {versusTypical(entry.brief?.currentPrice ?? null, entry.brief?.timing.median ?? null)}
+        {versusTypical(entry.brief?.currentPrice ?? null, entry.brief?.typical30 ?? null)}
         {entry.row.allTimeLow != null ? ` · low ${formatCad(entry.row.allTimeLow)}` : ''}
       </p>
       <div className="mt-3 flex flex-wrap gap-3 text-sm">
@@ -578,7 +589,7 @@ function stockRank(inStock: boolean | null): number {
 
 function typicalDelta(brief: PriceBrief | null): number {
   const current = brief?.currentPrice
-  const median = brief?.timing.median
+  const median = brief?.typical30
   if (current == null || median == null || median <= 0) return Number.POSITIVE_INFINITY
   return (current - median) / median
 }

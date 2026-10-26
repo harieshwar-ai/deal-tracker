@@ -25,6 +25,10 @@ export interface PriceBrief {
   lastChecked: string | null
   freshness: Freshness
   timing: BuyTiming
+  /** Median of in-stock qualifying daily lows over the last 30 days. */
+  typical30: number | null
+  /** Distinct days with an in-stock qualifying CAD price. */
+  historyDays: number
 }
 
 export interface BuyTiming {
@@ -94,7 +98,42 @@ export function priceBrief(snapshots: PriceSnapshot[], stores: Store[], now = ne
     lastChecked,
     freshness: freshnessOf(lastChecked, now),
     timing: buyTiming(qualifying, now),
+    typical30: typicalPrice(snapshots, now),
+    historyDays: qualifyingDayCount(snapshots),
   }
+}
+
+/** Median in-stock qualifying daily low over the last `days` days. Needs two days. */
+export function typicalPrice(snapshots: PriceSnapshot[], now = new Date(), days = 30): number | null {
+  const lows = dailyQualifyingLows(snapshots, now, days)
+  if (lows.length < 2) return null
+  return roundMoney(median(lows))
+}
+
+export function qualifyingDayCount(snapshots: PriceSnapshot[]): number {
+  const days = new Set<string>()
+  for (const snapshot of snapshots) {
+    if (!isQualifying(snapshot) || snapshot.in_stock === false || !isCadCurrency(snapshot.currency)) continue
+    const day = dayKey(snapshot.captured_at)
+    if (day) days.add(day)
+  }
+  return days.size
+}
+
+function dailyQualifyingLows(snapshots: PriceSnapshot[], now: Date, days: number): number[] {
+  const start = now.getTime() - days * 86400000
+  const end = now.getTime()
+  const byDay = new Map<string, number>()
+  for (const snapshot of snapshots) {
+    if (!isQualifying(snapshot) || snapshot.in_stock === false || !isCadCurrency(snapshot.currency)) continue
+    const time = Date.parse(snapshot.captured_at)
+    if (Number.isNaN(time) || time < start || time > end) continue
+    const day = dayKey(snapshot.captured_at)
+    if (!day) continue
+    const current = byDay.get(day)
+    if (current == null || snapshot.price < current) byDay.set(day, snapshot.price)
+  }
+  return [...byDay.values()]
 }
 
 export function buyTiming(snapshots: PriceSnapshot[], now = new Date()): BuyTiming {

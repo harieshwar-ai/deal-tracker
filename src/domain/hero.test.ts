@@ -82,7 +82,7 @@ describe('hero stats', () => {
     expect(stats.savings).toBe(120)
     expect(stats.lastScan).toBe(snap(1, 'chair', 200, 0).captured_at)
     expect(stats.best?.itemId).toBe('chair')
-    expect(stats.best?.call).toBe('buy')
+    expect(stats.best?.call).toBe('good')
     expect(stats.best?.saving).toBe(40)
   })
 

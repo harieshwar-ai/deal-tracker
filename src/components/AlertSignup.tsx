@@ -10,7 +10,6 @@ import { useToast } from './toast'
 import { Button } from './ui/button'
 import { Modal } from './ui/dialog'
 import { Field, Input, controlClass } from './ui/input'
-import { Select } from './ui/select'
 
 export interface AlertPreset {
   itemId?: string | null
@@ -216,22 +215,31 @@ export function AlertSignupDialog({
           <ItemCombobox items={items} value={itemId} disabled={pending} onChange={setItemId} />
         ) : null}
         {mode === 'category' && openEntry ? (
-          <div>
-            <p className="text-sm font-medium text-ink">Category</p>
-            {knownCategories.length === 0 ? (
-              <p className="mt-1.5 text-sm text-muted">No categories on the watchlist yet.</p>
-            ) : (
-              <Select
-                label="Category"
-                className="mt-1.5 w-full min-w-0"
-                value={category}
-                onValueChange={setCategory}
-                groups={alertCategoryGroups(knownCategories)}
-                side="top"
-                sideOffset={8}
-              />
-            )}
-          </div>
+          knownCategories.length === 0 ? (
+            <p className="text-sm text-muted">No categories on the watchlist yet.</p>
+          ) : (
+            <fieldset className="grid gap-3">
+              <legend className="text-sm font-medium text-ink">Category</legend>
+              {alertCategoryGroups(knownCategories).map((group) => (
+                <div key={group.label} className="grid gap-1">
+                  <p className="text-xs font-medium tracking-wide text-muted uppercase">{group.label}</p>
+                  {group.options.map((option) => (
+                    <label key={option.value} className="flex items-center gap-2 text-sm text-ink">
+                      <input
+                        type="radio"
+                        name="alert-category"
+                        value={option.value}
+                        checked={category === option.value}
+                        disabled={pending}
+                        onChange={() => setCategory(option.value)}
+                      />
+                      {option.label}
+                    </label>
+                  ))}
+                </div>
+              ))}
+            </fieldset>
+          )
         ) : null}
         <label className="flex items-start gap-3 text-sm leading-6 text-ink">
           <input

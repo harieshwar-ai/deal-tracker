@@ -258,3 +258,9 @@ export function verdictChartColor(verdict: VerdictGroup): string {
     }
   }
 }
+
+/** Name without a parenthetical qualifier, for a single table line. */
+export function shortItemName(name: string): string {
+  const head = name.split('(')[0]?.trim()
+  return head || name.trim()
+}

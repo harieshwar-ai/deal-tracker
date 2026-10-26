@@ -78,31 +78,11 @@ test('visitor can request, confirm, and unsubscribe with mocked tokens', async (
   await expect(dialog.getByRole('heading', { name: 'Get deal alerts' })).toBeVisible()
   await dialog.getByRole('textbox', { name: 'Email', exact: true }).fill('ada@example.com')
   await dialog.getByRole('radio', { name: 'A category' }).click()
-  await dialog.getByRole('combobox', { name: 'Category', exact: true }).click()
-  await expect(page.getByRole('option', { name: 'All PC hardware' })).toBeVisible()
-  // The open listbox hides the dialog from the accessibility tree. Measure the
-  // painted boxes so the menu stays on screen and cannot cover consent or submit.
-  await expect.poll(() => page.evaluate(() => {
-    const box = (node: Element | null | undefined) => {
-      if (!node) return null
-      const rect = node.getBoundingClientRect()
-      return { x: rect.x, y: rect.y, right: rect.right, bottom: rect.bottom }
-    }
-    const hits = (left: ReturnType<typeof box>, right: ReturnType<typeof box>) => Boolean(
-      left && right && left.x < right.right && right.x < left.right && left.y < right.bottom && right.y < left.bottom,
-    )
-    const menu = box(document.querySelector('[role="listbox"]'))
-    const checkbox = box(document.querySelector('[role="dialog"] input[type="checkbox"]'))
-    const submit = box([...document.querySelectorAll('[role="dialog"] button')].find((node) => node.textContent?.includes('Email me a confirmation')))
-    return {
-      menu: menu != null && menu.y >= 0 && menu.bottom <= window.innerHeight,
-      checkbox: checkbox != null,
-      submit: submit != null,
-      checkboxHit: hits(menu, checkbox),
-      submitHit: hits(menu, submit),
-    }
-  })).toEqual({ menu: true, checkbox: true, submit: true, checkboxHit: false, submitHit: false })
-  await page.getByRole('option', { name: 'Graphics cards' }).click()
+  await expect(dialog.getByRole('radio', { name: 'All PC hardware' })).toBeVisible()
+  await expect(dialog.getByRole('textbox', { name: 'Email', exact: true })).toBeVisible()
+  await expect(dialog.getByRole('checkbox')).toBeVisible()
+  await expect(dialog.getByRole('button', { name: 'Email me a confirmation' })).toBeVisible()
+  await dialog.getByRole('radio', { name: 'Graphics cards' }).click()
   await dialog.getByRole('checkbox').check()
   await dialog.getByRole('button', { name: 'Email me a confirmation' }).click()
   await expect(page.getByText('Check your inbox to confirm')).toBeVisible()
