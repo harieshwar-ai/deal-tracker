@@ -24,6 +24,12 @@ jobs:
         run: npm run typecheck
       - name: Build
         run: npm run build
+      - name: Install Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.1.4
+      - name: Deno check deal-alerts
+        run: npm run deno:check
       - name: Install Playwright
         run: npx playwright install --with-deps chromium
       - name: Navigation test

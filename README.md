@@ -19,7 +19,7 @@ Supabase project ieohjxtkoiphewcfttuw (ca-central-1)
             public SELECT; writes only for the owner user
 ```
 
-GitHub Pages hosts the static build at `/deal-tracker/`. React Router uses the history API. A copy of `index.html` is published as `404.html`, so a refresh on `/deal-tracker/items/…` still loads the app.
+GitHub Pages hosts the static build at `/deal-tracker/`. React Router uses the history API. The build also copies `index.html` to `confirm/index.html` and `unsubscribe/index.html` so those alert links return HTTP 200. A copy of `index.html` is published as `404.html`, so a refresh on other deep links such as `/deal-tracker/items/…` still loads the app.
 
 The publishable key is safe to ship in the client. It is not a service-role key. Anonymous visitors can read. Insert, update, and delete succeed only when `auth.uid()` is the owner account. Public sign-ups stay off.
 
@@ -60,7 +60,30 @@ Visitors can ask for an email when Harbour records a public price for a product 
 
 Row level security is on for both tables. There is no insert, update, or delete policy. Anonymous clients have no select grant, so addresses and tokens are not readable with the publishable key. The owner reads the list through `list_alert_subscribers`, which returns the address, target, and status and never the token columns. `alert_notifications` has no client grant. Visitors subscribe, confirm, and unsubscribe only through `subscribe_to_alerts`, `confirm_alert`, and `unsubscribe_alert`. Those functions are `security definer`, validate the input, and never return an address or a token. A category is accepted only when an active item already uses that exact stored value (`Chairs`, `Prebuilt PCs`, `Graphics cards`, `Memory (RAM)`, `SSDs`, and any other active category). `group:pc-hardware` is the All PC hardware group. It is accepted when an active item is in one of those four PC categories, and a confirmed group subscription is mailed when any of them has a deal. New requests are limited to 5 pending subscriptions per address per hour and 10 new subscriptions per product or category per hour.
 
-The edge function `supabase/functions/deal-alerts` sends the confirmation and, when called with a deal by the owner or the service role, the alert. This repo does not deploy it. `supabase/config.toml` sets `verify_jwt = false` for that function because a visitor confirms without a user session. The function still rejects deal calls that are not the owner or the service role.
+The edge function `supabase/functions/deal-alerts` sends the confirmation and, when called with a deal by the owner or the project secret key, the alert. This repo does not deploy it. `supabase/config.toml` sets `verify_jwt = false` for that function because a visitor confirms without a user session. The function still rejects deal calls that are not the owner or the secret key.
+
+### Triggering a deal alert (scan pipeline)
+
+After the checker records a deal, call the deployed function from server-side code (not the browser). Authenticate with the Supabase **secret** key (`sb_secret_…` from Project Settings → API). Set that value as the function secret `SUPABASE_SERVICE_ROLE_KEY` when you deploy. The legacy `service_role` JWT is not accepted for deal sends.
+
+```http
+POST https://<project-ref>.supabase.co/functions/v1/deal-alerts
+Authorization: Bearer <sb_secret_…>
+Content-Type: application/json
+
+{
+  "action": "deal",
+  "item_id": "<uuid>",
+  "store_id": "<uuid>",
+  "price": 1299.9
+}
+```
+
+`store_id` may be omitted or null when the alert is not tied to one store. `price` must match the CAD price you want subscribers to see (the function canonicalizes it to two decimal places).
+
+The function loads confirmed subscribers for the item, for the item’s category, and for `group:pc-hardware` when the item is in a PC hardware category. It skips anyone who already has a **sent** row in `alert_notifications` for the same subscription, item, store, and price, so the same offer is not emailed twice. Failed sends are not deduped and may be retried. The JSON response includes `sent`, `failed`, and `skipped` counts.
+
+Visitor confirm requests use `action: "confirm"` with `subscription_id` and `email` (no secret key).
 
 Resend is the mail provider. Set these as function secrets, for example with `supabase secrets set`. They are not committed:
 
@@ -77,7 +100,7 @@ If `RESEND_API_KEY` is unset and `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, and `SMT
 
 `ALERTS_PUBLIC_URL` is optional and defaults to `https://harieshwar-ai.github.io/deal-tracker`. It is only used to build confirm, unsubscribe, and item links.
 
-An alert contains the product name, the public price, the store name, the public summary, and public links. It does not include targets, budgets, notes, membership, or deal reasons.
+An alert contains the product name, the public price, the store name, the public summary, a store link (deal URL, latest snapshot product URL, item product URL, or store home, in that order), the Harbour item page, and unsubscribe. It does not include targets, budgets, notes, membership, or deal reasons.
 
 `20261026120000_market_rollups.sql` adds `market_latest` and `market_daily`. When those views exist, the first page load reads the latest offer per listing and one qualifying price per store per day instead of every snapshot. Apply that file by hand. Until then Harbour still loads `price_snapshots` directly, using only the public columns.
 

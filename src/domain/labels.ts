@@ -1,4 +1,4 @@
-import type { DatePreset, DealStatus, Priority, Verdict, VerdictGroup, WatchSort } from './types'
+import type { DatePreset, DealStatus, Priority, Verdict, VerdictGroup, WatchSort } from './types.ts'
 
 /** Stored on alert_subscriptions.category. Not an items.category value. */
 export const PC_HARDWARE_GROUP = 'group:pc-hardware'

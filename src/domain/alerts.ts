@@ -1,4 +1,4 @@
-import { formatCad, safeHttpUrl } from './format'
+import { formatCad, safeHttpUrl } from './format.ts'
 
 /** Keep the SQL limits in supabase/migrations/20261025120000_alert_subscriptions.sql aligned with these. */
 export const PENDING_PER_EMAIL_PER_HOUR = 5
@@ -276,6 +276,50 @@ export function escapeHtml(value: string): string {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#39;')
+}
+
+/** PostgREST `column=eq.value` filter segment (value is URL-encoded; no JSON quotes). */
+export function postgrestEqFilter(column: string, value: string): string {
+  return `${column}=eq.${encodeURIComponent(value)}`
+}
+
+export interface AlertSubscriberRow {
+  id: string
+}
+
+export function mergeAlertSubscribers<T extends AlertSubscriberRow>(
+  byItem: readonly T[],
+  byCategory: readonly (readonly T[])[],
+): T[] {
+  const seen = new Set(byItem.map((row) => row.id))
+  const extra: T[] = []
+  for (const rows of byCategory) {
+    for (const row of rows) {
+      if (seen.has(row.id)) continue
+      seen.add(row.id)
+      extra.push(row)
+    }
+  }
+  return [...byItem, ...extra]
+}
+
+/** Public store link for a deal alert: deal URL, then snapshot, then item, then store home. */
+export function resolveDealStoreUrl(candidates: {
+  dealUrl?: string | null
+  snapshotProductUrl?: string | null
+  itemProductUrl?: string | null
+  storeBaseUrl?: string | null
+}): string | null {
+  for (const value of [
+    candidates.dealUrl,
+    candidates.snapshotProductUrl,
+    candidates.itemProductUrl,
+    candidates.storeBaseUrl,
+  ]) {
+    const url = safeHttpUrl(value)
+    if (url) return url
+  }
+  return null
 }
 
 export function composeConfirmation(input: {
