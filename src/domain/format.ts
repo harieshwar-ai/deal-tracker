@@ -112,8 +112,12 @@ export function categoryKey(category: string | null | undefined): string {
   return trimmed ? trimmed : 'Uncategorized'
 }
 
+export function isLocalCurrency(currency: string | null | undefined, expected: string): boolean {
+  return (currency ?? '').toUpperCase() === expected.toUpperCase()
+}
+
 export function isCadCurrency(currency: string | null | undefined): boolean {
-  return (currency ?? '').toUpperCase() === 'CAD'
+  return isLocalCurrency(currency, 'CAD')
 }
 
 export function moneyInput(value: number | null): string {

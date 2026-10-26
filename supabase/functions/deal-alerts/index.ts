@@ -4,8 +4,11 @@ import {
   canonicalPrice,
   composeConfirmation,
   composeDealAlert,
+  composeWaitlistConfirmation,
+  filterSubscribersForCountry,
   idempotencyKeyForConfirm,
   idempotencyKeyForDeal,
+  idempotencyKeyForWaitlistConfirm,
   itemPublicUrl,
   mergeAlertSubscribers,
   normalizeCategory,
@@ -28,6 +31,16 @@ interface SubscriptionRow {
   unsubscribe_token: string
   item_id: string | null
   category: string | null
+  country_code: string | null
+}
+
+interface WaitlistRow {
+  id: string
+  email: string
+  status: string
+  confirm_token: string
+  unsubscribe_token: string
+  country_name: string
 }
 
 interface ItemRow {
@@ -56,6 +69,7 @@ runtime?.serve(async (request) => {
     if (request.method !== 'POST') return json({ ok: false, error: 'method' }, 405)
     const body = await request.json().catch(() => null) as { action?: unknown } | null
     if (body?.action === 'confirm') return await confirm(body)
+    if (body?.action === 'waitlist_confirm') return await waitlistConfirm(body)
     if (body?.action === 'deal') return await deal(request, body)
     return json({ ok: false, error: 'unknown_action' }, 400)
   } catch (error) {
@@ -63,6 +77,30 @@ runtime?.serve(async (request) => {
     return json({ ok: false, error: 'unavailable' }, 500)
   }
 })
+
+async function waitlistConfirm(body: unknown): Promise<Response> {
+  const parsed = parseWaitlistConfirm(body)
+  if ('error' in parsed) return json({ ok: false, error: parsed.error }, 400)
+  const row = await findWaitlist(parsed.waitlistId)
+  if (!row || normalizeEmail(row.email) !== parsed.email || row.status !== 'pending') {
+    return json({ ok: false, error: 'not_found' }, 404)
+  }
+  const from = resolveFrom(runtimeEnv('ALERTS_FROM'))
+  const base = runtimeEnv('ALERTS_PUBLIC_URL')
+  const message = composeWaitlistConfirmation({
+    to: row.email,
+    from,
+    countryName: row.country_name,
+    confirmUrl: publicPageUrl(base, 'confirm', row.confirm_token, true),
+    unsubscribeUrl: publicPageUrl(base, 'unsubscribe', row.unsubscribe_token, true),
+    idempotencyKey: idempotencyKeyForWaitlistConfirm(row.id, row.confirm_token),
+  })
+  const outcome = await deliver([message])
+  const result = outcome.results[0]
+  if (outcome.reason === 'unconfigured') return json({ ok: true, sent: false, reason: 'unconfigured' })
+  console.log(JSON.stringify({ event: 'waitlist_confirm', sent: Boolean(result?.ok) }))
+  return json({ ok: true, sent: Boolean(result?.ok) })
+}
 
 async function confirm(body: unknown): Promise<Response> {
   const parsed = parseConfirm(body)
@@ -80,7 +118,7 @@ async function confirm(body: unknown): Promise<Response> {
     targetLabel: await targetLabel(row),
     confirmUrl: publicPageUrl(base, 'confirm', row.confirm_token),
     unsubscribeUrl: publicPageUrl(base, 'unsubscribe', row.unsubscribe_token),
-    idempotencyKey: idempotencyKeyForConfirm(row.id),
+    idempotencyKey: idempotencyKeyForConfirm(row.id, row.confirm_token),
   })
   const outcome = await deliver([message])
   const result = outcome.results[0]
@@ -115,7 +153,11 @@ async function deal(request: Request, body: unknown): Promise<Response> {
     itemProductUrl: item.product_url,
     storeBaseUrl: store?.base_url ?? null,
   })
-  const subscribers = await confirmedSubscribers(item.id, item.category)
+  const storeCountry = store?.country_code ?? 'CA'
+  const subscribers = filterSubscribersForCountry(
+    await confirmedSubscribers(item.id, item.category),
+    storeCountry,
+  )
   const already = await sentDeals(item.id, parsed.price)
   const from = resolveFrom(runtimeEnv('ALERTS_FROM'))
   const base = runtimeEnv('ALERTS_PUBLIC_URL')
@@ -145,6 +187,8 @@ async function deal(request: Request, body: unknown): Promise<Response> {
         storeUrl,
         unsubscribeUrl: publicPageUrl(base, 'unsubscribe', subscriber.unsubscribe_token),
         idempotencyKey: key,
+        currency: store?.currency ?? undefined,
+        locale: store?.locale ?? undefined,
       }),
     })
   }
@@ -172,6 +216,14 @@ async function deal(request: Request, body: unknown): Promise<Response> {
   }
   console.log(JSON.stringify({ event: 'alert_deal', sent, failed, skipped }))
   return json({ ok: true, sent, failed, skipped })
+}
+
+function parseWaitlistConfirm(body: unknown): { waitlistId: string; email: string } | { error: string } {
+  const row = body as { waitlist_id?: unknown; email?: unknown }
+  const waitlistId = typeof row?.waitlist_id === 'string' ? normalizeUuid(row.waitlist_id) : null
+  const email = typeof row?.email === 'string' ? normalizeEmail(row.email) : null
+  if (!waitlistId || !email) return { error: 'invalid_confirm' }
+  return { waitlistId, email }
 }
 
 function parseConfirm(body: unknown): { subscriptionId: string; email: string } | { error: string } {
@@ -216,7 +268,14 @@ async function callerAllowed(request: Request): Promise<boolean> {
 
 async function findSubscription(id: string): Promise<SubscriptionRow | null> {
   const rows = await restGet<SubscriptionRow[]>(
-    `alert_subscriptions?id=eq.${id}&select=id,email,status,confirm_token,unsubscribe_token,item_id,category&limit=1`,
+    `alert_subscriptions?id=eq.${id}&select=id,email,status,confirm_token,unsubscribe_token,item_id,category,country_code&limit=1`,
+  )
+  return rows[0] ?? null
+}
+
+async function findWaitlist(id: string): Promise<WaitlistRow | null> {
+  const rows = await restGet<WaitlistRow[]>(
+    `country_waitlist?id=eq.${id}&select=id,email,status,confirm_token,unsubscribe_token,country_name&limit=1`,
   )
   return rows[0] ?? null
 }
@@ -246,11 +305,21 @@ async function findItem(id: string): Promise<ItemRow | null> {
   return rows[0] ?? null
 }
 
-async function findStore(id: string): Promise<{ name: string; base_url: string | null } | null> {
-  const rows = await restGet<{ name: string; base_url: string | null }[]>(
-    `stores?id=eq.${id}&select=name,base_url&limit=1`,
+async function findStore(id: string): Promise<{ name: string; base_url: string | null; country_code: string | null; currency: string | null; locale: string | null } | null> {
+  const rows = await restGet<{ name: string; base_url: string | null; country_code: string | null }[]>(
+    `stores?id=eq.${id}&select=name,base_url,country_code&limit=1`,
   )
-  return rows[0] ?? null
+  const store = rows[0]
+  if (!store) return null
+  const countries = await restGet<{ currency: string; locale: string }[]>(
+    `countries?code=eq.${encodeURIComponent(store.country_code ?? 'CA')}&select=currency,locale&limit=1`,
+  )
+  const country = countries[0]
+  return {
+    ...store,
+    currency: country?.currency ?? null,
+    locale: country?.locale ?? null,
+  }
 }
 
 async function resolveStoreUrl(input: {
@@ -281,7 +350,7 @@ async function resolveStoreUrl(input: {
 }
 
 async function confirmedSubscribers(itemId: string, category: string | null): Promise<SubscriptionRow[]> {
-  const select = 'id,email,status,confirm_token,unsubscribe_token,item_id,category'
+  const select = 'id,email,status,confirm_token,unsubscribe_token,item_id,category,country_code'
   const byItem = await restGet<SubscriptionRow[]>(
     `alert_subscriptions?status=eq.confirmed&item_id=eq.${itemId}&select=${select}`,
   )

@@ -2,7 +2,15 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { PRESET_COUNTRIES } from '../domain/country'
 import { AlertSignupDialog } from './AlertSignup'
+
+vi.mock('../state/country', () => ({
+  useCountry: () => ({
+    profile: PRESET_COUNTRIES[0],
+    code: 'CA',
+  }),
+}))
 
 const itemId = '11111111-1111-4111-8111-111111111111'
 
@@ -66,7 +74,7 @@ describe('deal alert dialog', () => {
     await user.click(screen.getByRole('radio', { name: 'A category' }))
     await user.click(screen.getByRole('radio', { name: 'Graphics cards' }))
     await user.click(submit)
-    expect(onSubmit).toHaveBeenCalledWith({ email: 'ada@example.com', itemId: null, category: 'gpu' })
+    expect(onSubmit).toHaveBeenCalledWith({ email: 'ada@example.com', itemId: null, category: 'gpu', countryCode: 'CA' })
   })
 
   it('offers All PC hardware above the live categories', async () => {
@@ -81,7 +89,7 @@ describe('deal alert dialog', () => {
     expect(screen.getByText('Categories')).toBeTruthy()
     await user.click(screen.getByRole('radio', { name: 'All PC hardware' }))
     await user.click(screen.getByRole('button', { name: 'Email me a confirmation' }))
-    expect(onSubmit).toHaveBeenCalledWith({ email: 'ada@example.com', itemId: null, category: 'group:pc-hardware' })
+    expect(onSubmit).toHaveBeenCalledWith({ email: 'ada@example.com', itemId: null, category: 'group:pc-hardware', countryCode: 'CA' })
   })
 
   it('submits a product or its category from a product page', async () => {
@@ -93,7 +101,7 @@ describe('deal alert dialog', () => {
     await user.type(screen.getByLabelText('Email'), 'Ada@Example.com')
     await user.click(screen.getByRole('checkbox'))
     await user.click(screen.getByRole('button', { name: 'Email me a confirmation' }))
-    expect(onSubmit).toHaveBeenCalledWith({ email: 'ada@example.com', itemId, category: null })
+    expect(onSubmit).toHaveBeenCalledWith({ email: 'ada@example.com', itemId, category: null, countryCode: 'CA' })
 
     cleanup()
     const categorySubmit = renderDialog({
@@ -104,6 +112,6 @@ describe('deal alert dialog', () => {
     await user.click(screen.getByRole('checkbox'))
     await user.click(screen.getByRole('radio', { name: 'The Chairs category' }))
     await user.click(screen.getByRole('button', { name: 'Email me a confirmation' }))
-    expect(categorySubmit).toHaveBeenCalledWith({ email: 'ada@example.com', itemId: null, category: 'chairs' })
+    expect(categorySubmit).toHaveBeenCalledWith({ email: 'ada@example.com', itemId: null, category: 'chairs', countryCode: 'CA' })
   })
 })

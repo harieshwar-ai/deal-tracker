@@ -188,10 +188,11 @@ export function idempotencyKeyForDeal(part: {
   return `deal:${subscriptionId}:${itemId}:${storeId}:${part.price}`
 }
 
-export function idempotencyKeyForConfirm(subscriptionId: string): string {
+export function idempotencyKeyForConfirm(subscriptionId: string, confirmToken: string): string {
   const id = normalizeUuid(subscriptionId)
-  if (!id) throw new Error('Invalid confirmation key.')
-  return `confirm:${id}`
+  const token = (confirmToken ?? '').trim()
+  if (!id || token.length < 32 || token.length > 128) throw new Error('Invalid confirmation key.')
+  return `confirm:${id}:${token.slice(0, 48)}`
 }
 
 export function chunk<T>(items: readonly T[], size: number): T[][] {
@@ -250,10 +251,23 @@ export function resolveFrom(configured: string | null | undefined): string {
   return value || DEFAULT_ALERTS_FROM
 }
 
-export function publicPageUrl(base: string | null | undefined, page: 'confirm' | 'unsubscribe', token: string): string {
+export function publicPageUrl(
+  base: string | null | undefined,
+  page: 'confirm' | 'unsubscribe',
+  token: string,
+  waitlist = false,
+): string {
   const url = new URL(`${siteBase(base)}/${page}`)
   url.searchParams.set('token', token)
+  if (waitlist) url.searchParams.set('waitlist', '1')
   return url.toString()
+}
+
+export function idempotencyKeyForWaitlistConfirm(waitlistId: string, confirmToken: string): string {
+  const id = normalizeUuid(waitlistId)
+  const token = (confirmToken ?? '').trim()
+  if (!id || token.length < 32 || token.length > 128) throw new Error('Invalid waitlist confirmation key.')
+  return `waitlist-confirm:${id}:${token.slice(0, 48)}`
 }
 
 export function itemPublicUrl(base: string | null | undefined, itemId: string): string {
@@ -285,6 +299,14 @@ export function postgrestEqFilter(column: string, value: string): string {
 
 export interface AlertSubscriberRow {
   id: string
+}
+
+export function filterSubscribersForCountry<T extends { country_code?: string | null }>(
+  rows: readonly T[],
+  countryCode: string,
+): T[] {
+  const code = countryCode.trim().toUpperCase()
+  return rows.filter((row) => (row.country_code ?? 'CA').toUpperCase() === code)
 }
 
 export function mergeAlertSubscribers<T extends AlertSubscriberRow>(
@@ -348,6 +370,33 @@ export function composeConfirmation(input: {
   return seal(input.to, input.from, subject, text, html, input.unsubscribeUrl, input.idempotencyKey)
 }
 
+export function composeWaitlistConfirmation(input: {
+  to: string
+  from?: string
+  countryName: string
+  confirmUrl: string
+  unsubscribeUrl: string
+  idempotencyKey: string
+}): OutboundEmail {
+  const country = oneLine(input.countryName) || 'your country'
+  const subject = 'Confirm your Harbour country request'
+  const text = [
+    `Confirm that you want Harbour deal tracking in ${country}.`,
+    '',
+    input.confirmUrl,
+    '',
+    `Remove this request: ${input.unsubscribeUrl}`,
+    '',
+    'You asked to be notified when Harbour adds stores in this country. This message is CASL-compliant and sent only because you opted in on the Harbour site.',
+    SENDER_IDENTITY,
+    AUTOMATED_FOOTER,
+  ].join('\n')
+  const html = mailHtml(
+    `<p>Confirm that you want Harbour deal tracking in ${escapeHtml(country)}.</p><p><a href="${escapeHtml(input.confirmUrl)}">Confirm request</a></p><p><a href="${escapeHtml(input.unsubscribeUrl)}">Remove this request</a></p><p>You asked to be notified when Harbour adds stores in this country.</p>`,
+  )
+  return seal(input.to, input.from, subject, text, html, input.unsubscribeUrl, input.idempotencyKey)
+}
+
 export function composeDealAlert(input: {
   to: string
   from?: string
@@ -359,9 +408,13 @@ export function composeDealAlert(input: {
   storeUrl: string | null
   unsubscribeUrl: string
   idempotencyKey: string
+  currency?: string
+  locale?: string
 }): OutboundEmail {
   const product = oneLine(input.productName) || 'A watched product'
-  const price = formatCad(input.price)
+  const price = input.currency && input.locale
+    ? new Intl.NumberFormat(input.locale, { style: 'currency', currency: input.currency }).format(input.price)
+    : formatCad(input.price)
   const store = input.storeName ? oneLine(input.storeName) : ''
   const summary = (input.summary ?? '').trim().replace(/\s+/g, ' ').slice(0, 500)
   const storeUrl = safeHttpUrl(input.storeUrl)

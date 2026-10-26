@@ -34,6 +34,16 @@ async function tabUntil(page: Page, done: (focus: FocusStop) => boolean) {
   return seen
 }
 
+async function firstVisibleItemLink(page: Page) {
+  const links = page.locator('#content a[href*="/items/"]')
+  const count = await links.count()
+  for (let index = 0; index < count; index += 1) {
+    const link = links.nth(index)
+    if (await link.isVisible()) return link
+  }
+  throw new Error('No visible watchlist item link in #content')
+}
+
 async function openSection(page: Page, name: string) {
   const nav = page.getByRole('navigation', { name: 'Primary' })
   await nav.getByRole('link', { name, exact: name !== 'Deals' }).click()
@@ -98,8 +108,9 @@ test('direct links and reloads render', async ({ page }) => {
 
   await page.goto('/deal-tracker/')
   await expect(page.getByRole('heading', { level: 1, name: 'Watchlist' })).toBeVisible()
-  const item = page.locator('#content a[href*="/items/"]').first()
-  if (await item.count()) {
+  const itemLinks = page.locator('#content a[href*="/items/"]')
+  if (await itemLinks.count()) {
+    const item = await firstVisibleItemLink(page)
     const href = await item.getAttribute('href')
     expect(href).toContain('/items/')
     await page.goto(href ?? '/deal-tracker/')
@@ -126,10 +137,12 @@ test('signed-out pages do not render membership text', async ({ page }) => {
     await expect(page.getByText(entry.proof).first()).toBeVisible()
     await expectNoMembershipText(page, entry.path)
   }
-  await page.goto('/deal-tracker/')
-  const item = page.locator('#content a[href*="/items/"]').first()
-  await expect(item).toBeVisible()
-  await item.click()
+  await page.setViewportSize({ width: 1280, height: 800 })
+  await page.goto('/deal-tracker/?country=CA')
+  await expect(page.getByRole('heading', { level: 1, name: 'Watchlist' })).toBeVisible()
+  await expect(page.getByText(/active items|Nothing to watch yet/).first()).toBeVisible()
+  const itemLink = await firstVisibleItemLink(page)
+  await itemLink.click()
   await expect(page).toHaveURL(/\/items\//)
   await expect(page.getByRole('heading', { level: 2, name: 'Compare stores' })).toBeVisible()
   await expectNoMembershipText(page, 'item')

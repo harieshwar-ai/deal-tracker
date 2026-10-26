@@ -11,6 +11,8 @@ import { routerBasename } from './lib/config'
 import { LoginPage } from './pages/LoginPage'
 import { previewRequested } from './preview/mode'
 import { PreviewCatalogProvider, RemoteCatalogProvider } from './state/catalog'
+import { CountryProvider } from './state/country'
+import { CountryWaitlistDialog } from './components/CountryWaitlistDialog'
 
 const WatchlistPage = lazy(() => import('./pages/WatchlistPage').then((module) => ({ default: module.WatchlistPage })))
 const DealsPage = lazy(() => import('./pages/DealsPage').then((module) => ({ default: module.DealsPage })))
@@ -59,9 +61,12 @@ function PublicApp() {
   const Provider = preview ? PreviewCatalogProvider : RemoteCatalogProvider
   return (
     <Provider>
-      <AlertSignupProvider>
-        <Shell />
-      </AlertSignupProvider>
+      <CountryProvider>
+        <AlertSignupProvider>
+          <Shell />
+          <CountryWaitlistDialog />
+        </AlertSignupProvider>
+      </CountryProvider>
     </Provider>
   )
 }

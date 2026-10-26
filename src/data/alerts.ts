@@ -12,6 +12,7 @@ export interface AlertChoice {
   email: string
   itemId: string | null
   category: string | null
+  countryCode: string
 }
 
 export async function subscribeToAlerts(choice: AlertChoice) {
@@ -19,6 +20,7 @@ export async function subscribeToAlerts(choice: AlertChoice) {
     p_email: choice.email,
     p_item_id: choice.itemId,
     p_category: choice.category,
+    p_country_code: choice.countryCode,
   })
   if (error) return { ok: false as const, error: 'unavailable' as const }
   return parseSubscribeResult(data)

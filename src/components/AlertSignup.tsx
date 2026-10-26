@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useMemo, useState } from 'react'
 import type { FormEvent, KeyboardEvent, ReactNode } from 'react'
-import { useCatalog } from '../state/catalog'
+import { useCountry } from '../state/country'
 import { watchCategories } from '../domain/watchlist'
 import { alertCategoryGroups, categoryLabel } from '../domain/labels'
 import { normalizeCategory, normalizeEmail, normalizeUuid } from '../domain/alerts'
@@ -32,7 +32,7 @@ export function useAlertSignup(): (preset?: AlertPreset) => void {
 }
 
 export function AlertSignupProvider({ children }: { children: ReactNode }) {
-  const catalog = useCatalog()
+  const { catalog } = useCountry()
   const push = useToast()
   const [open, setOpen] = useState(false)
   const [preset, setPreset] = useState<AlertPreset>({})
@@ -115,6 +115,7 @@ export function AlertSignupDialog({
   onClose: () => void
   onSubmit: (choice: AlertChoice) => void
 }) {
+  const { profile } = useCountry()
   const product = preset.itemId ? { id: preset.itemId, name: preset.itemName || 'This product' } : null
   const lockedCategory = preset.category ?? null
   const openEntry = !product && !lockedCategory
@@ -147,7 +148,7 @@ export function AlertSignupDialog({
         return
       }
       setLocalError(null)
-      onSubmit({ email: normalized, itemId: id, category: null })
+      onSubmit({ email: normalized, itemId: id, category: null, countryCode: profile.code })
       return
     }
     const nextCategory = normalizeCategory(!openEntry && lockedCategory ? lockedCategory : category)
@@ -156,7 +157,7 @@ export function AlertSignupDialog({
       return
     }
     setLocalError(null)
-    onSubmit({ email: normalized, itemId: null, category: nextCategory })
+    onSubmit({ email: normalized, itemId: null, category: nextCategory, countryCode: profile.code })
   }
 
   const error = localError ?? formError

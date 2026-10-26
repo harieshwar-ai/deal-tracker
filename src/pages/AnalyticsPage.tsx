@@ -20,14 +20,14 @@ import type { DatePreset, DealStatus } from '../domain/types'
 import { watchCategories } from '../domain/watchlist'
 import { writeParams } from '../lib/search'
 import { useDocumentTitle } from '../lib/title'
-import { useCatalog } from '../state/catalog'
+import { useCountry } from '../state/country'
 
 const presets: DatePreset[] = ['30d', '90d', '365d', 'all']
 const statuses: DealStatus[] = ['open', 'bought', 'dismissed', 'expired']
 
 export function AnalyticsPage() {
   useDocumentTitle('Analytics')
-  const catalog = useCatalog()
+  const { catalog } = useCountry()
   const canEdit = useCanEdit()
   const [params, setParams] = useSearchParams()
   const preset = parsePresetParam(params.get('range'))

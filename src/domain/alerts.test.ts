@@ -19,7 +19,9 @@ import {
   postgrestEqFilter,
   resolveDealStoreUrl,
   encodeRfc822,
+  idempotencyKeyForConfirm,
   idempotencyKeyForDeal,
+  filterSubscribersForCountry,
   parseSubscribeResult,
   planResendBatches,
   resendIdempotencyHeader,
@@ -56,6 +58,25 @@ function message(key: string): OutboundEmail {
     idempotencyKey: key,
   })
 }
+
+describe('confirmation idempotency', () => {
+  it('includes the confirm token so resubscribe can send again', () => {
+    const token = 'a'.repeat(64)
+    expect(idempotencyKeyForConfirm(subscriptionId, token)).toBe(`confirm:${subscriptionId}:${token.slice(0, 48)}`)
+    expect(idempotencyKeyForConfirm(subscriptionId, token)).not.toBe(idempotencyKeyForConfirm(subscriptionId, 'b'.repeat(64)))
+  })
+})
+
+describe('subscriber country matching', () => {
+  it('keeps only subscribers for the deal store country', () => {
+    const rows = [
+      { id: '1', country_code: 'CA' },
+      { id: '2', country_code: 'US' },
+      { id: '3', country_code: null },
+    ]
+    expect(filterSubscribersForCountry(rows, 'CA').map((row) => row.id)).toEqual(['1', '3'])
+  })
+})
 
 describe('subscribe decisions', () => {
   it('accepts one normalized target and rejects the rest', () => {

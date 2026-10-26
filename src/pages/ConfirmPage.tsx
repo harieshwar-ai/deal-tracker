@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { FadeIn } from '../components/motion'
 import { confirmAlert } from '../data/alerts'
+import { confirmCountryWaitlist } from '../data/waitlist'
 import { categoryLabel } from '../domain/labels'
 import { useDocumentTitle } from '../lib/title'
 import { useCatalog } from '../state/catalog'
@@ -21,6 +22,7 @@ export function ConfirmPage() {
   const [params] = useSearchParams()
   const catalog = useCatalog()
   const token = params.get('token')
+  const waitlist = params.get('waitlist') === '1'
   const [state, setState] = useState<State>(token ? 'loading' : 'missing')
   const [target, setTarget] = useState<{ category: string | null; itemId: string | null } | null>(null)
   useDocumentTitle('Confirm alerts')
@@ -28,9 +30,12 @@ export function ConfirmPage() {
   useEffect(() => {
     if (!token) return
     let active = true
-    void confirmAlert(token).then((result) => {
+    const run = waitlist ? confirmCountryWaitlist(token) : confirmAlert(token)
+    void run.then((result) => {
       if (!active) return
-      if (result.ok) setTarget({ category: result.category, itemId: result.itemId })
+      if (!waitlist && result.ok && 'category' in result) {
+        setTarget({ category: result.category ?? null, itemId: result.itemId ?? null })
+      }
       if (result.ok && result.result === 'confirmed') setState('confirmed')
       else if (result.ok) setState('already')
       else if (result.error === 'invalid_token') setState('invalid')
@@ -39,7 +44,7 @@ export function ConfirmPage() {
     return () => {
       active = false
     }
-  }, [token])
+  }, [token, waitlist])
 
   const message = copy[state]
   const targetLabel = target?.itemId
