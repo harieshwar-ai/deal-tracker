@@ -1,7 +1,8 @@
 import type { DealStatus, Dataset, ItemWrite, StoreWrite } from '../domain/types'
 import { supabase } from '../lib/supabase'
 import { selectColumns } from './columns'
-import { friendlyError, isMissingRelation, isPrivilegeError, isUnusableCredential, missingColumnName, parseDealRow, parseItemRow, parseSnapshotRow, parseStoreRow } from './parse'
+import { applyOwnerPrivateRow, emptyOwnerPrivate, parseOwnerPrivate, type OwnerPrivateCatalog } from './ownerPrivate'
+import { friendlyError, isMissingRelation, isUnusableCredential, missingColumnName, parseDealRow, parseItemRow, parseSnapshotRow, parseStoreRow } from './parse'
 import { snapshotsFromRollup } from './rollups'
 
 export type PriceDetail = 'rollup' | 'full'
@@ -15,15 +16,16 @@ const pageSize = 1000
 const rollupColumns = 'id,item_id,store_id,product_title,product_url,price,regular_price,currency,in_stock,captured_at,sale_ends_at,shipping,product_name,meets_requirements'
 
 export async function loadDataset(owner: boolean): Promise<LoadedCatalog> {
-  const [items, stores, deals] = await Promise.all([
-    fetchAll('items', 'created_at', owner),
-    fetchAll('stores', 'name', owner),
-    fetchAll('deals', 'found_at', owner),
+  const [items, stores, deals, privateCatalog] = await Promise.all([
+    fetchAll('items', 'created_at'),
+    fetchAll('stores', 'name'),
+    fetchAll('deals', 'found_at'),
+    owner ? loadOwnerPrivate() : Promise.resolve(emptyOwnerPrivate()),
   ])
   const base = {
-    items: items.map((row) => parseItemRow(row)),
-    stores: stores.map((row) => parseStoreRow(row)),
-    deals: deals.map((row) => parseDealRow(row)),
+    items: items.map((row) => parseItemRow(applyOwnerPrivateRow(row, privateCatalog.items))),
+    stores: stores.map((row) => parseStoreRow(applyOwnerPrivateRow(row, privateCatalog.stores))),
+    deals: deals.map((row) => parseDealRow(applyOwnerPrivateRow(row, privateCatalog.deals))),
   }
   try {
     const rolled = await loadRollupRows()
@@ -37,12 +39,21 @@ export async function loadDataset(owner: boolean): Promise<LoadedCatalog> {
   } catch {
     // A view that exists but cannot be read falls through to the snapshot scan.
   }
-  const snapshots = await fetchAll('price_snapshots', 'id', owner)
+  const snapshots = await fetchAll('price_snapshots', 'id')
   return {
     ...base,
-    snapshots: snapshots.map((row) => parseSnapshotRow(row)),
+    snapshots: snapshots.map((row) => parseSnapshotRow(applyOwnerPrivateRow(row, privateCatalog.snapshots))),
     detail: 'full',
   }
+}
+
+async function loadOwnerPrivate(): Promise<OwnerPrivateCatalog> {
+  const { data, error } = await supabase.rpc('owner_catalog_private')
+  if (error) {
+    if (isMissingRelation(error) || missingColumnName(error)) return emptyOwnerPrivate()
+    throw new Error(friendlyError(error))
+  }
+  return parseOwnerPrivate(data)
 }
 
 async function loadRollupRows(): Promise<{ latest: unknown[]; daily: unknown[] } | null> {
@@ -132,12 +143,10 @@ function blankColumn(value: unknown): boolean {
 async function fetchAll(
   table: 'items' | 'stores' | 'price_snapshots' | 'deals',
   order: string,
-  owner: boolean,
 ): Promise<unknown[]> {
   const rows: unknown[] = []
-  let columns = selectColumns(table, owner)
+  let columns = selectColumns(table, false)
   let dropped = 0
-  let relaxed = false
   for (let from = 0; ; from += pageSize) {
     const { data, error } = await supabase
       .from(table)
@@ -152,14 +161,8 @@ async function fetchAll(
       from -= pageSize
       continue
     }
-    // A session token PostgREST cannot verify (PGRST301) or a column the
-    // anon role cannot read would otherwise paint the raw gateway message.
-    // Public columns still load, so the page does not show that banner.
-    if (error && owner && !relaxed && (isUnusableCredential(error) || isPrivilegeError(error))) {
-      relaxed = true
-      columns = selectColumns(table, false)
-      from -= pageSize
-      continue
+    if (error && isUnusableCredential(error)) {
+      throw new Error(friendlyError(error))
     }
     if (error) throw new Error(friendlyError(error))
     const batch = data ?? []
