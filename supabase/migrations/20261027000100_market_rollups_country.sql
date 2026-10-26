@@ -41,14 +41,14 @@ with (security_invoker = true) as
 select
   ps.item_id,
   ps.store_id,
-  s.country_code,
-  coalesce(ps.currency, c.currency) as store_currency,
   (ps.captured_at at time zone 'America/Toronto')::date as day,
   min(ps.price) filter (
     where ps.meets_requirements is true
       and ps.currency = c.currency
       and ps.in_stock is distinct from false
-  ) as qualifying_low
+  ) as qualifying_low,
+  s.country_code,
+  coalesce(ps.currency, c.currency) as store_currency
 from public.price_snapshots ps
 left join public.stores s on s.id = ps.store_id
 left join public.countries c on c.code = s.country_code
