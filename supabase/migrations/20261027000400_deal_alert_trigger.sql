@@ -49,7 +49,6 @@ as $$
 declare
   v_url text;
   v_secret text;
-  v_inserted integer;
 begin
   if not public.deal_is_alert_eligible(new.verdict, new.status) then
     return new;
@@ -79,12 +78,13 @@ begin
     return new;
   end if;
 
-  insert into public.deal_alert_dispatches (item_id, store_id, price)
-  values (new.item_id, new.store_id, new.price)
-  on conflict do nothing;
-
-  get diagnostics v_inserted = row_count;
-  if v_inserted = 0 then
+  if exists (
+    select 1
+    from public.deal_alert_dispatches d
+    where d.item_id = new.item_id
+      and d.store_id is not distinct from new.store_id
+      and d.price = new.price
+  ) then
     return new;
   end if;
 
@@ -102,6 +102,9 @@ begin
         'price', new.price
       )
     );
+    insert into public.deal_alert_dispatches (item_id, store_id, price)
+    values (new.item_id, new.store_id, new.price)
+    on conflict do nothing;
   exception
     when others then
       null;
