@@ -2,19 +2,33 @@ import * as SelectPrimitive from '@radix-ui/react-select'
 import { Check, ChevronDown } from 'lucide-react'
 import { cn } from '../../lib/cn'
 
+export interface SelectChoice {
+  value: string
+  label: string
+}
+
 export function Select({
   label,
   value,
   onValueChange,
-  options,
+  options = [],
+  groups,
   className,
+  side = 'bottom',
+  sideOffset = 6,
+  avoidCollisions = true,
 }: {
   label: string
   value: string
   onValueChange: (value: string) => void
-  options: { value: string; label: string }[]
+  options?: SelectChoice[]
+  groups?: { label: string; options: SelectChoice[] }[]
   className?: string
+  side?: 'top' | 'bottom'
+  sideOffset?: number
+  avoidCollisions?: boolean
 }) {
+  const sections = groups ?? [{ label: '', options }]
   return (
     <SelectPrimitive.Root value={value} onValueChange={onValueChange}>
       <SelectPrimitive.Trigger
@@ -32,21 +46,33 @@ export function Select({
       <SelectPrimitive.Portal>
         <SelectPrimitive.Content
           position="popper"
-          sideOffset={6}
+          side={side}
+          sideOffset={sideOffset}
+          avoidCollisions={avoidCollisions}
+          collisionPadding={12}
           className="z-[70] max-h-72 min-w-[var(--radix-select-trigger-width)] overflow-hidden rounded-lg border border-line bg-paper-2 p-1 text-ink shadow-lg"
         >
           <SelectPrimitive.Viewport>
-            {options.map((option) => (
-              <SelectPrimitive.Item
-                key={option.value}
-                value={option.value}
-                className="relative flex cursor-pointer items-center rounded-md py-2 pr-8 pl-3 text-sm outline-none data-[highlighted]:bg-pine-soft data-[highlighted]:outline data-[highlighted]:outline-2 data-[highlighted]:-outline-offset-2 data-[highlighted]:outline-pine data-[state=checked]:font-medium"
-              >
-                <SelectPrimitive.ItemText>{option.label}</SelectPrimitive.ItemText>
-                <SelectPrimitive.ItemIndicator className="absolute right-2">
-                  <Check className="h-4 w-4 text-pine" />
-                </SelectPrimitive.ItemIndicator>
-              </SelectPrimitive.Item>
+            {sections.map((section) => (
+              <SelectPrimitive.Group key={section.label || 'options'}>
+                {section.label ? (
+                  <SelectPrimitive.Label className="px-3 py-1.5 text-xs font-medium tracking-wide text-muted uppercase">
+                    {section.label}
+                  </SelectPrimitive.Label>
+                ) : null}
+                {section.options.map((option) => (
+                  <SelectPrimitive.Item
+                    key={option.value}
+                    value={option.value}
+                    className="relative flex cursor-pointer items-center rounded-md py-2 pr-8 pl-3 text-sm outline-none data-[highlighted]:bg-pine-soft data-[highlighted]:outline data-[highlighted]:outline-2 data-[highlighted]:-outline-offset-2 data-[highlighted]:outline-pine data-[state=checked]:font-medium"
+                  >
+                    <SelectPrimitive.ItemText>{option.label}</SelectPrimitive.ItemText>
+                    <SelectPrimitive.ItemIndicator className="absolute right-2">
+                      <Check className="h-4 w-4 text-pine" />
+                    </SelectPrimitive.ItemIndicator>
+                  </SelectPrimitive.Item>
+                ))}
+              </SelectPrimitive.Group>
             ))}
           </SelectPrimitive.Viewport>
         </SelectPrimitive.Content>

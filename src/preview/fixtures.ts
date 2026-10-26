@@ -26,8 +26,8 @@ export function createPreviewDataset(now = new Date()): Dataset {
     item('phones', 'Noise-cancelling headphones', 'Electronics', ['headphones'], 280, 350, 'normal', true, null, today),
     item('air', 'Air purifier', 'Home', ['hepa'], 250, 320, 'normal', false, 'Paused until smoke season.', today),
     item('monitor', '27" monitor', 'Electronics', ['usb-c'], 400, 500, 'normal', true, 'No prices recorded yet.', today),
-    item('chair', 'Ergonomic chair', 'Furniture', ['chair'], 400, 500, 'high', true, null, today),
-    item('stool', 'Drafting stool', 'Furniture', ['stool'], 180, 240, 'normal', true, null, today),
+    item('chair', 'Ergonomic chair', 'Chairs', ['chair'], 400, 500, 'high', true, null, today),
+    item('stool', 'Drafting stool', 'Chairs', ['stool'], 180, 240, 'normal', true, null, today),
   ]
   const chair = items.find((entry) => entry.id === 'chair')
   if (chair) {

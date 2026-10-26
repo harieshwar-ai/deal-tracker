@@ -146,12 +146,14 @@ export function PriceHistoryChart({
   series,
   target,
   low,
+  lowLabel = 'Lowest saved',
   points = false,
 }: {
   rows: Record<string, string | number | null>[]
   series: HistorySeries[]
   target: number | null
   low: number | null
+  lowLabel?: string
   points?: boolean
 }) {
   const look = chartLook(useChartColors())
@@ -170,7 +172,7 @@ export function PriceHistoryChart({
               y={low}
               stroke={look.colors.buy}
               strokeDasharray="2 4"
-              label={<ChartChip value="All-time low" fill={look.colors.onBuy} background={look.colors.buy} />}
+              label={<ChartChip value={lowLabel ?? 'Lowest saved'} fill={look.colors.onBuy} background={look.colors.buy} />}
             />
           ) : null}
           {target != null ? <ReferenceLine y={target} stroke={look.colors.gold} strokeDasharray="4 4" label={{ value: 'Target', position: 'insideTopLeft', fill: look.colors.gold }} /> : null}
@@ -319,6 +321,23 @@ export function DealFlowChart({
           <Bar dataKey="ok" name="OK" stackId="deals" fill={look.colors.sea} />
           <Bar dataKey="skip" name="Skip" stackId="deals" fill={look.colors.skip} />
           <Bar dataKey="unrated" name="Unrated" stackId="deals" fill={look.colors.unrated} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  )
+}
+
+export function CoverageChart({ rows }: { rows: { name: string; items: number }[] }) {
+  const look = chartLook(useChartColors())
+  return (
+    <div className="h-64 w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={rows} margin={{ top: 8, right: 8, left: 0, bottom: 24 }}>
+          <CartesianGrid {...look.grid} />
+          <XAxis dataKey="name" interval={0} angle={-20} textAnchor="end" height={56} tick={{ fill: look.colors.muted, fontSize: 11 }} />
+          <YAxis allowDecimals={false} tick={{ fill: look.colors.muted, fontSize: 12 }} />
+          <Tooltip contentStyle={look.tooltip} />
+          <Bar dataKey="items" name="Items with a price" fill={look.colors.sea} radius={6} isAnimationActive={prefersMotion()} />
         </BarChart>
       </ResponsiveContainer>
     </div>

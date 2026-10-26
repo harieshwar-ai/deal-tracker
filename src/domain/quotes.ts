@@ -139,9 +139,12 @@ interface OfferGroup {
 }
 
 export function groupOfferSnapshots(snapshots: PriceSnapshot[]): OfferGroup[] {
-  const assignments = assignProducts(snapshots)
+  // Negative ids are daily rollup points. They stay in charts and all-time lows
+  // and must not appear as a second current offer.
+  const live = snapshots.filter((snapshot) => snapshot.id >= 0)
+  const assignments = assignProducts(live)
   const buckets = new Map<string, PriceSnapshot[]>()
-  for (const snapshot of snapshots) {
+  for (const snapshot of live) {
     const assigned = assignments.get(snapshot.id)
     const key = `${snapshot.item_id}\u0000${snapshot.store_id ?? ''}\u0000${assigned?.productKey ?? snapshot.id}`
     const list = buckets.get(key) ?? []

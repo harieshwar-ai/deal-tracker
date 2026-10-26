@@ -16,6 +16,26 @@ export interface PriceHistory {
 }
 
 export type HistoryChartState = 'empty' | 'points' | 'ready'
+export type ChartRange = '7d' | '30d' | '90d' | 'all'
+
+export function parseChartRange(value: string | null): ChartRange {
+  switch (value) {
+    case '7d':
+    case '30d':
+    case '90d':
+    case 'all':
+      return value
+    default:
+      return '90d'
+  }
+}
+
+export function withinChartRange(iso: string, range: ChartRange, now = Date.now()): boolean {
+  if (range === 'all') return true
+  const days = range === '7d' ? 7 : range === '30d' ? 30 : 90
+  const time = Date.parse(iso)
+  return !Number.isNaN(time) && time >= now - days * 86_400_000
+}
 
 export function historyChartState(dayCount: number): HistoryChartState {
   if (dayCount <= 0) return 'empty'

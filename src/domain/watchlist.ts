@@ -88,14 +88,23 @@ function sortQuotes(quotes: Quote[]): Quote[] {
   return [...quotes].sort((left, right) => left.price - right.price || left.storeName.localeCompare(right.storeName))
 }
 
-function haystack(item: Item): string {
-  return [item.name, item.public_summary, item.product_url, item.description, item.category, item.notes, item.condition, ...item.keywords]
+function haystack(item: Item, includePrivate: boolean): string {
+  return [
+    item.name,
+    item.public_summary,
+    item.product_url,
+    includePrivate ? item.description : null,
+    item.category,
+    includePrivate ? item.notes : null,
+    item.condition,
+    ...item.keywords,
+  ]
     .filter((part): part is string => Boolean(part))
     .join(' ')
     .toLowerCase()
 }
 
-export function filterWatchRows(rows: WatchRow[], criteria: WatchCriteria): WatchRow[] {
+export function filterWatchRows(rows: WatchRow[], criteria: WatchCriteria, includePrivate = true): WatchRow[] {
   const tokens = criteria.query.trim().toLowerCase().split(/\s+/).filter(Boolean)
   return rows.filter((row) => {
     if (criteria.activity === 'active' && !row.item.active) return false
@@ -103,7 +112,7 @@ export function filterWatchRows(rows: WatchRow[], criteria: WatchCriteria): Watc
     if (criteria.priority !== 'all' && row.item.priority !== criteria.priority) return false
     if (criteria.category && categoryKey(row.item.category) !== criteria.category) return false
     if (tokens.length === 0) return true
-    const text = haystack(row.item)
+    const text = haystack(row.item, includePrivate)
     return tokens.every((token) => text.includes(token))
   })
 }

@@ -1,3 +1,5 @@
+import { categoryLabel } from '../domain/labels'
+
 export const siteOrigin = 'https://harieshwar-ai.github.io'
 export const sitePath = '/deal-tracker/'
 export const defaultTitle = 'Harbour'
@@ -19,7 +21,7 @@ export function itemShare(item: {
 }): ShareMeta {
   const name = item.name.trim() || 'Item'
   const summary = item.public_summary?.trim()
-  const description = clip(summary || (item.category ? `${name}. ${item.category}.` : `${name} on Harbour.`))
+  const description = clip(summary || (item.category ? `${name}. ${categoryLabel(item.category)}.` : `${name} on Harbour.`))
   return {
     title: `${name} · Harbour`,
     description,

@@ -78,7 +78,7 @@ describe('price calls', () => {
     expect(result.reason.toLowerCase()).not.toContain('private')
   })
 
-  it('calls buy when the price is the low, under the average, and down over 30 days', () => {
+  it('does not call buy from a short all-time low without an open must-buy', () => {
     const snapshots = [0, 3, 7, 14, 21, 30].map((days, index) => snap(index + 1, 200 + index * 4, days))
     const result = priceCallForItem({
       item: item(),
@@ -88,11 +88,51 @@ describe('price calls', () => {
       includeTarget: false,
       now,
     })
-    expect(result.call).toBe('buy')
-    expect(result.confidence).toBeGreaterThan(50)
-    expect(result.reason).toMatch(/all-time low/)
-    expect(result.reason).toMatch(/Canada Computers/)
-    expect(result.reason.toLowerCase()).not.toContain('target')
+    expect(result.call).not.toBe('buy')
+    expect(result.reason).not.toMatch(/all-time low/)
+    expect(result.reason).toMatch(/not enough history/)
+  })
+
+  it('calls buy only when an open must-buy matches the current store and price', () => {
+    const snapshots = [0, 3, 7, 14, 21, 30].map((days, index) => snap(index + 1, 200 + index * 4, days))
+    const mustBuy: Deal = {
+      id: 'deal',
+      item_id: 'chair',
+      store_id: 'cc',
+      snapshot_id: 1,
+      title: 'Chair',
+      url: null,
+      price: 200,
+      regular_price: null,
+      discount_pct: null,
+      score: 90,
+      verdict: 'must_buy',
+      reason: 'private reason',
+      notified_at: null,
+      expires_at: null,
+      status: 'open',
+      found_at: now.toISOString(),
+    }
+    const matched = priceCallForItem({
+      item: item(),
+      snapshots,
+      deals: [mustBuy],
+      stores: [store],
+      includeTarget: false,
+      now,
+    })
+    expect(matched.call).toBe('buy')
+    expect(matched.reason).toMatch(/open must-buy/)
+    expect(matched.reason.toLowerCase()).not.toContain('private')
+    const otherStore = priceCallForItem({
+      item: item(),
+      snapshots,
+      deals: [{ ...mustBuy, store_id: 'other', price: 180 }],
+      stores: [store],
+      includeTarget: false,
+      now,
+    })
+    expect(otherStore.call).not.toBe('buy')
   })
 
   it('waits when the current price sits well above the low', () => {

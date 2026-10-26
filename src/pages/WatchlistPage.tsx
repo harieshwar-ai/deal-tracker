@@ -1,42 +1,51 @@
-import { Pencil, Plus, Trash2 } from 'lucide-react'
-import { motion, useIsPresent } from 'motion/react'
+import { createColumnHelper } from '@tanstack/react-table'
+import type { ColumnDef, SortingState } from '@tanstack/react-table'
+import { Pencil, Plus, Rows3, Trash2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useCanEdit } from '../auth/AuthProvider'
-import { HeroStrip } from '../components/HeroStrip'
-import { SeasonCards } from '../components/SeasonCards'
-import { OfferChip } from '../components/OfferVariants'
-import { ProductPhoto } from '../components/product'
-import { SpecChecklist } from '../components/SpecChecklist'
-import { Sparkline } from '../components/Sparkline'
-import { TimelineList } from '../components/Timeline'
+import { useAlertSignup } from '../components/AlertSignup'
 import { ItemForm } from '../components/ItemForm'
+import { MarketTable } from '../components/MarketTable'
+import { SeasonCards } from '../components/SeasonCards'
+import { RelativeTime } from '../components/RelativeTime'
+import { TimelineList } from '../components/Timeline'
 import { useToast } from '../components/toast'
-import { FadeIn, useTween } from '../components/motion'
+import { FadeIn } from '../components/motion'
+import { Tooltip } from '../components/ui/tooltip'
 import { Badge, buttonClass, ConfirmDialog, controlClass, EmptyState, ErrorState, LoadingBlock, Modal, Segmented, Select } from '../components/ui'
 import { blankItemDraft, itemToDraft, pendingItemFromUrl } from '../domain/drafts'
-import { parseActivity, parsePriorityFilter, parseSort } from '../domain/filters'
-import { formatCad, formatPct, formatRelative, safeHttpUrl } from '../domain/format'
-import { heroStats } from '../domain/hero'
-import { priceBrief } from '../domain/context'
+import { parseActivity, parsePriorityFilter } from '../domain/filters'
+import { formatCad, formatPct, safeHttpUrl } from '../domain/format'
+import { categoryLabel, priorityLabel, priorityTone, shortItemName } from '../domain/labels'
+import { marketOverview, versusTypical } from '../domain/overview'
+import type { Item } from '../domain/types'
 import type { PriceBrief } from '../domain/context'
-import { dealScoreLabel, priorityLabel, priorityTone, sortLabel, verdictTone } from '../domain/labels'
-import type { Item, WatchSort } from '../domain/types'
-import { buildTimeline } from '../domain/timeline'
-import { priceCallLabel, priceCallsForDataset, priceCallTone } from '../domain/verdict'
-import { buildWatchRows, filterWatchRows, sortWatchRows, watchCategories } from '../domain/watchlist'
+import { priceBrief } from '../domain/context'
+import { priceCallLabel, priceCallTone, priceCallsForDataset } from '../domain/verdict'
+import type { PriceCallResult } from '../domain/verdict'
+import { buildWatchRows, filterWatchRows, watchCategories } from '../domain/watchlist'
 import type { WatchRow } from '../domain/watchlist'
 import { writeParams } from '../lib/search'
 import { useDocumentTitle } from '../lib/title'
 import { useCatalog } from '../state/catalog'
 
-const sorts: WatchSort[] = ['target_gap', 'price_asc', 'priority', 'name', 'updated']
+interface Listed {
+  row: WatchRow
+  call: PriceCallResult | null
+  brief: PriceBrief | null
+}
+
+const columnHelper = createColumnHelper<Listed>()
+const pageSize = 20
 
 export function WatchlistPage() {
   useDocumentTitle('Watchlist')
   const catalog = useCatalog()
   const canEdit = useCanEdit()
   const push = useToast()
+  const openAlerts = useAlertSignup()
   const [params, setParams] = useSearchParams()
   const [editing, setEditing] = useState<Item | null | 'new'>(null)
   const [linkOpen, setLinkOpen] = useState(false)
@@ -45,52 +54,56 @@ export function WatchlistPage() {
   const [linkPending, setLinkPending] = useState(false)
   const [removing, setRemoving] = useState<Item | null>(null)
   const [pendingDelete, setPendingDelete] = useState(false)
+
   const query = params.get('q') ?? ''
   const category = params.get('category')
   const priority = parsePriorityFilter(params.get('priority'))
   const activity = parseActivity(params.get('activity'))
-  const requestedSort = parseSort(params.get('sort'))
-  const sort = !canEdit && requestedSort === 'target_gap' ? 'price_asc' : requestedSort
-  const criteria = { query, category, priority, activity, sort }
-  const rows = useMemo(() => {
-    const built = buildWatchRows({
-      items: catalog.items,
-      stores: catalog.stores,
-      snapshots: catalog.snapshots,
-      deals: catalog.deals,
-    })
-    return sortWatchRows(filterWatchRows(built, { query, category, priority, activity, sort }), sort)
-  }, [catalog.items, catalog.stores, catalog.snapshots, catalog.deals, query, category, priority, activity, sort])
-  const categories = watchCategories(catalog.items)
-  const calls = useMemo(
-    () => priceCallsForDataset(catalog, canEdit),
+  const storeId = params.get('store')
+  const stock = params.get('stock')
+  const fit = params.get('fit')
+  const verdict = params.get('verdict')
+  const density = params.get('density') === 'compact' ? 'compact' : 'comfortable'
+  const page = positiveInt(params.get('page'))
+  const sorting = useMemo<SortingState>(() => [{
+    id: params.get('col') || 'call',
+    desc: params.get('dir') === 'desc',
+  }], [params])
+
+  const overview = useMemo(
+    () => marketOverview(catalog, canEdit),
     [catalog, canEdit],
   )
-  const hero = useMemo(() => heroStats(catalog, canEdit), [catalog, canEdit])
+  const calls = useMemo(() => priceCallsForDataset(catalog, canEdit), [catalog, canEdit])
   const briefs = useMemo(() => {
-    const byItem = new Map<string, ReturnType<typeof priceBrief>>()
+    const byItem = new Map<string, PriceBrief>()
     for (const item of catalog.items) {
       byItem.set(item.id, priceBrief(catalog.snapshots.filter((snapshot) => snapshot.item_id === item.id), catalog.stores))
     }
     return byItem
   }, [catalog.items, catalog.snapshots, catalog.stores])
-  const callCounts = useMemo(() => {
-    let buy = 0
-    let good = 0
-    let wait = 0
-    for (const item of catalog.items) {
-      if (!item.active) continue
-      const call = calls.get(item.id)?.call
-      if (call === 'buy') buy += 1
-      else if (call === 'good') good += 1
-      else if (call === 'wait') wait += 1
-    }
-    return { buy, good, wait }
-  }, [calls, catalog.items])
-  const changes = useMemo(() => buildTimeline(catalog).slice(0, 8), [catalog])
+  const categories = watchCategories(catalog.items)
+  const rows = useMemo(() => {
+    const built = buildWatchRows(catalog)
+    const filtered = filterWatchRows(built, { query, category, priority, activity, sort: 'name' }, canEdit)
+    const listed: Listed[] = filtered.map((row) => ({
+      row,
+      call: calls.get(row.item.id) ?? null,
+      brief: briefs.get(row.item.id) ?? null,
+    }))
+    return listed.filter((entry) => facetMatch(entry, { storeId, stock, fit, verdict }))
+  }, [activity, briefs, calls, canEdit, catalog, category, fit, priority, query, stock, storeId, verdict])
 
-  function update(updates: Record<string, string | null>) {
-    setParams(writeParams(params, updates), { replace: true })
+  const showTypical = rows.some((entry) => entry.brief?.typical30 != null)
+  const columns = useMemo(() => watchColumns({
+    canEdit,
+    showTypical,
+    onEdit: setEditing,
+    onDelete: setRemoving,
+  }), [canEdit, showTypical])
+
+  function update(updates: Record<string, string | null>, keepPage = false) {
+    setParams(writeParams(params, keepPage ? updates : { ...updates, page: null }), { replace: true })
   }
 
   if (!catalog.ready) return <LoadingBlock />
@@ -98,302 +111,490 @@ export function WatchlistPage() {
     return <ErrorState message={catalog.error} onRetry={() => void catalog.refresh()} />
   }
 
+  const stores = [...catalog.stores].sort((left, right) => left.name.localeCompare(right.name))
+
   return (
     <FadeIn>
-    <div>
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="font-display text-4xl">Watchlist</h1>
-          <p className="mt-1 max-w-2xl text-sm leading-6 text-muted">
-            {catalog.items.filter((item) => item.active).length} active items
-            {catalog.items.length > 0 ? ` · ${callCounts.buy} buy · ${callCounts.good} good price · ${callCounts.wait} wait` : ''}
-          </p>
+      <div>
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium tracking-wide text-muted uppercase">Market</p>
+            <h1 className="font-display text-4xl">Watchlist</h1>
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-muted">
+              {overview.watched} active items. Best current price, then the rest of the book.
+            </p>
+          </div>
+          {canEdit ? (
+            <div className="flex flex-wrap gap-2">
+              <button type="button" className={buttonClass('secondary')} onClick={() => { setLinkValue(''); setLinkError(null); setLinkOpen(true) }}>
+                Add from link
+              </button>
+              <button type="button" className={buttonClass()} onClick={() => setEditing('new')}>
+                <Plus className="h-4 w-4" />
+                Add item
+              </button>
+            </div>
+          ) : null}
         </div>
-        {canEdit ? (
-          <div className="flex flex-wrap gap-2">
-            <button type="button" className={buttonClass('secondary')} onClick={() => { setLinkValue(''); setLinkError(null); setLinkOpen(true) }}>
-              Add from link
-            </button>
-            <button type="button" className={buttonClass()} onClick={() => setEditing('new')}>
-              <Plus className="h-4 w-4" />
-              Add item
+
+        <section className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Market summary">
+          <Kpi label="Items watched" value={String(overview.watched)} detail="Active items on the list" />
+          <Kpi label="Open good deals" value={String(overview.openGoodDeals)} detail="Must buy and good, still open" />
+          <Kpi
+            label="Biggest drop this week"
+            value={overview.biggestDrop ? `${formatPct(overview.biggestDrop.percent, 0)} · ${formatCad(overview.biggestDrop.amount)}` : '—'}
+            detail={overview.biggestDrop ? `${overview.biggestDrop.itemName} · ${overview.biggestDrop.storeName}` : 'No drop saved in the last 7 days'}
+          />
+          <Kpi label="Last scan" value={overview.lastScan ? '' : '—'} detail={overview.lastScan ? '' : 'No check saved yet'}>
+            {overview.lastScan ? <RelativeTime iso={overview.lastScan} /> : null}
+          </Kpi>
+        </section>
+
+        <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(16rem,0.8fr)]">
+          <section className="rounded-xl border border-line bg-paper-2 p-4 shadow-sm md:p-5">
+            <h2 className="font-display text-2xl">Best deals right now</h2>
+            {overview.bestDeals.length === 0 ? (
+              <p className="mt-3 text-sm text-muted">No open must-buy or good deal has an in-stock price right now.</p>
+            ) : (
+              <ol className="mt-3 grid gap-2">
+                {overview.bestDeals.map((deal, index) => (
+                  <li key={deal.id} className="flex flex-wrap items-baseline justify-between gap-2 rounded-lg bg-paper px-3 py-2">
+                    <p className="min-w-0 text-sm">
+                      <span className="mr-2 font-mono text-muted">{index + 1}</span>
+                      <Link className="font-medium hover:text-pine" to={`/items/${deal.itemId}`} title={`${deal.productName} · ${deal.name}`}>{shortItemName(deal.productName)}</Link>
+                      <span className="text-muted"> · {deal.storeName}</span>
+                      {deal.versus && deal.versus !== '—' ? <span className="text-muted"> · {deal.versus}</span> : null}
+                    </p>
+                    <p className="flex items-center gap-2">
+                      <Badge className={priceCallTone(deal.call)}>{priceCallLabel(deal.call)}</Badge>
+                      <span className="font-mono tabular-nums">{formatCad(deal.price)}</span>
+                    </p>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </section>
+          <section>
+            <h2 className="font-display text-2xl">Categories</h2>
+            {overview.categories.length === 0 ? (
+              <p className="mt-3 text-sm text-muted">No categories yet.</p>
+            ) : (
+              <ul className="mt-3 grid grid-cols-2 gap-2">
+                {overview.categories.map((tile) => (
+                  <li key={tile.category}>
+                    <button
+                      type="button"
+                      className="h-full w-full rounded-xl border border-line bg-paper-2 p-3 text-left shadow-sm hover:border-pine/40"
+                      onClick={() => update({ category: category === tile.category ? null : tile.category })}
+                    >
+                      <span className="block text-sm font-medium">{tile.label}</span>
+                      <span className="mt-1 block text-xs text-muted">{tile.items} watched · {tile.goodDeals} good</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
+
+        <section id="prices" className="mt-8">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="font-display text-2xl">Prices</h2>
+              <p className="mt-1 text-sm text-muted">One row per product. Qualifying in-stock offers set the best price.</p>
+            </div>
+            <button
+              type="button"
+              className={buttonClass('secondary', 'sm')}
+              aria-pressed={density === 'compact'}
+              onClick={() => update({ density: density === 'compact' ? null : 'compact' }, true)}
+            >
+              <Rows3 className="h-4 w-4" />
+              {density === 'compact' ? 'Comfortable' : 'Compact'}
             </button>
           </div>
-        ) : null}
-      </div>
-      <HeroStrip stats={hero} />
-      <div className="mt-6 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
-        <input
-          className={controlClass}
-          value={criteria.query}
-          onChange={(event) => update({ q: event.target.value || null })}
-          placeholder={canEdit ? 'Search name, notes, keywords' : 'Search name, category, keywords'}
-          aria-label="Search items"
-        />
-        <Select
-          label="Category"
-          value={criteria.category ?? 'all'}
-          onValueChange={(value) => update({ category: value === 'all' ? null : value })}
-          options={[{ value: 'all', label: 'All categories' }, ...categories.map((category) => ({ value: category, label: category }))]}
-        />
-        <Select
-          label="Priority"
-          value={criteria.priority}
-          onValueChange={(value) => update({ priority: value === 'all' ? null : value })}
-          options={[
-            { value: 'all', label: 'All priorities' },
-            { value: 'high', label: 'High' },
-            { value: 'normal', label: 'Normal' },
-            { value: 'low', label: 'Low' },
-          ]}
-        />
-        <Select
-          label="Sort"
-          value={criteria.sort}
-          onValueChange={(value) => update({ sort: value === 'target_gap' ? null : value })}
-          options={(canEdit ? sorts : sorts.filter((entry) => entry !== 'target_gap')).map((sort) => ({ value: sort, label: sortLabel(sort) }))}
-        />
-      </div>
-      <div className="mt-3">
-        <Segmented
-          label="Activity"
-          value={criteria.activity}
-          onChange={(activity) => update({ activity: activity === 'active' ? null : activity })}
-          options={[
-            { value: 'active', label: 'Active' },
-            { value: 'paused', label: 'Paused' },
-            { value: 'all', label: 'All' },
-          ]}
-        />
-      </div>
-      {catalog.items.length === 0 ? (
-        <div className="mt-8">
-          <EmptyState
-            title="Nothing to watch yet"
-            body={canEdit
-              ? 'Add the things you actually want to buy. The daily check will attach prices from the stores you keep enabled.'
-              : 'The watchlist is empty right now. Prices show up here after the owner adds an item.'}
-            action={canEdit ? <button type="button" className={buttonClass()} onClick={() => setEditing('new')}>Add the first item</button> : undefined}
-          />
-        </div>
-      ) : rows.length === 0 ? (
-        <div className="mt-8">
-          <EmptyState title="No items match" body="Clear a filter or try a different search." />
-        </div>
-      ) : (
-        <div className="mt-6 grid gap-4">
-          {rows.map((row, index) => (
-            <WatchCard
-              key={row.item.id}
-              index={index}
-              row={row}
-              call={calls.get(row.item.id) ?? null}
-              brief={briefs.get(row.item.id) ?? null}
-              canEdit={canEdit}
-              onEdit={() => setEditing(row.item)}
-              onDelete={() => setRemoving(row.item)}
+          <div className="mt-4 grid gap-3 lg:grid-cols-3">
+            <input
+              className={controlClass}
+              value={query}
+              onChange={(event) => update({ q: event.target.value || null })}
+              placeholder={canEdit ? 'Search name, notes, keywords' : 'Search name, category, keywords'}
+              aria-label="Search items"
             />
-          ))}
-        </div>
-      )}
-      <SeasonCards />
-      <section className="mt-8">
-        <h2 className="font-display text-2xl">Recent price changes</h2>
-        <div className="mt-3">
-          <TimelineList events={changes} linkItems />
-        </div>
-      </section>
-      <Modal
-        open={linkOpen}
-        title="Add from a link"
-        description="Harbour stores the link only. The next scan fills in the name, specs, summary, and photo."
-        onClose={() => setLinkOpen(false)}
-      >
-        <form
-          className="grid gap-4"
-          onSubmit={(event) => {
-            event.preventDefault()
-            const parsed = pendingItemFromUrl(linkValue)
-            if (!parsed.ok) {
-              setLinkError(parsed.errors[0]?.message ?? 'Use an http or https link.')
-              return
-            }
-            setLinkPending(true)
-            setLinkError(null)
-            void catalog.saveItem(parsed.value).then(() => {
-              push('ok', 'Link saved. The next scan can fill in the details.')
-              setLinkOpen(false)
-            }).catch((error: unknown) => {
-              setLinkError(error instanceof Error ? error.message : 'Could not save the link.')
-            }).finally(() => setLinkPending(false))
-          }}
-        >
-          <input
-            className={controlClass}
-            value={linkValue}
-            onChange={(event) => setLinkValue(event.target.value)}
-            placeholder="https://"
-            aria-label="Product URL"
-            inputMode="url"
-          />
-          {linkError ? <p className="text-sm text-clay">{linkError}</p> : null}
-          <div className="flex justify-end">
-            <button type="submit" className={buttonClass()} disabled={linkPending}>{linkPending ? 'Saving…' : 'Save link'}</button>
+            <Select
+              label="Category"
+              value={category ?? 'all'}
+              onValueChange={(value) => update({ category: value === 'all' ? null : value })}
+              options={[{ value: 'all', label: 'All categories' }, ...categories.map((entry) => ({ value: entry, label: categoryLabel(entry) }))]}
+            />
+            <Select
+              label="Store"
+              value={storeId ?? 'all'}
+              onValueChange={(value) => update({ store: value === 'all' ? null : value })}
+              options={[{ value: 'all', label: 'All stores' }, ...stores.map((store) => ({ value: store.id, label: store.name }))]}
+            />
+            <Select
+              label="Stock"
+              value={stock ?? 'all'}
+              onValueChange={(value) => update({ stock: value === 'all' ? null : value })}
+              options={[{ value: 'all', label: 'Any stock' }, { value: 'in', label: 'In stock' }, { value: 'out', label: 'Out of stock' }]}
+            />
+            <Select
+              label="Meets requirements"
+              value={fit ?? 'all'}
+              onValueChange={(value) => update({ fit: value === 'all' ? null : value })}
+              options={[{ value: 'all', label: 'Any fit' }, { value: 'yes', label: 'Meets specs' }, { value: 'no', label: 'No qualifying offer' }]}
+            />
+            <Select
+              label="Priority"
+              value={priority}
+              onValueChange={(value) => update({ priority: value === 'all' ? null : value })}
+              options={[
+                { value: 'all', label: 'All priorities' },
+                { value: 'high', label: 'High' },
+                { value: 'normal', label: 'Normal' },
+                { value: 'low', label: 'Low' },
+              ]}
+            />
+            <Select
+              label="Verdict"
+              value={verdict ?? 'all'}
+              onValueChange={(value) => update({ verdict: value === 'all' ? null : value })}
+              options={[
+                { value: 'all', label: 'Any verdict' },
+                { value: 'buy', label: 'Buy now' },
+                { value: 'good', label: 'Good price' },
+                { value: 'wait', label: 'Wait' },
+              ]}
+            />
           </div>
-        </form>
-      </Modal>
-      <Modal
-        open={editing != null}
-        title={editing === 'new' ? 'New item' : 'Edit item'}
-        description="Every field is saved on the item. Prices themselves come from the daily check."
-        onClose={() => setEditing(null)}
-      >
-        {editing != null ? (
-          <ItemForm
-            key={editing === 'new' ? 'new' : editing.id}
-            initial={editing === 'new' ? blankItemDraft() : itemToDraft(editing)}
-            categories={categories.filter((category) => category !== 'Uncategorized')}
-            submitLabel={editing === 'new' ? 'Add item' : 'Save changes'}
-            onCancel={() => setEditing(null)}
-            onSubmit={async (write) => {
-              await catalog.saveItem(write, editing === 'new' ? undefined : editing.id)
-              push('ok', editing === 'new' ? 'Item added.' : 'Item saved.')
-              setEditing(null)
+          {category ? (
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-paper-2 px-4 py-3">
+              <p className="text-sm">Public price alerts for <span className="font-medium">{categoryLabel(category)}</span>.</p>
+              <button type="button" className={buttonClass('secondary', 'sm')} onClick={() => openAlerts({ category })}>
+                Get alerts for {categoryLabel(category)}
+              </button>
+            </div>
+          ) : null}
+          <div className="mt-3">
+            <Segmented
+              label="Activity"
+              value={activity}
+              onChange={(next) => update({ activity: next === 'active' ? null : next })}
+              options={[
+                { value: 'active', label: 'Active' },
+                { value: 'paused', label: 'Paused' },
+                { value: 'all', label: 'All' },
+              ]}
+            />
+          </div>
+          <div className="mt-4">
+            {catalog.items.length === 0 ? (
+              <EmptyState
+                title="Nothing to watch yet"
+                body={canEdit
+                  ? 'Add the things you actually want to buy. The daily check will attach prices from the stores you keep enabled.'
+                  : 'The watchlist is empty right now. Prices show up here after the owner adds an item.'}
+                action={canEdit ? <button type="button" className={buttonClass()} onClick={() => setEditing('new')}>Add the first item</button> : undefined}
+              />
+            ) : (
+              <MarketTable
+                data={rows}
+                columns={columns}
+                getRowId={(entry) => entry.row.item.id}
+                sorting={sorting}
+                onSortingChange={(next) => {
+                  const first = next[0]
+                  update({
+                    col: !first || (first.id === 'call' && !first.desc) ? null : first.id,
+                    dir: first?.desc ? 'desc' : null,
+                  })
+                }}
+                page={page}
+                pageSize={pageSize}
+                onPageChange={(next) => update({ page: next <= 1 ? null : String(next) }, true)}
+                density={density}
+                caption="Watchlist prices"
+                empty={<EmptyState title="No items match" body="Clear a filter or try a different search." />}
+                renderCard={(entry) => (
+                  <WatchCard
+                    entry={entry}
+                    canEdit={canEdit}
+                    onAlert={() => openAlerts({ itemId: entry.row.item.id, itemName: entry.row.item.name, category: entry.row.item.category })}
+                    onEdit={() => setEditing(entry.row.item)}
+                    onDelete={() => setRemoving(entry.row.item)}
+                  />
+                )}
+              />
+            )}
+          </div>
+        </section>
+
+        <section className="mt-8">
+          <h2 className="font-display text-2xl">Recent price changes</h2>
+          <p className="mt-1 text-sm text-muted">Latest move for each product variant. Older checks stay on the item chart.</p>
+          <div className="mt-3">
+            <TimelineList events={overview.changes} linkItems />
+          </div>
+        </section>
+        <SeasonCards />
+
+        <Modal open={linkOpen} title="Add from a link" description="Harbour stores the link only. The next scan fills in the name, specs, summary, and photo." onClose={() => setLinkOpen(false)}>
+          <form
+            className="grid gap-4"
+            onSubmit={(event) => {
+              event.preventDefault()
+              const parsed = pendingItemFromUrl(linkValue)
+              if (!parsed.ok) {
+                setLinkError(parsed.errors[0]?.message ?? 'Use an http or https link.')
+                return
+              }
+              setLinkPending(true)
+              setLinkError(null)
+              void catalog.saveItem(parsed.value).then(() => {
+                push('ok', 'Link saved. The next scan can fill in the details.')
+                setLinkOpen(false)
+              }).catch((error: unknown) => {
+                setLinkError(error instanceof Error ? error.message : 'Could not save the link.')
+              }).finally(() => setLinkPending(false))
             }}
-          />
-        ) : null}
-      </Modal>
-      <ConfirmDialog
-        open={removing != null}
-        title={removing ? `Delete ${removing.name}?` : 'Delete item?'}
-        body="Price history and deals for this item are removed too."
-        confirmLabel={pendingDelete ? 'Deleting…' : 'Delete item'}
-        pending={pendingDelete}
-        onClose={() => setRemoving(null)}
-        onConfirm={() => {
-          if (!removing) return
-          setPendingDelete(true)
-          void catalog.deleteItem(removing.id).then(() => {
-            push('ok', 'Item deleted.')
-            setRemoving(null)
-          }).catch((error: unknown) => {
-            push('error', error instanceof Error ? error.message : 'Could not delete the item.')
-          }).finally(() => setPendingDelete(false))
-        }}
-      />
-    </div>
+          >
+            <input className={controlClass} value={linkValue} onChange={(event) => setLinkValue(event.target.value)} placeholder="https://" aria-label="Product URL" inputMode="url" />
+            {linkError ? <p className="text-sm text-clay">{linkError}</p> : null}
+            <div className="flex justify-end">
+              <button type="submit" className={buttonClass()} disabled={linkPending}>{linkPending ? 'Saving…' : 'Save link'}</button>
+            </div>
+          </form>
+        </Modal>
+        <Modal open={editing != null} title={editing === 'new' ? 'New item' : 'Edit item'} description="Every field is saved on the item. Prices themselves come from the daily check." onClose={() => setEditing(null)}>
+          {editing != null ? (
+            <ItemForm
+              key={editing === 'new' ? 'new' : editing.id}
+              initial={editing === 'new' ? blankItemDraft() : itemToDraft(editing)}
+              categories={categories.filter((entry) => entry !== 'Uncategorized')}
+              submitLabel={editing === 'new' ? 'Add item' : 'Save changes'}
+              onCancel={() => setEditing(null)}
+              onSubmit={async (write) => {
+                await catalog.saveItem(write, editing === 'new' ? undefined : editing.id)
+                push('ok', editing === 'new' ? 'Item added.' : 'Item saved.')
+                setEditing(null)
+              }}
+            />
+          ) : null}
+        </Modal>
+        <ConfirmDialog
+          open={removing != null}
+          title={removing ? `Delete ${removing.name}?` : 'Delete item?'}
+          body="Price history and deals for this item are removed too."
+          confirmLabel={pendingDelete ? 'Deleting…' : 'Delete item'}
+          pending={pendingDelete}
+          onClose={() => setRemoving(null)}
+          onConfirm={() => {
+            if (!removing) return
+            setPendingDelete(true)
+            void catalog.deleteItem(removing.id).then(() => {
+              push('ok', 'Item deleted.')
+              setRemoving(null)
+            }).catch((error: unknown) => {
+              push('error', error instanceof Error ? error.message : 'Could not delete the item.')
+            }).finally(() => setPendingDelete(false))
+          }}
+        />
+      </div>
     </FadeIn>
   )
 }
 
-function WatchCard({
-  index,
-  row,
-  call,
-  brief,
+function watchColumns({
   canEdit,
+  showTypical,
   onEdit,
   onDelete,
 }: {
-  index: number
-  row: WatchRow
-  call: { call: 'buy' | 'good' | 'wait'; confidence: number; reason: string } | null
-  brief: PriceBrief | null
   canEdit: boolean
+  showTypical: boolean
+  onEdit: (item: Item) => void
+  onDelete: (item: Item) => void
+}) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const columns: ColumnDef<Listed, any>[] = [
+    columnHelper.accessor((entry) => entry.row.item.name, {
+      id: 'item',
+      header: 'Item',
+      cell: ({ row }) => {
+        const name = row.original.row.item.name
+        return (
+          <div className="flex min-w-56 items-center gap-2">
+            <Tooltip label={name}>
+              <Link className="inline-block max-w-72 truncate font-medium whitespace-nowrap hover:text-pine" to={`/items/${row.original.row.item.id}`}>{shortItemName(name)}</Link>
+            </Tooltip>
+            {!row.original.row.item.active ? <span className="shrink-0 text-xs text-muted">Paused</span> : null}
+          </div>
+        )
+      },
+    }),
+    columnHelper.accessor((entry) => categoryLabel(entry.row.item.category), {
+      id: 'category',
+      header: 'Category',
+      cell: ({ getValue }) => getValue(),
+    }),
+    columnHelper.accessor((entry) => entry.row.best?.price ?? Number.POSITIVE_INFINITY, {
+      id: 'price',
+      header: 'Best price',
+      cell: ({ row }) => <span className="font-mono tabular-nums">{row.original.row.best ? formatCad(row.original.row.best.price) : '—'}</span>,
+    }),
+    columnHelper.accessor((entry) => entry.row.best?.storeName ?? '', {
+      id: 'store',
+      header: 'Store',
+      cell: ({ row }) => row.original.row.best?.storeName ?? '—',
+    }),
+    columnHelper.accessor((entry) => callRank(entry.call?.call), {
+      id: 'call',
+      header: 'Verdict',
+      cell: ({ row }) => row.original.call ? <Badge className={priceCallTone(row.original.call.call)}>{priceCallLabel(row.original.call.call)}</Badge> : '—',
+    }),
+    ...(showTypical ? [columnHelper.accessor((entry) => typicalDelta(entry.brief), {
+      id: 'typical',
+      header: 'Vs typical',
+      cell: ({ row }) => versusTypical(row.original.brief?.currentPrice ?? null, row.original.brief?.typical30 ?? null),
+    })] : []),
+    columnHelper.accessor((entry) => entry.row.allTimeLow ?? Number.POSITIVE_INFINITY, {
+      id: 'low',
+      header: 'All-time low',
+      cell: ({ row }) => (
+        <span className="tabular-nums">
+          {row.original.row.allTimeLow != null ? formatCad(row.original.row.allTimeLow) : '—'}
+          {row.original.row.atLow && (row.original.brief?.historyDays ?? 0) >= 14 ? <span className="ml-2 text-xs text-buy">At the low</span> : null}
+        </span>
+      ),
+    }),
+    columnHelper.accessor((entry) => stockRank(entry.row.best?.inStock ?? null), {
+      id: 'stock',
+      header: 'Stock',
+      cell: ({ row }) => <StockBadge inStock={row.original.row.best?.inStock ?? null} />,
+    }),
+    columnHelper.accessor((entry) => entry.row.best?.capturedAt ?? '', {
+      id: 'checked',
+      header: 'Checked',
+      cell: ({ row }) => <RelativeTime iso={row.original.row.best?.capturedAt} />,
+    }),
+  ]
+  if (canEdit) {
+    columns.push(columnHelper.display({
+      id: 'actions',
+      header: 'Actions',
+      enableSorting: false,
+      cell: ({ row }) => (
+        <div className="flex gap-1">
+          <button type="button" className="rounded-full p-2 text-muted hover:bg-paper" aria-label={`Edit ${row.original.row.item.name}`} onClick={() => onEdit(row.original.row.item)}>
+            <Pencil className="h-4 w-4" />
+          </button>
+          <button type="button" className="rounded-full p-2 text-muted hover:bg-paper" aria-label={`Delete ${row.original.row.item.name}`} onClick={() => onDelete(row.original.row.item)}>
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+      ),
+    }))
+  }
+  return columns
+}
+
+function WatchCard({
+  entry,
+  canEdit,
+  onAlert,
+  onEdit,
+  onDelete,
+}: {
+  entry: Listed
+  canEdit: boolean
+  onAlert: () => void
   onEdit: () => void
   onDelete: () => void
 }) {
-  const gap = gapCopy(row.targetGap)
-  const deal = row.openDeal
-  const tween = useTween(index)
-  const present = useIsPresent()
+  const item = entry.row.item
+  const best = entry.row.best
   return (
-    <motion.article
-      layout={present && !tween.reduce}
-      initial={tween.reduce ? false : { opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      whileHover={tween.reduce ? undefined : { y: -2 }}
-      transition={tween.transition}
-      className="overflow-hidden rounded-xl border border-line bg-paper-2 shadow-sm"
-    >
-      <div className="grid sm:grid-cols-[8.5rem_minmax(0,1fr)]">
-        <ProductPhoto name={row.item.name} imageUrl={row.item.image_url} category={row.item.category} />
-        <div className="p-4 md:p-5">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="font-display text-3xl leading-none">
-              <Link className="hover:text-pine" to={`/items/${row.item.id}`}>{row.item.name}</Link>
-            </h2>
-            <Badge className={priorityTone(row.item.priority)}>{priorityLabel(row.item.priority)}</Badge>
-            {!row.item.active ? <Badge className="bg-paper text-muted">Paused</Badge> : null}
-            {row.item.enrichment_status === 'pending_enrichment' ? <Badge className="bg-gold-soft text-gold">Waiting for the next scan</Badge> : null}
-            {call ? <Badge className={priceCallTone(call.call)}>{priceCallLabel(call.call)}</Badge> : null}
-            {row.atLow ? <Badge className="bg-buy-soft text-buy">All-time low</Badge> : null}
-            {deal ? <Badge className={verdictTone(deal.verdict ?? 'unrated')}>{dealScoreLabel(deal.verdict)}</Badge> : null}
-          </div>
-          <p className="mt-2 text-sm text-muted">
-            {[row.item.category, row.item.condition].filter(Boolean).join(' · ') || 'No category'}
-            {canEdit && row.item.target_price != null ? ` · target ${formatCad(row.item.target_price)}` : ''}
-          </p>
-          {!canEdit && row.item.public_summary ? <p className="mt-2 text-sm leading-6 text-ink">{row.item.public_summary}</p> : null}
-          <SpecChecklist specs={row.item.specs} />
-          {call ? <p className="mt-2 max-w-xl text-sm leading-6">{call.reason} <span className="text-muted">Confidence {call.confidence}.</span></p> : null}
-          {brief ? <PriceContextLine brief={brief} /> : null}
-          <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
-            <Link className="text-sm text-pine underline" to={`/items/${row.item.id}#compare`}>Compare</Link>
-            {safeHttpUrl(row.item.product_url) ? <a className="text-sm text-pine underline" href={safeHttpUrl(row.item.product_url) ?? undefined} target="_blank" rel="noopener noreferrer">Product link</a> : null}
-          </p>
+    <article className="rounded-xl border border-line bg-paper-2 p-4 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="font-display text-2xl leading-none">
+            <Link className="hover:text-pine" to={`/items/${item.id}`}>{item.name}</Link>
+          </h3>
+          <p className="mt-1 text-sm text-muted">{item.category ? categoryLabel(item.category) : 'No category'}</p>
         </div>
-        <div className="text-left sm:text-right">
-          <p className="font-mono text-3xl font-medium tracking-tight tabular-nums">{row.best ? formatCad(row.best.price) : '—'}</p>
-          <p className="text-sm text-muted">
-            {row.best ? `${row.best.storeName} · ${formatRelative(row.best.capturedAt)}` : row.other.length > 0 ? 'No qualifying offer yet' : 'No price yet'}
-            {row.best?.inStock === false ? ' · Out of stock' : ''}
-          </p>
-          {row.best?.productName ? <p className="text-sm text-muted">{row.best.productName}</p> : null}
-          {canEdit && gap ? <p className={`text-sm ${gap.className}`}>{gap.text}</p> : null}
-        </div>
+        <p className="font-mono text-2xl tabular-nums">{best ? formatCad(best.price) : '—'}</p>
       </div>
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
-        <Sparkline values={row.spark} />
-        <ul className="flex min-w-0 flex-1 flex-wrap gap-2">
-          {row.quotes.length === 0 && row.other.length === 0 ? <li className="text-sm text-muted">Waiting for the first snapshot.</li> : null}
-          {row.quotes.length === 0 && row.other.length > 0 ? <li className="text-sm text-muted">Other offers seen, none qualify yet.</li> : null}
-          {row.quotes.map((quote) => (
-            <OfferChip key={`${quote.storeId ?? 'unknown'}-${quote.snapshotId}`} quote={quote} best={row.best?.snapshotId === quote.snapshotId} />
-          ))}
-        </ul>
-        {canEdit ? (
-          <div className="flex gap-1">
-            <button type="button" className="rounded-full p-2 text-muted hover:bg-paper" aria-label={`Edit ${row.item.name}`} onClick={onEdit}>
-              <Pencil className="h-4 w-4" />
-            </button>
-            <button type="button" className="rounded-full p-2 text-muted hover:bg-paper" aria-label={`Delete ${row.item.name}`} onClick={onDelete}>
-              <Trash2 className="h-4 w-4" />
-            </button>
-          </div>
-        ) : null}
+      <div className="mt-3 flex flex-wrap gap-2">
+        {entry.call ? <Badge className={priceCallTone(entry.call.call)}>{priceCallLabel(entry.call.call)}</Badge> : null}
+        <StockBadge inStock={best?.inStock ?? null} />
+        {entry.row.atLow && (entry.brief?.historyDays ?? 0) >= 14 ? <Badge className="bg-buy-soft text-buy">All-time low</Badge> : null}
       </div>
-        </div>
+      <p className="mt-2 text-sm text-muted">
+        {best ? best.storeName : 'No qualifying offer yet'}
+        {' · '}
+        {versusTypical(entry.brief?.currentPrice ?? null, entry.brief?.typical30 ?? null)}
+        {entry.row.allTimeLow != null ? ` · low ${formatCad(entry.row.allTimeLow)}` : ''}
+      </p>
+      <div className="mt-3 flex flex-wrap gap-3 text-sm">
+        <button type="button" className="text-pine underline" onClick={onAlert}>Get deal alerts</button>
+        {safeHttpUrl(item.product_url) ? <a className="text-pine underline" href={safeHttpUrl(item.product_url) ?? undefined} target="_blank" rel="noopener noreferrer">Product link</a> : null}
+        {canEdit ? <button type="button" className="text-pine underline" onClick={onEdit}>Edit</button> : null}
+        {canEdit ? <button type="button" className="text-clay underline" onClick={onDelete}>Delete</button> : null}
+        {canEdit ? <Badge className={priorityTone(item.priority)}>{priorityLabel(item.priority)}</Badge> : null}
       </div>
-    </motion.article>
+    </article>
   )
 }
 
-function gapCopy(gap: number | null): { text: string; className: string } | null {
-  if (gap == null) return null
-  if (Math.abs(gap) < 0.005) return { text: 'At target', className: 'text-drop' }
-  if (gap < 0) return { text: `${formatCad(Math.abs(gap))} under target`, className: 'text-drop' }
-  return { text: `${formatCad(gap)} over target`, className: 'text-rise' }
+function Kpi({ label, value, detail, children }: { label: string; value: string; detail: string; children?: ReactNode }) {
+  return (
+    <article className="rounded-xl border border-line bg-paper-2 p-4 shadow-sm">
+      <p className="text-sm text-muted">{label}</p>
+      <p className="mt-2 font-mono text-2xl font-medium tracking-tight tabular-nums">{children ?? value}</p>
+      {detail ? <p className="mt-1 text-sm leading-5 text-muted">{detail}</p> : null}
+    </article>
+  )
 }
 
-function PriceContextLine({ brief }: { brief: PriceBrief }) {
-  const off = brief.percentOffRegular
-  const bits: string[] = []
-  if (off != null && off > 0) bits.push(`${formatPct(off, 0)} off regular`)
-  if (brief.low30) bits.push(`30-day low ${formatCad(brief.low30.price)}`)
-  if (brief.low90) bits.push(`90-day low ${formatCad(brief.low90.price)}`)
-  if (bits.length === 0) return null
-  return <p className="mt-2 text-sm text-muted">{bits.join(' · ')}</p>
+function StockBadge({ inStock }: { inStock: boolean | null }) {
+  if (inStock === false) return <Badge className="bg-skip-soft text-skip">Out of stock</Badge>
+  if (inStock === true) return <Badge className="bg-pine-soft text-pine">In stock</Badge>
+  return <Badge className="bg-paper text-muted">No offer</Badge>
+}
+
+function facetMatch(entry: Listed, facet: { storeId: string | null; stock: string | null; fit: string | null; verdict: string | null }): boolean {
+  const best = entry.row.best
+  if (facet.storeId && best?.storeId !== facet.storeId) return false
+  if (facet.stock === 'in' && !(best && best.inStock !== false)) return false
+  if (facet.stock === 'out' && best?.inStock !== false) return false
+  if (facet.fit === 'yes' && !best) return false
+  if (facet.fit === 'no' && best) return false
+  if (facet.verdict && entry.call?.call !== facet.verdict) return false
+  return true
+}
+
+function callRank(call: PriceCallResult['call'] | undefined): number {
+  if (call === 'buy') return 0
+  if (call === 'good') return 1
+  if (call === 'wait') return 2
+  return 3
+}
+
+function stockRank(inStock: boolean | null): number {
+  if (inStock === true) return 0
+  if (inStock == null) return 1
+  return 2
+}
+
+function typicalDelta(brief: PriceBrief | null): number {
+  const current = brief?.currentPrice
+  const median = brief?.typical30
+  if (current == null || median == null || median <= 0) return Number.POSITIVE_INFINITY
+  return (current - median) / median
+}
+
+function positiveInt(value: string | null): number {
+  const parsed = Number(value)
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : 1
 }

@@ -134,7 +134,9 @@ describe('out-of-stock and unqualified prices stay out of the public lows', () =
     const call = priceCallForItem({ item: chair, snapshots, deals, stores: [costco, amazon], includeTarget: false, now })
     expect(call.currentPrice).toBe(429.99)
     expect(call.storeName).toBe('Amazon')
-    expect(call.reason).toMatch(/matches the all-time low/)
+    expect(call.call).not.toBe('buy')
+    expect(call.reason).toMatch(/not enough history/)
+    expect(call.reason).not.toMatch(/all-time low/)
     expect(call.reason).not.toMatch(/299\.99|100/)
 
     const hero = heroStats(data, false, now)

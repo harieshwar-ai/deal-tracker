@@ -51,6 +51,18 @@ export function formatAxisDay(day: string): string {
   return axisFormatter.format(date)
 }
 
+const torontoFormatter = new Intl.DateTimeFormat('en-CA', {
+  timeZone: TIME_ZONE,
+  dateStyle: 'medium',
+  timeStyle: 'short',
+})
+
+export function formatToronto(iso: string): string {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return '—'
+  return `${torontoFormatter.format(date)} ET`
+}
+
 export function formatRelative(iso: string, now = Date.now()): string {
   const time = Date.parse(iso)
   if (Number.isNaN(time)) return '—'

@@ -88,7 +88,26 @@ export function parseDealRow(row: unknown): Deal {
   }
 }
 
+export function isUnusableCredential(error: unknown): boolean {
+  if (readCode(error) === 'PGRST301') return true
+  const message = readMessage(error).toLowerCase()
+  return message.includes('no suitable key') || message.includes('wrong key type')
+}
+
+export function isPrivilegeError(error: unknown): boolean {
+  if (readCode(error) === '42501') return true
+  return readMessage(error).toLowerCase().includes('permission denied')
+}
+
+/** A publishable key or a placeholder signature must not be sent as a Bearer token. */
+export function isSendableBearer(token: string): boolean {
+  if (token.startsWith('sb_publishable_') || token.startsWith('sb_secret_')) return false
+  const parts = token.split('.')
+  return parts.length === 3 && (parts[2]?.length ?? 0) >= 16
+}
+
 export function friendlyError(error: unknown): string {
+  if (isUnusableCredential(error)) return 'Could not load your data.'
   if (error instanceof Error && !('code' in error)) return error.message
   const code = readCode(error)
   if (code === '23505') return 'A record with that name already exists.'
@@ -187,6 +206,13 @@ function score(value: unknown): number {
 function readCode(error: unknown): string {
   if (error && typeof error === 'object' && 'code' in error && typeof error.code === 'string') return error.code
   return ''
+}
+
+export function isMissingRelation(error: unknown): boolean {
+  const code = readCode(error)
+  if (code === 'PGRST205' || code === '42P01') return true
+  const message = readMessage(error).toLowerCase()
+  return message.includes('schema cache') || message.includes('could not find the table')
 }
 
 export function missingColumnName(error: unknown): string | null {

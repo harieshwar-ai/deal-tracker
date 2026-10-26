@@ -1,4 +1,4 @@
-import { dayKey, formatCad, formatDay, formatPct } from './format'
+import { dayKey, formatCad, formatDay, formatPct, toCents } from './format'
 import { isQualifying } from './offers'
 import { cheapestEver, chooseBest, offerQuotes } from './quotes'
 import type { Quote } from './quotes'
@@ -16,6 +16,7 @@ export interface PriceCallResult {
 }
 
 const minHistoryDays = 3
+export const atlHistoryDays = 14
 
 export function priceCallLabel(call: PriceCall): string {
   switch (call) {
@@ -105,9 +106,10 @@ export function priceCallForItem({
   const target = includeTarget ? item.target_price : null
 
   let score = 45
+  const atlReady = dayCount >= atlHistoryDays
   if (percentFromAtl != null) {
-    if (percentFromAtl <= 1) score += 30
-    else if (percentFromAtl <= 5) score += 15
+    if (atlReady && percentFromAtl <= 1) score += 30
+    else if (atlReady && percentFromAtl <= 5) score += 15
     else if (percentFromAtl >= 12) score -= 22
   }
   if (vsAverage != null && dayCount >= minHistoryDays) {
@@ -131,25 +133,42 @@ export function priceCallForItem({
   if (!current) confidence = 18
   confidence = Math.max(10, Math.min(95, Math.round(confidence)))
 
-  const call = decide(score, dayCount, inStock, current != null, target != null && current != null && current.price <= target)
+  const mustBuy = current != null && inStock && hasOpenMustBuy(deals, current)
+  let call = decide(score, dayCount, inStock, current != null, target != null && current != null && current.price <= target)
+  if (call === 'buy' && !mustBuy) call = 'good'
+  if (mustBuy) call = 'buy'
+  const reason = mustBuy && current
+    ? `${formatCad(current.price)} at ${current.storeName} is an open must-buy.`
+    : explain({
+        current,
+        dayCount,
+        percentFromAtl,
+        vsAverage,
+        trendPct,
+        target,
+        currentPrice: current?.price ?? null,
+        saleEnd,
+        inStock,
+      })
   return {
     itemId: item.id,
     call,
     confidence,
-    reason: explain({
-      current,
-      dayCount,
-      percentFromAtl,
-      vsAverage,
-      trendPct,
-      target,
-      currentPrice: current?.price ?? null,
-      saleEnd,
-      inStock,
-    }),
+    reason,
     currentPrice: current?.price ?? null,
     storeName: current?.storeName ?? null,
   }
+}
+
+function hasOpenMustBuy(deals: Deal[], quote: Quote): boolean {
+  const price = toCents(quote.price)
+  const storeId = quote.storeId ?? null
+  return deals.some((deal) => (
+    deal.status === 'open'
+    && deal.verdict === 'must_buy'
+    && (deal.store_id ?? null) === storeId
+    && toCents(deal.price) === price
+  ))
 }
 
 function decide(score: number, dayCount: number, inStock: boolean, hasPrice: boolean, underTarget: boolean): PriceCall {
@@ -174,13 +193,13 @@ function explain(input: {
   if (!input.current) return 'No in-stock CAD price is saved yet.'
   const where = `${formatCad(input.current.price)} at ${input.current.storeName}`
   if (!input.inStock) return `${where} is out of stock.`
-  if (input.dayCount < minHistoryDays) {
+  if (input.percentFromAtl != null && input.percentFromAtl <= 1 && input.dayCount < atlHistoryDays) {
     const days = input.dayCount === 1 ? '1 priced day' : `${input.dayCount} priced days`
     const targetNote = targetNoteFor(input.target, input.currentPrice)
-    return `${where} is the low on record, from ${days}. That is too little history for a buy call.${targetNote}`
+    return `${where} is the lowest price saved so far, from ${days}. That is not enough history to call it a buy.${targetNote}`
   }
   const bits: string[] = []
-  if (input.percentFromAtl != null && input.percentFromAtl <= 1) bits.push('matches the all-time low')
+  if (input.percentFromAtl != null && input.percentFromAtl <= 1 && input.dayCount >= atlHistoryDays) bits.push('matches the all-time low')
   else if (input.percentFromAtl != null) bits.push(`is ${formatPct(input.percentFromAtl, 0)} above the all-time low`)
   if (input.vsAverage != null && input.vsAverage <= -1) bits.push(`${formatPct(Math.abs(input.vsAverage), 0)} under the average`)
   else if (input.vsAverage != null && input.vsAverage >= 1) bits.push(`${formatPct(input.vsAverage, 0)} over the average`)

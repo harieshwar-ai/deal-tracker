@@ -6,8 +6,8 @@ import type { ReactNode } from 'react'
 import { Button } from './button'
 
 const ease = [0.2, 0, 0, 1] as const
-const hidden = { opacity: 0, x: '-50%', y: 'calc(-50% + 8px)', scale: 0.98 }
-const visible = { opacity: 1, x: '-50%', y: '-50%', scale: 1 }
+const hidden = { opacity: 0 }
+const visible = { opacity: 1 }
 
 export function Modal({
   open,
@@ -51,7 +51,7 @@ export function Modal({
           </Dialog.Overlay>
           <Dialog.Content asChild forceMount>
             <motion.div
-              className="fixed top-1/2 left-1/2 z-50 max-h-[min(92vh,46rem)] w-[min(calc(100%-1.5rem),40rem)] overflow-y-auto rounded-xl border border-line bg-paper-2 p-5 shadow-xl focus:outline-none md:p-6"
+              className="fixed inset-0 z-50 m-auto h-fit max-h-[min(92vh,46rem)] w-[min(calc(100%-1.5rem),40rem)] overflow-y-auto rounded-xl border border-line bg-paper-2 p-5 shadow-xl focus:outline-none md:p-6"
               initial={reduce ? false : hidden}
               animate={open ? visible : hidden}
               transition={tween}
