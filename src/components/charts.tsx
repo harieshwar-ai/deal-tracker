@@ -18,7 +18,7 @@ import { palette } from '../domain/palette'
 import { useTheme } from '../theme/theme'
 import { accents, darkStorePalette, lightStorePalette, semantic } from '../theme/tokens'
 import type { StoreIndexSeries } from '../domain/analytics'
-import type { HistorySeries } from '../domain/history'
+import { truncateListingLabel, type HistorySeries } from '../domain/history'
 
 type ChartColors = { [Key in keyof typeof palette]: string } & {
   buy: string
@@ -141,9 +141,54 @@ function axisMoney(value: number): string {
   }).format(value)
 }
 
+function PriceHistoryTooltip({
+  active,
+  payload,
+  label,
+  listingBySeries,
+}: {
+  active?: boolean
+  payload?: Array<{ dataKey?: string | number; value?: number; color?: string; name?: string }>
+  label?: string | number
+  listingBySeries: Record<string, Record<string, string>>
+}) {
+  const look = chartLook(useChartColors())
+  if (!active || !payload?.length) return null
+  const dateKey = String(label ?? '')
+  const listings = listingBySeries[dateKey] ?? {}
+  return (
+    <div
+      className="max-w-xs rounded-xl border px-3 py-2 text-sm shadow-sm"
+      style={{ background: look.tooltip.background, border: look.tooltip.border, color: look.colors.ink, fontFamily: look.tooltip.fontFamily }}
+    >
+      <p className="mb-2 font-medium">{formatAxisDay(dateKey)}</p>
+      <ul className="grid gap-1.5">
+        {payload
+          .filter((entry) => entry.value != null && Number.isFinite(Number(entry.value)))
+          .sort((left, right) => Number(left.value) - Number(right.value))
+          .map((entry) => {
+            const seriesId = String(entry.dataKey ?? '')
+            const listing = listings[seriesId]
+            return (
+              <li key={seriesId} className="flex gap-2">
+                <span className="mt-1.5 size-2 shrink-0 rounded-full" style={{ background: entry.color }} aria-hidden />
+                <span>
+                  <span className="font-medium">{entry.name}</span>
+                  <span className="tabular-nums"> · {formatTooltip('money', entry.value)}</span>
+                  {listing ? <span className="mt-0.5 block text-xs text-muted">{truncateListingLabel(listing)}</span> : null}
+                </span>
+              </li>
+            )
+          })}
+      </ul>
+    </div>
+  )
+}
+
 export function PriceHistoryChart({
   rows,
   series,
+  listingBySeries,
   target,
   low,
   lowLabel = 'Lowest saved',
@@ -151,6 +196,7 @@ export function PriceHistoryChart({
 }: {
   rows: Record<string, string | number | null>[]
   series: HistorySeries[]
+  listingBySeries: Record<string, Record<string, string>>
   target: number | null
   low: number | null
   lowLabel?: string
@@ -159,38 +205,54 @@ export function PriceHistoryChart({
   const look = chartLook(useChartColors())
   const strokes = useStoreStrokes()
   return (
-    <div className="h-80 w-full">
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={rows} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-          <CartesianGrid {...look.grid} />
-          <XAxis dataKey="date" tickFormatter={formatAxisDay} {...look.dateAxis} />
-          <YAxis tickFormatter={axisMoney} width={72} tick={{ fill: look.colors.muted, fontSize: 12 }} domain={([min, max]) => zoomedDomain([min, max], [target, low])} />
-          <Tooltip contentStyle={look.tooltip} formatter={(value) => formatTooltip('money', value)} labelFormatter={(label) => formatAxisDay(String(label))} />
-          <Legend wrapperStyle={{ color: look.colors.ink, fontSize: 12 }} />
-          {low != null ? (
-            <ReferenceLine
-              y={low}
-              stroke={look.colors.buy}
-              strokeDasharray="2 4"
-              label={<ChartChip value={lowLabel ?? 'Lowest saved'} fill={look.colors.onBuy} background={look.colors.buy} />}
+    <div className="flex min-w-0 flex-col overflow-hidden">
+      <div className="h-72 w-full min-w-0 overflow-hidden sm:h-80">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={rows} margin={{ top: 28, right: 12, left: 0, bottom: 4 }}>
+            <CartesianGrid {...look.grid} />
+            <XAxis dataKey="date" tickFormatter={formatAxisDay} {...look.dateAxis} />
+            <YAxis tickFormatter={axisMoney} width={72} tick={{ fill: look.colors.muted, fontSize: 12 }} domain={([min, max]) => zoomedDomain([min, max], [target, low])} />
+            <Tooltip
+              cursor={{ stroke: look.colors.grid }}
+              content={<PriceHistoryTooltip listingBySeries={listingBySeries} />}
             />
-          ) : null}
-          {target != null ? <ReferenceLine y={target} stroke={look.colors.gold} strokeDasharray="4 4" label={{ value: 'Target', position: 'insideTopLeft', fill: look.colors.gold }} /> : null}
+            {low != null ? (
+              <ReferenceLine
+                y={low}
+                stroke={look.colors.buy}
+                strokeDasharray="2 4"
+                label={<ChartChip value={lowLabel ?? 'Lowest saved'} fill={look.colors.onBuy} background={look.colors.buy} />}
+              />
+            ) : null}
+            {target != null ? (
+              <ReferenceLine y={target} stroke={look.colors.gold} strokeDasharray="4 4" label={{ value: 'Target', position: 'insideTopLeft', fill: look.colors.gold }} />
+            ) : null}
+            {series.map((entry, index) => (
+              <Line
+                key={entry.id}
+                type={points ? 'linear' : 'monotone'}
+                dataKey={entry.id}
+                name={entry.name}
+                stroke={strokes[index % strokes.length] ?? entry.color}
+                strokeWidth={2}
+                dot={{ r: points ? 4 : 2 }}
+                connectNulls={points}
+                isAnimationActive={prefersMotion()}
+              />
+            ))}
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+      {series.length > 0 ? (
+        <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 px-0.5 text-xs text-muted" aria-label="Stores in chart">
           {series.map((entry, index) => (
-            <Line
-              key={entry.id}
-              type={points ? 'linear' : 'monotone'}
-              dataKey={entry.id}
-              name={entry.name}
-              stroke={strokes[index % strokes.length] ?? entry.color}
-              strokeWidth={2}
-              dot={{ r: points ? 4 : 2 }}
-              connectNulls={points}
-              isAnimationActive={prefersMotion()}
-            />
+            <li key={entry.id} className="inline-flex items-center gap-1.5">
+              <span className="size-2 rounded-full" style={{ background: strokes[index % strokes.length] ?? entry.color }} aria-hidden />
+              <span className="text-ink">{entry.name}</span>
+            </li>
           ))}
-        </LineChart>
-      </ResponsiveContainer>
+        </ul>
+      ) : null}
     </div>
   )
 }

@@ -1,8 +1,9 @@
 import { dayKey, isCadCurrency } from './format'
-import { assignProducts, parseOfferName } from './identity'
-import type { ProductAssignment } from './identity'
 import { seriesColor } from './palette'
 import type { PriceSnapshot, Store } from './types'
+
+export const HISTORY_TOP_STORES = 6
+export const HISTORY_OTHER_SERIES_ID = 'other'
 
 export interface HistorySeries {
   id: string
@@ -13,6 +14,8 @@ export interface HistorySeries {
 export interface PriceHistory {
   rows: Record<string, string | number | null>[]
   series: HistorySeries[]
+  /** Tooltip copy keyed by row date, then series id */
+  listingBySeries: Record<string, Record<string, string>>
 }
 
 export type HistoryChartState = 'empty' | 'points' | 'ready'
@@ -43,52 +46,84 @@ export function historyChartState(dayCount: number): HistoryChartState {
   return 'ready'
 }
 
+export function truncateListingLabel(text: string, max = 52): string {
+  const trimmed = text.trim()
+  if (trimmed.length <= max) return trimmed
+  return `${trimmed.slice(0, max - 1)}…`
+}
+
 export function buildPriceHistory(snapshots: PriceSnapshot[], stores: Store[]): PriceHistory {
   const relevant = snapshots.filter((snapshot) => isCadCurrency(snapshot.currency) && snapshot.in_stock !== false)
-  const assignments = assignProducts(relevant)
   const ordered = [...stores].sort((left, right) => left.name.localeCompare(right.name))
-  const ids = [...new Set(relevant.map((snapshot) => seriesId(snapshot, assignments.get(snapshot.id))))]
-  const newest = new Map<string, PriceSnapshot>()
+  const storeName = (storeId: string) =>
+    storeId === 'unknown' ? 'Unknown store' : (stores.find((store) => store.id === storeId)?.name ?? 'Unknown store')
+
+  const activity = new Map<string, number>()
   for (const snapshot of relevant) {
-    const id = seriesId(snapshot, assignments.get(snapshot.id))
-    const current = newest.get(id)
-    if (!current || snapshot.captured_at > current.captured_at || (snapshot.captured_at === current.captured_at && snapshot.id > current.id)) {
-      newest.set(id, snapshot)
-    }
+    const storeId = snapshot.store_id ?? 'unknown'
+    activity.set(storeId, (activity.get(storeId) ?? 0) + 1)
   }
+  const rankedStores = [...activity.entries()]
+    .sort((left, right) => right[1] - left[1] || storeName(left[0]).localeCompare(storeName(right[0])))
+    .map(([storeId]) => storeId)
+  const featuredStores = rankedStores.slice(0, HISTORY_TOP_STORES)
+  const featuredSet = new Set(featuredStores)
+  const hasOtherBucket = rankedStores.length > featuredStores.length
+
+  const seriesIds = [...featuredStores, ...(hasOtherBucket ? [HISTORY_OTHER_SERIES_ID] : [])]
   const days = [...new Set(relevant.map((snapshot) => dayKey(snapshot.captured_at)).filter(Boolean))].sort()
+  const listingBySeries: Record<string, Record<string, string>> = {}
+
   const rows = days.map((day) => {
     const row: Record<string, string | number | null> = { date: day }
-    for (const id of ids) row[id] = null
-    for (const snapshot of relevant) {
-      if (dayKey(snapshot.captured_at) !== day) continue
-      const id = seriesId(snapshot, assignments.get(snapshot.id))
-      const current = row[id]
-      if (typeof current !== 'number' || snapshot.price < current) row[id] = snapshot.price
+    const listings: Record<string, string> = {}
+    for (const id of seriesIds) row[id] = null
+
+    const daySnapshots = relevant.filter((snapshot) => dayKey(snapshot.captured_at) === day)
+    for (const storeId of featuredStores) {
+      const winners = daySnapshots.filter((snapshot) => (snapshot.store_id ?? 'unknown') === storeId)
+      const best = lowestSnapshot(winners)
+      if (best) {
+        row[storeId] = best.price
+        listings[storeId] = listingLabel(best, storeName(storeId))
+      }
     }
+
+    if (hasOtherBucket) {
+      const winners = daySnapshots.filter((snapshot) => !featuredSet.has(snapshot.store_id ?? 'unknown'))
+      const best = lowestSnapshot(winners)
+      if (best) {
+        row[HISTORY_OTHER_SERIES_ID] = best.price
+        listings[HISTORY_OTHER_SERIES_ID] = listingLabel(best, storeName(best.store_id ?? 'unknown'))
+      }
+    }
+
+    listingBySeries[day] = listings
     return row
   })
-  const series = ids.map((id, index) => {
-    const sample = newest.get(id)
-    const storeId = sample?.store_id ?? id.split('::')[0] ?? 'unknown'
-    const storeIndex = ordered.findIndex((store) => store.id === storeId)
-    const assignment = sample ? assignments.get(sample.id) : undefined
-    return { id, name: seriesName(storeId, sample, assignment, stores), color: seriesColor(storeIndex >= 0 ? storeIndex : index) }
+
+  const series = seriesIds.map((id, index) => {
+    if (id === HISTORY_OTHER_SERIES_ID) {
+      return { id, name: 'Other', color: seriesColor(ordered.length + index) }
+    }
+    const storeIndex = ordered.findIndex((store) => store.id === id)
+    return { id, name: storeName(id), color: seriesColor(storeIndex >= 0 ? storeIndex : index) }
   })
-  return { rows, series }
+
+  return { rows, series, listingBySeries }
 }
 
-function seriesId(snapshot: PriceSnapshot, assignment: ProductAssignment | undefined): string {
-  const storeId = snapshot.store_id ?? 'unknown'
-  const identity = parseOfferName(snapshot.product_name).identityKey
-  if (identity) return `${storeId}::${identity}`
-  if (!assignment || assignment.unnamed) return storeId
-  return `${storeId}::${assignment.productKey}`
+function lowestSnapshot(snapshots: PriceSnapshot[]): PriceSnapshot | null {
+  let best: PriceSnapshot | null = null
+  for (const snapshot of snapshots) {
+    if (!best || snapshot.price < best.price || (snapshot.price === best.price && snapshot.id > best.id)) {
+      best = snapshot
+    }
+  }
+  return best
 }
 
-function seriesName(storeId: string, snapshot: PriceSnapshot | undefined, assignment: ProductAssignment | undefined, stores: Store[]): string {
-  const name = storeId === 'unknown' ? 'Unknown store' : (stores.find((store) => store.id === storeId)?.name ?? 'Unknown store')
-  if (!assignment || assignment.unnamed) return name
-  const product = assignment.multiVariant ? assignment.displayName : snapshot?.product_name
-  return product ? `${name} · ${product}` : name
+function listingLabel(snapshot: PriceSnapshot, storeLabel: string): string {
+  const product = (snapshot.product_name || snapshot.product_title || '').trim()
+  return product ? `${storeLabel} · ${product}` : storeLabel
 }

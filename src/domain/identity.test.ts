@@ -222,7 +222,7 @@ describe('product identity', () => {
     const stealth = snap(1, 'Cybeart NEO (Stealth Edition)', { product_url: 'https://www.amazon.ca/dp/B0GFF1ZQGY', price: 429.99, captured_at: '2026-10-23T12:00:00.000Z' })
     const history = buildPriceHistory([lunar, stealth], [amazon])
     expect(history.series).toHaveLength(1)
-    expect(history.series[0]?.name).toBe('Amazon · Cybeart NEO')
+    expect(history.series[0]?.name).toBe('Amazon')
     expect(history.rows).toHaveLength(1)
     expect(Object.values(history.rows[0] ?? {}).filter((value) => value === 429.99)).toHaveLength(1)
 
