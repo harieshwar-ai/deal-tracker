@@ -58,6 +58,7 @@ export function ItemPage() {
   const [sort, setSort] = useState<SnapshotSort>('newest')
   const [storeFilter, setStoreFilter] = useState('all')
   const [chartOffers, setChartOffers] = useState<'qualifying' | 'all'>('qualifying')
+  const [historyView, setHistoryView] = useState<'chart' | 'table'>('chart')
   const [historyPage, setHistoryPage] = useState(1)
   const range = parseChartRange(params.get('range'))
 
@@ -289,139 +290,159 @@ export function ItemPage() {
         </div>
       </section>
 
-      <section className="mt-8 rounded-xl border border-line bg-paper-2 shadow-sm p-4 md:p-5">
+      <section className="mt-8 overflow-hidden rounded-xl border border-line bg-paper-2 shadow-sm p-4 md:p-5">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 className="font-display text-2xl">Price history</h2>
-            <p className="mt-1 text-sm text-muted">{canEdit ? 'Qualifying CAD prices. Green marks the lowest in-stock price. The gold dashed line is your target.' : 'Qualifying CAD prices. Green marks the lowest in-stock price.'}</p>
+            <p className="mt-1 text-sm text-muted">
+              {historyView === 'table'
+                ? catalog.detail === 'rollup'
+                  ? 'The chart is the daily low per store. This table is the latest offer for each listing, not every saved check.'
+                  : 'Every saved check for this item. The chart is the daily low per store.'
+                : canEdit
+                  ? 'Qualifying CAD prices by store. Green marks the lowest in-stock price. The gold dashed line is your target.'
+                  : 'Qualifying CAD prices by store. Green marks the lowest in-stock price.'}
+            </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Segmented
-              label="Chart range"
-              value={range}
-              onChange={(next) => setParams(writeParams(params, { range: next === '90d' ? null : next }), { replace: true })}
+              label="History view"
+              value={historyView}
+              onChange={setHistoryView}
               options={[
-                { value: '7d', label: '7 days' },
-                { value: '30d', label: '30 days' },
-                { value: '90d', label: '90 days' },
-                { value: 'all', label: 'All' },
+                { value: 'chart', label: 'Chart' },
+                { value: 'table', label: 'Table' },
               ]}
             />
-            <Segmented
-              label="Chart offers"
-              value={chartOffers}
-              onChange={setChartOffers}
-              options={[
-                { value: 'qualifying', label: 'Qualifying' },
-                { value: 'all', label: 'All offers' },
-              ]}
-            />
+            {historyView === 'chart' ? (
+              <>
+                <Segmented
+                  label="Chart range"
+                  value={range}
+                  onChange={(next) => setParams(writeParams(params, { range: next === '90d' ? null : next }), { replace: true })}
+                  options={[
+                    { value: '7d', label: '7 days' },
+                    { value: '30d', label: '30 days' },
+                    { value: '90d', label: '90 days' },
+                    { value: 'all', label: 'All' },
+                  ]}
+                />
+                <Segmented
+                  label="Chart offers"
+                  value={chartOffers}
+                  onChange={setChartOffers}
+                  options={[
+                    { value: 'qualifying', label: 'Qualifying' },
+                    { value: 'all', label: 'All offers' },
+                  ]}
+                />
+              </>
+            ) : null}
           </div>
         </div>
-        {historyChartState(history.rows.length) === 'empty' ? (
-          <div className="mt-4">
-            <EmptyState title={chartOffers === 'all' ? 'No prices yet' : 'No qualifying offer yet'} body={chartOffers === 'all' ? 'Once the daily check records a snapshot, the chart and the table below will fill in.' : 'Prices that are unverified or do not meet the specs stay off this chart until you choose all offers.'} />
-          </div>
+        {historyView === 'chart' ? (
+          historyChartState(history.rows.length) === 'empty' ? (
+            <div className="mt-4">
+              <EmptyState title={chartOffers === 'all' ? 'No prices yet' : 'No qualifying offer yet'} body={chartOffers === 'all' ? 'Once the daily check records a snapshot, the chart and table will fill in.' : 'Prices that are unverified or do not meet the specs stay off this chart until you choose all offers.'} />
+            </div>
+          ) : (
+            <div className="mt-4 min-w-0 overflow-hidden">
+              {historyChartState(history.rows.length) === 'points' ? (
+                <p className="mb-3 text-sm leading-6 text-muted">Fewer than five days are saved. Each dot is a price, and each line follows one store.</p>
+              ) : null}
+              <PriceHistoryChart
+                rows={history.rows}
+                series={history.series}
+                listingBySeries={history.listingBySeries}
+                target={canEdit ? item.target_price : null}
+                low={chartLow}
+                lowLabel={brief.historyDays >= atlHistoryDays ? 'All-time low' : 'Lowest saved'}
+                points={historyChartState(history.rows.length) === 'points'}
+              />
+            </div>
+          )
         ) : (
           <div className="mt-4">
-            {historyChartState(history.rows.length) === 'points' ? (
-              <p className="mb-3 text-sm leading-6 text-muted">Fewer than five days are saved. Each dot is a price, and each line follows one product at one store.</p>
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <h3 className="text-sm font-medium text-muted">Saved checks</h3>
+              <div className="flex flex-wrap gap-2">
+                <Select
+                  label="Filter snapshots by store"
+                  value={storeFilter}
+                  onValueChange={setStoreFilter}
+                  options={[{ value: 'all', label: 'All stores' }, ...catalog.stores.map((store) => ({ value: store.id, label: store.name }))]}
+                />
+                <Select
+                  label="Sort snapshots"
+                  value={sort}
+                  onValueChange={(value) => setSort(parseSnapshotSort(value))}
+                  options={[
+                    { value: 'newest', label: 'Newest' },
+                    { value: 'price', label: 'Lowest price' },
+                    { value: 'store', label: 'Store' },
+                  ]}
+                />
+              </div>
+            </div>
+            {ordered.length === 0 ? (
+              <p className="mt-4 text-sm text-muted">No snapshots for this filter.</p>
+            ) : (
+              <div className="mt-4 max-h-[32rem] overflow-auto rounded-xl border border-line shadow-sm">
+                <table className="w-full min-w-[44rem] text-left text-sm">
+                  <caption className="sr-only">Price snapshots for {item.name}</caption>
+                  <thead className="sticky top-0 bg-paper text-muted">
+                    <tr>
+                      <th className="px-4 py-3 font-medium">When</th>
+                      <th className="px-4 py-3 font-medium">Store</th>
+                      <th className="px-4 py-3 font-medium">Product</th>
+                      <th className="px-4 py-3 font-medium">Price</th>
+                      <th className="px-4 py-3 font-medium">Regular</th>
+                      <th className="px-4 py-3 font-medium">Stock</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-paper-2">
+                    {historyRows.map((snapshot) => {
+                      const href = safeHttpUrl(snapshot.product_url)
+                      const storeName = catalog.stores.find((store) => store.id === snapshot.store_id)?.name ?? 'Unknown store'
+                      const discount = discountPercent(snapshot.price, snapshot.regular_price)
+                      return (
+                        <tr key={snapshot.id} className="border-t border-line">
+                          <td className="px-4 py-3 whitespace-nowrap">{formatDay(snapshot.captured_at)}</td>
+                          <td className="px-4 py-3">{storeName}</td>
+                          <td className="px-4 py-3">
+                            {href ? <a className="underline" href={href} target="_blank" rel="noopener noreferrer">{snapshot.product_name || snapshot.product_title || 'Listing'}</a> : (snapshot.product_name || snapshot.product_title || '—')}
+                            {snapshot.meets_requirements === false ? <span className="mt-1 block text-xs text-muted">Doesn't meet specs</span> : null}
+                            {snapshot.meets_requirements == null ? <span className="mt-1 block text-xs text-muted">Unverified</span> : null}
+                          </td>
+                          <td className="px-4 py-3 tabular-nums">
+                            {formatMoney(snapshot.price, { currency: snapshot.currency, locale: profile.locale })}
+                            {discount != null && discount > 0 ? <span className="text-drop"> {discount.toFixed(0)}%</span> : null}
+                          </td>
+                          <td className="px-4 py-3 tabular-nums text-muted">
+                            {snapshot.regular_price != null
+                              ? formatMoney(snapshot.regular_price, { currency: snapshot.currency, locale: profile.locale })
+                              : '—'}
+                          </td>
+                          <td className="px-4 py-3">{snapshot.in_stock == null ? '—' : snapshot.in_stock ? 'In stock' : 'Out of stock'}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {historyPages > 1 ? (
+              <div className="mt-3 flex items-center justify-between text-sm text-muted">
+                <p>Page {historySafe} of {historyPages}</p>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="secondary" disabled={historySafe <= 1} onClick={() => setHistoryPage(historySafe - 1)}>Previous</Button>
+                  <Button size="sm" variant="secondary" disabled={historySafe >= historyPages} onClick={() => setHistoryPage(historySafe + 1)}>Next</Button>
+                </div>
+              </div>
             ) : null}
-            <PriceHistoryChart rows={history.rows} series={history.series} target={canEdit ? item.target_price : null} low={chartLow} lowLabel={brief.historyDays >= atlHistoryDays ? 'All-time low' : 'Lowest saved'} points={historyChartState(history.rows.length) === 'points'} />
           </div>
         )}
       </section>
-
-      <details className="mt-8 rounded-xl border border-line bg-paper-2 shadow-sm">
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-4 font-display text-2xl md:px-5 [&::-webkit-details-marker]:hidden">
-          Price history
-          <span className="text-sm font-sans font-medium text-muted">Table</span>
-        </summary>
-        <div className="px-4 pb-4 md:px-5">
-        <p className="text-sm text-muted">
-          {catalog.detail === 'rollup'
-            ? 'The chart above is the daily low. This table is the latest offer for each listing, not every saved check.'
-            : 'Every saved check for this item. The chart above is the summary.'}
-        </p>
-        <div className="mt-3 flex flex-wrap items-end justify-between gap-3">
-          <h2 className="text-sm font-medium text-muted">Saved checks</h2>
-          <div className="flex flex-wrap gap-2">
-            <Select
-              label="Filter snapshots by store"
-              value={storeFilter}
-              onValueChange={setStoreFilter}
-              options={[{ value: 'all', label: 'All stores' }, ...catalog.stores.map((store) => ({ value: store.id, label: store.name }))]}
-            />
-            <Select
-              label="Sort snapshots"
-              value={sort}
-              onValueChange={(value) => setSort(parseSnapshotSort(value))}
-              options={[
-                { value: 'newest', label: 'Newest' },
-                { value: 'price', label: 'Lowest price' },
-                { value: 'store', label: 'Store' },
-              ]}
-            />
-          </div>
-        </div>
-        {ordered.length === 0 ? (
-          <p className="mt-4 text-sm text-muted">No snapshots for this filter.</p>
-        ) : (
-          <div className="mt-4 max-h-[32rem] overflow-auto rounded-xl border border-line shadow-sm">
-            <table className="w-full min-w-[44rem] text-left text-sm">
-              <caption className="sr-only">Price snapshots for {item.name}</caption>
-              <thead className="sticky top-0 bg-paper text-muted">
-                <tr>
-                  <th className="px-4 py-3 font-medium">When</th>
-                  <th className="px-4 py-3 font-medium">Store</th>
-                  <th className="px-4 py-3 font-medium">Product</th>
-                  <th className="px-4 py-3 font-medium">Price</th>
-                  <th className="px-4 py-3 font-medium">Regular</th>
-                  <th className="px-4 py-3 font-medium">Stock</th>
-                </tr>
-              </thead>
-              <tbody className="bg-paper-2">
-                {historyRows.map((snapshot) => {
-                  const href = safeHttpUrl(snapshot.product_url)
-                  const storeName = catalog.stores.find((store) => store.id === snapshot.store_id)?.name ?? 'Unknown store'
-                  const discount = discountPercent(snapshot.price, snapshot.regular_price)
-                  return (
-                    <tr key={snapshot.id} className="border-t border-line">
-                      <td className="px-4 py-3 whitespace-nowrap">{formatDay(snapshot.captured_at)}</td>
-                      <td className="px-4 py-3">{storeName}</td>
-                      <td className="px-4 py-3">
-                        {href ? <a className="underline" href={href} target="_blank" rel="noopener noreferrer">{snapshot.product_name || snapshot.product_title || 'Listing'}</a> : (snapshot.product_name || snapshot.product_title || '—')}
-                        {snapshot.meets_requirements === false ? <span className="mt-1 block text-xs text-muted">Doesn't meet specs</span> : null}
-                        {snapshot.meets_requirements == null ? <span className="mt-1 block text-xs text-muted">Unverified</span> : null}
-                      </td>
-                      <td className="px-4 py-3 tabular-nums">
-                        {formatMoney(snapshot.price, { currency: snapshot.currency, locale: profile.locale })}
-                        {discount != null && discount > 0 ? <span className="text-drop"> {discount.toFixed(0)}%</span> : null}
-                      </td>
-                      <td className="px-4 py-3 tabular-nums text-muted">
-                        {snapshot.regular_price != null
-                          ? formatMoney(snapshot.regular_price, { currency: snapshot.currency, locale: profile.locale })
-                          : '—'}
-                      </td>
-                      <td className="px-4 py-3">{snapshot.in_stock == null ? '—' : snapshot.in_stock ? 'In stock' : 'Out of stock'}</td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-        {historyPages > 1 ? (
-          <div className="mt-3 flex items-center justify-between text-sm text-muted">
-            <p>Page {historySafe} of {historyPages}</p>
-            <div className="flex gap-2">
-              <Button size="sm" variant="secondary" disabled={historySafe <= 1} onClick={() => setHistoryPage(historySafe - 1)}>Previous</Button>
-              <Button size="sm" variant="secondary" disabled={historySafe >= historyPages} onClick={() => setHistoryPage(historySafe + 1)}>Next</Button>
-            </div>
-          </div>
-        ) : null}
-        </div>
-      </details>
 
       {deals.length > 0 ? (
         <section className="mt-8">
